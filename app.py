@@ -158,27 +158,27 @@ st.markdown(f"""
 
   /* ─── 主标题卡片 ─── */
   .mcd-header {{
-    background: {MCD_GOLD};
+    background: {MCD_RED};
     border-radius: 16px;
     padding: 28px 36px;
-    color: #000000;
+    color: #FFFFFF;
     margin-bottom: 24px;
-    border-left: 6px solid rgba(0,0,0,0.1);
-    box-shadow: 0 4px 20px rgba(255,188,13, 0.4);
+    border-left: 6px solid {MCD_GOLD};
+    box-shadow: 0 4px 20px rgba(228,0,4, 0.35);
   }}
   .mcd-header h1 {{
     font-size: 22px;
     font-weight: 900;
     margin: 0 0 6px 0;
     letter-spacing: -0.02em;
-    color: #000000;
+    color: #FFFFFF;
   }}
   .mcd-header p {{
     font-size: 13px;
-    opacity: 0.7;
+    opacity: 0.9;
     margin: 0;
     font-weight: 500;
-    color: #000000;
+    color: #FFFFFF;
   }}
 
   /* ─── 排名徽章 ─── */
