@@ -45,8 +45,8 @@ st.markdown(f"""
   [data-testid="stSidebar"] {{
     background: {MCD_GOLD} !important;
     border-right: 3px solid rgba(0,0,0,0.08);
-    min-width: 220px !important;
-    max-width: 220px !important;
+    min-width: 240px !important;
+    max-width: 240px !important;
   }}
 
   [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
@@ -348,7 +348,7 @@ st.markdown(f"""
 st.markdown(f"""
 <div class="mcd-header">
   <h1>🏆 麦当劳内容排行榜</h1>
-  <p>上传原始 CSV → 自动运行数据清洗 → 生成综合评分排行榜</p>
+  <p style="color:#FFFFFF;">上传原始 CSV → 自动运行数据清洗 → 生成综合评分排行榜</p>
 </div>
 """, unsafe_allow_html=True)
 
