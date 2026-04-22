@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-app.py - 麦当劳内容排行榜 v3（一比一复刻 Ori 的数据清洗脚本）
+app.py - 麦当劳内容排行榜
 功能：上传原始 CSV（含 JSON 列）→ 自动运行清洗逻辑 → 直接出排行榜
 使用方法: streamlit run app.py
 """
@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from io import BytesIO
 
 st.set_page_config(
-    page_title="麦当劳内容排行榜",
+    page_title="麦当劳推送内容排行榜",
     page_icon="🏆",
     layout="wide"
 )
@@ -80,13 +80,13 @@ st.markdown(f"""
 # ─── Header ───────────────────────────────────────────────────
 st.markdown(f"""
 <div class="mcd-header">
-  <h1>🏆 麦当劳内容排行榜</h1>
-  <p>上传原始 CSV → 自动运行数据清洗 → 生成综合评分排行榜</p>
+  <h1>🏆 麦当劳推送内容排行榜</h1>
+  <p>上传原始 CSV → 自动清洗 → 生成排行榜</p>
 </div>
 """, unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════════
-# 一比一复刻 Ori 的数据清洗脚本（核心逻辑，原封不动）
+# 一比一复刻 Ori 的数据清洗脚本
 # ═══════════════════════════════════════════════════════════════
 
 def extract_title_from_forms(forms):
@@ -232,7 +232,7 @@ if uploaded:
                 df = clean_raw_csv(uploaded)
                 col_count_before = df.shape[1] + 1  # +1 因为去掉了 JSON 列，加了 2 个新列
                 st.markdown(
-                    f'<div class="clean-status">✅ 清洗完成！去掉了 JSON 列，新增「标题」和「内容」列，'
+                    f'<div class="clean-status">清洗完成！去掉了 JSON 列，新增「标题」和「内容」列，'
                     f'最终 {df.shape[1]} 列，{df.shape[0]} 行。</div>',
                     unsafe_allow_html=True
                 )
@@ -308,7 +308,7 @@ if uploaded:
         selected_owner = st.selectbox("预算 Owner", owners)
 
         # 关键词搜索
-        keyword = st.text_input("🔍 搜索标题/内容关键词", "")
+        keyword = st.text_input("搜索标题/内容关键词", "")
 
         # 权重调整
         st.markdown("---")
@@ -377,7 +377,7 @@ if uploaded:
     col4.metric("平均 CTR", f"{avg_ctr:.2f}%")
 
     # ─── Tab 切换 ─────────────────────────────────────────────
-    tab1, tab2, tab3 = st.tabs(["🏆 卡片排行榜", "📋 数据表格", "📈 可视化图表"])
+    tab1, tab2, tab3 = st.tabs(["🏆 排行榜", "📋 数据表格", "📈 可视化图表"])
 
     with tab1:
         if total_rows == 0:
@@ -497,7 +497,7 @@ if uploaded:
         )
         csv_out = dff[available].to_csv(index=False, encoding="utf-8-sig")
         st.download_button(
-            "📥 下载排行榜 CSV",
+            "下载CSV",
             csv_out,
             "麦当劳内容排行榜.csv",
             "text/csv",
@@ -540,11 +540,11 @@ if uploaded:
 
             c1, c2 = st.columns(2)
             with c1:
-                st.markdown('<div class="section-title">📊 触达量 Top 5</div>', unsafe_allow_html=True)
+                st.markdown('<div class="section-title">触达量 Top 5</div>', unsafe_allow_html=True)
                 top_reach = dff.nlargest(5, "触达成功")[["排名", title_col, "触达成功", "CTR", "综合评分"]]
                 st.dataframe(top_reach, hide_index=True, use_container_width=True)
             with c2:
-                st.markdown('<div class="section-title">💰 订单Sales Top 5</div>', unsafe_allow_html=True)
+                st.markdown('<div class="section-title">订单Sales Top 5</div>', unsafe_allow_html=True)
                 top_sales = dff.nlargest(5, "订单Sales")[["排名", title_col, "订单Sales", "单均价", "综合评分"]]
                 st.dataframe(top_sales, hide_index=True, use_container_width=True)
 
