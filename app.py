@@ -38,20 +38,20 @@ st.markdown(f"""
 
   /* ─── Streamlit 顶部导航条 ─── */
   .st-emotion-cache-1kyxreq {{
-    background: {MCD_RED} !important;
+    background: {MCD_GOLD} !important;
   }}
 
-  /* ─── 侧边栏：麦当劳红主题 ─── */
+  /* ─── 侧边栏：金色主题 ─── */
   [data-testid="stSidebar"] {{
-    background: {MCD_RED} !important;
-    border-right: 3px solid {MCD_GOLD};
+    background: {MCD_GOLD} !important;
+    border-right: 3px solid rgba(0,0,0,0.08);
   }}
 
   [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
   [data-testid="stSidebar"] label,
   [data-testid="stSidebar"] span,
   [data-testid="stSidebar"] p {{
-    color: #FFFFFF !important;
+    color: #000000 !important;
     font-family: 'Inter', 'PingFang SC', sans-serif !important;
   }}
 
@@ -60,8 +60,8 @@ st.markdown(f"""
   [data-testid="stSidebar"] .stTextInput label,
   [data-testid="stSidebar"] .stDateInput label,
   [data-testid="stSidebar"] .stSlider label {{
-    color: {MCD_GOLD} !important;
-    font-weight: 600;
+    color: #000000 !important;
+    font-weight: 700;
     font-size: 12px;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -69,7 +69,7 @@ st.markdown(f"""
   }}
 
   [data-testid="stSidebar"] hr {{
-    border-color: rgba(255,255,255,0.2) !important;
+    border-color: rgba(0,0,0,0.15) !important;
     margin: 12px 0;
   }}
 
@@ -78,29 +78,29 @@ st.markdown(f"""
   }}
 
   [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] {{
-    background: rgba(255,255,255,0.2) !important;
+    background: rgba(0,0,0,0.15) !important;
   }}
 
   [data-testid="stSidebar"] .stSelectbox > div > div,
   [data-testid="stSidebar"] .stTextInput > div > div,
   [data-testid="stSidebar"] .stDateInput > div > div {{
-    background: rgba(255,255,255,0.15) !important;
-    border: 1px solid rgba(255,255,255,0.25) !important;
+    background: rgba(255,255,255,0.6) !important;
+    border: 1px solid rgba(0,0,0,0.12) !important;
     border-radius: 10px !important;
-    color: #FFFFFF !important;
+    color: #000000 !important;
   }}
 
   [data-testid="stSidebar"] [data-baseweb="select"] span {{
-    color: #FFFFFF !important;
+    color: #000000 !important;
   }}
 
   [data-testid="stSidebar"] [data-baseweb="input"] {{
-    color: #FFFFFF !important;
+    color: #000000 !important;
   }}
 
   [data-testid="stSidebar"] .stDownloadButton > button {{
-    background: {MCD_GOLD} !important;
-    color: {MCD_RED} !important;
+    background: {MCD_RED} !important;
+    color: #FFFFFF !important;
     font-weight: 700;
     border: none !important;
     border-radius: 10px !important;
@@ -120,10 +120,11 @@ st.markdown(f"""
     font-weight: 900 !important;
     color: {MCD_RED} !important;
     font-family: 'Inter', sans-serif !important;
+    letter-spacing: -0.02em;
   }}
   div[data-testid="stMetricLabel"] {{
     font-size: 11px !important;
-    color: #888 !important;
+    color: #666 !important;
     font-weight: 500;
     letter-spacing: 0.03em;
     text-transform: uppercase;
@@ -135,7 +136,7 @@ st.markdown(f"""
   /* ─── Tab 栏 ─── */
   .stTabs [data-baseweb="tab-list"] {{
     gap: 4px;
-    border-bottom: 2px solid #F0F0F0;
+    border-bottom: 2px solid #EFEFEF;
   }}
   .stTabs [data-baseweb="tab"] {{
     color: #888 !important;
@@ -148,7 +149,6 @@ st.markdown(f"""
   }}
   .stTabs [data-baseweb="tab"]:hover {{
     color: {MCD_RED} !important;
-    background: rgba({MCD_RED.replace('#','')}, 0.06);
   }}
   .stTabs [aria-selected="true"] {{
     color: {MCD_RED} !important;
@@ -158,25 +158,27 @@ st.markdown(f"""
 
   /* ─── 主标题卡片 ─── */
   .mcd-header {{
-    background: {MCD_RED};
+    background: {MCD_GOLD};
     border-radius: 16px;
     padding: 28px 36px;
-    color: #fff;
+    color: #000000;
     margin-bottom: 24px;
-    border-left: 6px solid {MCD_GOLD};
-    box-shadow: 0 4px 20px rgba(228,0,4, 0.3);
+    border-left: 6px solid rgba(0,0,0,0.1);
+    box-shadow: 0 4px 20px rgba(255,188,13, 0.4);
   }}
   .mcd-header h1 {{
     font-size: 22px;
     font-weight: 900;
     margin: 0 0 6px 0;
     letter-spacing: -0.02em;
+    color: #000000;
   }}
   .mcd-header p {{
     font-size: 13px;
-    opacity: 0.8;
+    opacity: 0.7;
     margin: 0;
-    font-weight: 400;
+    font-weight: 500;
+    color: #000000;
   }}
 
   /* ─── 排名徽章 ─── */
@@ -277,7 +279,7 @@ st.markdown(f"""
     color: #1a1a1a;
     margin: 28px 0 14px 0;
     padding-bottom: 8px;
-    border-bottom: 2px solid {MCD_GOLD};
+    border-bottom: 2px solid {MCD_RED};
     letter-spacing: -0.01em;
   }}
 
@@ -308,7 +310,7 @@ st.markdown(f"""
     padding: 10px 16px;
     margin-bottom: 20px;
     font-size: 13px;
-    color: #5A3A00;
+    color: #000000;
     font-weight: 500;
   }}
 
