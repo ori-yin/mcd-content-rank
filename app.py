@@ -20,8 +20,8 @@ st.set_page_config(
 )
 
 # ─── 品牌色 ─────────────────────────────────────────────────────
-MCD_RED = "#DA291C"
-MCD_GOLD = "#FFC72C"
+MCD_RED = "#E40004"
+MCD_GOLD = "#FFBC0D"
 MCD_GREEN = "#00A04A"
 MCD_BG = "#FAFAFA"
 
@@ -164,7 +164,7 @@ st.markdown(f"""
     color: #fff;
     margin-bottom: 24px;
     border-left: 6px solid {MCD_GOLD};
-    box-shadow: 0 4px 20px rgba({MCD_RED.replace('#','')}, 0.3);
+    box-shadow: 0 4px 20px rgba(228,0,4, 0.3);
   }}
   .mcd-header h1 {{
     font-size: 22px;
@@ -193,7 +193,7 @@ st.markdown(f"""
     background: {MCD_GOLD};
     color: {MCD_RED};
     border-color: rgba(255,255,255,0.5);
-    box-shadow: 0 2px 8px rgba(255,199,44,0.5);
+    box-shadow: 0 2px 8px rgba(255,188,13,0.5);
   }}
   .rank-2 {{
     background: #E8E8E8;
@@ -201,9 +201,9 @@ st.markdown(f"""
     border-color: rgba(0,0,0,0.08);
   }}
   .rank-3 {{
-    background: #D4A96A;
-    color: #fff;
-    border-color: rgba(255,255,255,0.3);
+    background: #FFBC0D;
+    color: #000;
+    border-color: rgba(0,0,0,0.1);
   }}
   .rank-other {{
     background: #F2F2F2;
@@ -222,7 +222,7 @@ st.markdown(f"""
     transition: box-shadow 0.15s ease, transform 0.15s ease;
   }}
   .content-card:hover {{
-    box-shadow: 0 4px 20px rgba({MCD_RED.replace('#','')}, 0.12);
+    box-shadow: 0 4px 20px rgba(228,0,4, 0.12);
     transform: translateY(-1px);
   }}
   .card-title {{
@@ -291,7 +291,7 @@ st.markdown(f"""
     border: none !important;
     padding: 10px 12px !important;
   }}
-  .stDataFrame tbody tr:hover {{ background: rgba({MCD_RED.replace('#','')}, 0.04) !important; }}
+  .stDataFrame tbody tr:hover {{ background: rgba(228,0,4, 0.04) !important; }}
   .stDataFrame tbody td {{
     font-size: 13px !important;
     color: #333 !important;
@@ -308,7 +308,7 @@ st.markdown(f"""
     padding: 10px 16px;
     margin-bottom: 20px;
     font-size: 13px;
-    color: #8B5E00;
+    color: #5A3A00;
     font-weight: 500;
   }}
 
@@ -324,7 +324,7 @@ st.markdown(f"""
     transition: background 0.15s ease;
   }}
   .stDownloadButton > button:hover {{
-    background: #B71C1C !important;
+    background: #B80000 !important;
   }}
 
   /* ─── 副文本 / 说明文字 ─── */
