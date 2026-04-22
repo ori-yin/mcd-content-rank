@@ -109,6 +109,7 @@ COLUMN_ALIASES = {
     "渠道":        "channel",
     "Plan Name":  "title",
     "标题":        "title",
+    "消息标题":     "msg_title",
     "内容":        "body",
     "预算owner":   "owner",
     "Plan ID":    "plan_id",
@@ -121,19 +122,22 @@ COLUMN_ALIASES = {
 # 对应特定中文，实际通过列索引做兜底映射）
 # 实际业务 CSV 列顺序固定，按位置兜底映射：
 POSITION_MAP = {
-    0: "send_date",   # 发送日期
+    0: "send_date",    # 发送日期
     1: "plan_type",   # 计划类型
     2: "channel",     # 渠道
     3: "plan_id",     # Plan ID
-    4: "title",       # Plan Name / 标题
+    4: "plan_name",   # Plan名称
     5: "owner",       # 预算owner
-    6: "_active",     # 是否活跃（不参与计算）
-    7: "_budget_r",   # 预算触达（不参与计算）
+    6: "is_coupon",   # 是否用券（不参与计算）
+    7: "budget_reach",# 预计触达（不参与计算）
     8: "reach",       # 触达成功
-    9: "clicks",      # 点击次数
-    10: "_new_r",     # 新增用户触达（不参与计算）
+    9: "clicks",      # 点击人次
+    10: "click_orders",# 点击后下单人次（不参与计算）
     11: "orders",     # 订单GC
     12: "sales",      # 订单Sales
+    13: "msg_title",  # 消息标题
+    14: "title",      # 标题
+    15: "body",       # 内容
 }
 
 
