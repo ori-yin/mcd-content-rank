@@ -1,15 +1,17 @@
 # -*- coding: utf-8 -*-
 """
-app.py - 麦当劳内容排行榜 v2（第一版增强版）
-增强：日期筛选、预算Owner筛选、全渠道支持
-基于用户发来的第一版 app.py 修改
+app.py - 麦当劳内容排行榜 v3（一比一复刻 Ori 的数据清洗脚本）
+功能：上传原始 CSV（含 JSON 列）→ 自动运行清洗逻辑 → 直接出排行榜
 使用方法: streamlit run app.py
 """
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import json
+import re
 from datetime import datetime, timedelta
+from io import BytesIO
 
 st.set_page_config(
     page_title="麦当劳内容排行榜",
@@ -45,7 +47,6 @@ st.markdown(f"""
   .rank-2 {{ background: #C0C0C0; color: #555; }}
   .rank-3 {{ background: #CD7F32; color: #fff; }}
   .rank-other {{ background: #EEE; color: #888; }}
-  .score-high {{ color: {MCD_RED}; font-weight: 900; }}
   .content-card {{
     background: #FFF; border: 1px solid #EEE;
     border-radius: 12px; padding: 16px 20px; margin-bottom: 12px;
@@ -68,8 +69,11 @@ st.markdown(f"""
   }}
   div[data-testid="stMetricValue"] {{ font-size: 20px !important; font-weight: 900 !important; color: {MCD_RED} !important; }}
   div[data-testid="stMetricLabel"] {{ font-size: 11px !important; color: #888 !important; }}
-  .stDataFrame thead th {{ background: {MCD_RED} !important; color: #fff !important; font-size: 12px !important; }}
-  .stDataFrame tbody tr:hover {{ background: #FFF5F5 !important; }}
+  .clean-status {{
+    background: #E8F5E9; border: 1px solid {MCD_GREEN};
+    border-radius: 8px; padding: 10px 16px; margin-bottom: 16px;
+    font-size: 13px; color: #2E7D32;
+  }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -77,28 +81,175 @@ st.markdown(f"""
 st.markdown(f"""
 <div class="mcd-header">
   <h1>🏆 麦当劳内容排行榜</h1>
-  <p>上传内容数据 CSV → 自动计算综合评分 → 生成可视化排行榜</p>
+  <p>上传原始 CSV → 自动运行数据清洗 → 生成综合评分排行榜</p>
 </div>
 """, unsafe_allow_html=True)
 
-# ─── 文件上传 ─────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════
+# 一比一复刻 Ori 的数据清洗脚本（核心逻辑，原封不动）
+# ═══════════════════════════════════════════════════════════════
+
+def extract_title_from_forms(forms):
+    """从 forms 列表中提取标题"""
+    if not isinstance(forms, list):
+        return None
+    for item in forms:
+        if item.get('code') == 'thing1' and item.get('value'):
+            return item['value']
+    for item in forms:
+        code = item.get('code', '')
+        value = item.get('value')
+        if code.startswith('thing') and value:
+            return value
+    for item in forms:
+        code = item.get('code', '')
+        value = item.get('value')
+        if not code.startswith('time') and value:
+            return value
+    return None
+
+
+def extract_text_from_forms(forms):
+    """从 forms 列表中提取正文"""
+    if not isinstance(forms, list):
+        return None
+    for item in forms:
+        code = item.get('code', '')
+        value = item.get('value')
+        if code in ['thing5', 'short_thing5'] and value:
+            return value
+    for item in forms:
+        code = item.get('code', '')
+        value = item.get('value')
+        if code.startswith('thing') and code != 'thing1' and value:
+            return value
+    return None
+
+
+def parse_message(raw):
+    """将原始 JSON 消息解析为标题和正文"""
+    if pd.isna(raw) or not isinstance(raw, str):
+        return pd.Series({'标题': '', '内容': ''})
+
+    try:
+        data = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return pd.Series({'标题': '', '内容': ''})
+
+    title = data.get('title')
+    if not title:
+        title = extract_title_from_forms(data.get('forms'))
+    if not title:
+        attachments = data.get('attachments')
+        if isinstance(attachments, list) and len(attachments) > 0:
+            title = attachments[0].get('name', '')
+
+    text = data.get('text')
+    if not text:
+        text = extract_text_from_forms(data.get('forms'))
+
+    if not title and text:
+        first_part = re.split(r'[。！？\n]', str(text).strip())[0].strip()
+        if len(first_part) > 0:
+            title = first_part
+        else:
+            title = str(text)[:20]
+
+    title = str(title).strip() if title else ''
+    text = str(text).strip() if text else ''
+
+    # 清洗特殊字符
+    title = title.replace('?', '').replace('\r\n', '').replace('\n', '').replace('\r', '')
+    text = text.replace('?', '').replace('\r\n', '').replace('\n', '').replace('\r', '')
+
+    return pd.Series({'标题': title, '内容': text})
+
+
+def clean_raw_csv(uploaded_file) -> pd.DataFrame:
+    """
+    一比一复刻清洗逻辑：
+    1. 尝试多种编码读取原始 CSV
+    2. 检查是否有至少 15 列
+    3. 读取第 O 列（索引 14，即第 15 列）
+    4. 解析 JSON，提取标题和内容
+    5. 合并回原 DataFrame，删除原始 JSON 列
+    """
+    bytes_data = uploaded_file.read()
+
+    # 尝试多种编码（原脚本逻辑）
+    encodings = ['utf-8', 'gbk', 'gb2312', 'latin1']
+    df = None
+    for enc in encodings:
+        try:
+            df = pd.read_csv(BytesIO(bytes_data), encoding=enc, on_bad_lines='skip')
+            break
+        except Exception:
+            continue
+
+    if df is None:
+        raise ValueError("无法读取 CSV 文件，请检查文件格式")
+
+    # 检查是否有至少 15 列（原脚本逻辑）
+    if df.shape[1] < 15:
+        raise ValueError(f"CSV 只有 {df.shape[1]} 列，第 15 列（O列）不存在")
+
+    # 读取第 O 列（索引 14，原脚本逻辑）
+    o_col = df.iloc[:, 14]
+
+    # 执行解析（原脚本逻辑）
+    parsed_df = o_col.apply(parse_message)
+
+    # 合并回原 DataFrame，删除原始 JSON 列（原脚本逻辑）
+    df['标题'] = parsed_df['标题']
+    df['内容'] = parsed_df['内容']
+    df = df.drop(df.columns[14], axis=1)
+
+    return df
+
+# ═══════════════════════════════════════════════════════════════
+# App 主逻辑
+# ═══════════════════════════════════════════════════════════════
+
+# ─── 文件上传 + 清洗模式选择 ────────────────────────────────────
+mode = st.radio(
+    "📂 数据类型",
+    ["原始 CSV（含 JSON 列，需清洗）", "已清洗 CSV（直接使用）"],
+    horizontal=True,
+    help="原始 CSV：上传运行清洗脚本之前的文件；已清洗 CSV：运行完脚本后的文件"
+)
+
 uploaded = st.file_uploader(
-    "📤 上传内容数据 CSV 文件",
+    "📤 上传 CSV 文件",
     type=["csv"],
-    help="支持 UTF-8 或 GBK 编码的 CSV 文件"
+    help="支持 UTF-8、GBK、GB2312、Latin1 编码"
 )
 
 if uploaded:
-    # ─── 读取 CSV（第一版方式，直接传 uploaded_file）────────────
-    try:
-        df = pd.read_csv(uploaded, encoding="gbk")
-    except Exception:
+    # ─── 读取数据 ───────────────────────────────────────────────
+    if mode == "原始 CSV（含 JSON 列，需清洗）":
+        with st.spinner("正在运行数据清洗脚本..."):
+            try:
+                df = clean_raw_csv(uploaded)
+                col_count_before = df.shape[1] + 1  # +1 因为去掉了 JSON 列，加了 2 个新列
+                st.markdown(
+                    f'<div class="clean-status">✅ 清洗完成！去掉了 JSON 列，新增「标题」和「内容」列，'
+                    f'最终 {df.shape[1]} 列，{df.shape[0]} 行。</div>',
+                    unsafe_allow_html=True
+                )
+            except ValueError as e:
+                st.error(str(e))
+                st.stop()
+    else:
+        # 已清洗 CSV，直接读取（第一版方式）
         try:
-            df = pd.read_csv(uploaded, encoding="utf-8")
+            df = pd.read_csv(uploaded, encoding="gbk")
         except Exception:
-            df = pd.read_csv(uploaded, encoding="utf-8-sig")
+            try:
+                df = pd.read_csv(uploaded, encoding="utf-8")
+            except Exception:
+                df = pd.read_csv(uploaded, encoding="utf-8-sig")
 
-    # ─── 解析日期列 ──────────────────────────────────────────
+    # ─── 解析日期列 ────────────────────────────────────────────
     date_col = "发送日期"
     if date_col in df.columns:
         df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
@@ -109,7 +260,7 @@ if uploaded:
     df["单均价"] = (df["订单Sales"] / df["订单GC"]).round(2)
     df["单均价"] = df["单均价"].replace([float("inf"), -float("inf")], 0).fillna(0)
 
-    # ─── Min-Max 归一化 ──────────────────────────────────────
+    # ─── Min-Max 归一化 ───────────────────────────────────────
     def minmax(series):
         mn, mx = series.min(), series.max()
         if mx == mn:
@@ -121,7 +272,7 @@ if uploaded:
     df["Sales_norm"] = minmax(df["订单Sales"])
     df["单均价_norm"] = minmax(df["单均价"])
 
-    # ─── 侧边筛选 ──────────────────────────────────────────────
+    # ─── 侧边筛选 ─────────────────────────────────────────────
     with st.sidebar:
         st.markdown("**筛选条件**")
 
@@ -144,11 +295,11 @@ if uploaded:
         plan_types = ["全部"] + df["计划类型"].dropna().unique().tolist()
         selected_plan = st.selectbox("计划类型", plan_types)
 
-        # 渠道筛选（支持所有渠道）
+        # 渠道筛选
         channels = ["全部"] + df["渠道"].dropna().unique().tolist()
         selected_channel = st.selectbox("渠道", channels)
 
-        # 预算 Owner 筛选（新增）
+        # 预算 Owner 筛选
         owner_col = "预算owner"
         if owner_col in df.columns:
             owners = ["全部"] + df[owner_col].dropna().unique().tolist()
@@ -172,7 +323,7 @@ if uploaded:
         else:
             st.caption(f"权重合计: {total_w:.0%}")
 
-    # ─── 重新计算评分（基于权重）──────────────────────────────
+    # ─── 计算综合评分（基于权重）───────────────────────────────
     df["综合评分"] = (
         df["触达_norm"] * w_reach
         + df["CTR_norm"] * w_ctr
@@ -183,7 +334,7 @@ if uploaded:
     df = df.sort_values("综合评分", ascending=False).reset_index(drop=True)
     df["排名"] = df.index + 1
 
-    # ─── 应用筛选 ──────────────────────────────────────────────
+    # ─── 应用筛选 ─────────────────────────────────────────────
     dff = df.copy()
 
     if date_range is not None:
@@ -264,9 +415,44 @@ if uploaded:
                         date_str = str(row[1])[:10] if pd.notna(row[1]) else ""
                         plan_type_short = str(row[2])[:4] if pd.notna(row[2]) else ""
                         channel_short = str(row[3]) if pd.notna(row[3]) else ""
-                        owner_short = str(row[6]) if (len(row) > 6 and pd.notna(row[6])) else ""
-                        title = str(row[15]) if len(row) > 15 else str(row[14]) if len(row) > 14 else ""
-                        content = str(row[16]) if len(row) > 16 else ""
+                        owner_short = ""
+                        for val in row:
+                            if val is not None and not isinstance(val, (int, float, bool)):
+                                if str(val) not in [date_str, plan_type_short, channel_short, '']:
+                                    owner_short = str(val)
+                                    break
+                        title = str(row.标题) if hasattr(row, '标题') and row.标题 else ""
+                        content = str(row.内容) if hasattr(row, '内容') and row.内容 else ""
+
+                        if not title:
+                            title_col_name = "消息标题" if "消息标题" in dff.columns else None
+                            if title_col_name:
+                                title_idx = list(dff.columns).index(title_col_name)
+                                title = str(row[title_idx + 1]) if title_idx + 1 < len(row) else ""
+                        if not content:
+                            content_col_name = "内容" if "内容" in dff.columns else None
+                            if content_col_name:
+                                content_idx = list(dff.columns).index(content_col_name)
+                                content = str(row[content_idx + 1]) if content_idx + 1 < len(row) else ""
+
+                        reach = 0
+                        ctr_val = 0.0
+                        gc_val = 0
+                        sales_val = 0.0
+                        apu_val = 0.0
+                        for k, v in enumerate(row):
+                            if isinstance(v, (int, float)) and not isinstance(v, bool):
+                                col_name = list(dff.columns)[k + 1] if k + 1 < len(list(dff.columns)) else ""
+                                if '触达成功' in str(col_name):
+                                    reach = int(v)
+                                elif str(col_name) == 'CTR':
+                                    ctr_val = float(v)
+                                elif str(col_name) == '订单GC':
+                                    gc_val = int(v)
+                                elif str(col_name) == '订单Sales':
+                                    sales_val = float(v)
+                                elif str(col_name) == '单均价':
+                                    apu_val = float(v)
 
                         st.markdown(f"""
                         <div class="content-card">
@@ -277,7 +463,6 @@ if uploaded:
                                 {plan_type_short} · {channel_short}
                               </span>
                               <span style="font-size:12px; color:#AAA; margin-left:8px;">{date_str}</span>
-                              {f'<span style="font-size:11px; color:#666; margin-left:6px;">@{owner_short}</span>' if owner_short and owner_short != 'nan' else ''}
                             </div>
                             <div>
                               <div class="card-score" style="color:{score_color};">{score}</div>
@@ -287,19 +472,20 @@ if uploaded:
                           <div class="card-title">【标题】{title[:80]}{'...' if len(title) > 80 else ''}</div>
                           <div class="card-content">{content[:200]}{'...' if len(content) > 200 else ''}</div>
                           <div class="card-meta">
-                            <span>触达 {int(row[8]):,}</span>
-                            <span>CTR {row.CTR:.2f}%</span>
-                            <span>订单GC {int(row[11]):,}</span>
-                            <span>订单Sales {int(row[12]):,}</span>
-                            <span>单均价 {row.单均价:.1f}</span>
+                            <span>触达 {reach:,}</span>
+                            <span>CTR {ctr_val:.2f}%</span>
+                            <span>订单GC {gc_val:,}</span>
+                            <span>订单Sales {int(sales_val):,}</span>
+                            <span>单均价 {apu_val:.1f}</span>
                           </div>
                         </div>
                         """, unsafe_allow_html=True)
 
     with tab2:
         title_col = "标题" if "标题" in dff.columns else "消息标题"
-        display_cols = ["排名", title_col, "内容", "计划类型", "渠道", date_col,
-                         owner_col if owner_col in dff.columns else None,
+        owner_c = owner_col if owner_col in dff.columns else None
+        display_cols = ["排名", title_col, "内容", "计划类型", "渠道",
+                         date_col, owner_c,
                          "触达成功", "CTR", "订单GC", "订单Sales", "单均价", "综合评分"]
         display_cols = [c for c in display_cols if c is not None]
         available = [c for c in display_cols if c in dff.columns]
@@ -322,7 +508,6 @@ if uploaded:
         if total_rows == 0:
             st.warning("当前筛选条件下无数据")
         else:
-            # Top 10 柱状图
             top10 = dff.head(10)
             fig_bar = px.bar(
                 top10, x="排名", y="综合评分",
@@ -340,7 +525,6 @@ if uploaded:
             )
             st.plotly_chart(fig_bar, use_container_width=True)
 
-            # 触达 vs 订单Sales 散点图
             title_col = "标题" if "标题" in dff.columns else "消息标题"
             fig_scatter = px.scatter(
                 dff,
@@ -354,7 +538,6 @@ if uploaded:
             fig_scatter.update_layout(template="plotly_white", height=450)
             st.plotly_chart(fig_scatter, use_container_width=True)
 
-            # 各指标 Top 5
             c1, c2 = st.columns(2)
             with c1:
                 st.markdown('<div class="section-title">📊 触达量 Top 5</div>', unsafe_allow_html=True)
@@ -366,19 +549,13 @@ if uploaded:
                 st.dataframe(top_sales, hide_index=True, use_container_width=True)
 
 else:
-    st.info("👆 请上传内容数据 CSV 文件开始分析")
+    st.info("👆 请上传 CSV 文件开始分析")
     st.markdown("""
-    **数据格式要求（CSV 列名）：**
-    - `标题` / `消息标题` — 内容标题
-    - `内容` — 内容正文
-    - `发送日期` — 发送日期
-    - `触达成功` — 触达人数
-    - `点击人次` — 点击次数
-    - `订单GC` — 订单数量
-    - `订单Sales` — 订单金额
-    - `计划类型` — 常规Plan / AARRPlan
-    - `渠道` — APP Push / 企微1v1 / 短信 / 微信小程序订阅消息
-    - `预算owner` — 预算归属人
+    **使用方式：**
+
+    1. **原始 CSV（含 JSON 列）**：上传运行清洗脚本之前的原始文件，App 会自动运行一比一复刻的清洗逻辑，直接出排行榜
+
+    2. **已清洗 CSV**：上传运行完脚本后的文件，App 直接使用
 
     **综合评分权重（默认）：**
     - 触达量 35% + CTR 15% + 订单Sales 40% + 单均价 10%
