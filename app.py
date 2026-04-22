@@ -146,7 +146,9 @@ def read_csv_flexible(uploaded_file):
     encodings = ["utf-8-sig", "utf-8", "gbk", "gb18030", "latin1"]
     for enc in encodings:
         try:
-            df = pd.read_csv(uploaded_file, encoding=enc, dtype=str)
+            uploaded_file.seek(0)
+            raw_bytes = uploaded_file.getvalue()
+            df = pd.read_csv(io.BytesIO(raw_bytes), encoding=enc, dtype=str)
             # 去空列
             df = df.loc[:, ~df.columns.str.strip().eq("")]
             if df.shape[0] == 0:
