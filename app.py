@@ -45,6 +45,8 @@ st.markdown(f"""
   [data-testid="stSidebar"] {{
     background: {MCD_GOLD} !important;
     border-right: 3px solid rgba(0,0,0,0.08);
+    min-width: 220px !important;
+    max-width: 220px !important;
   }}
 
   [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
@@ -175,7 +177,7 @@ st.markdown(f"""
   }}
   .mcd-header p {{
     font-size: 13px;
-    opacity: 0.9;
+    opacity: 1;
     margin: 0;
     font-weight: 500;
     color: #FFFFFF;
