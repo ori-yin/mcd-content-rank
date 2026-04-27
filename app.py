@@ -479,7 +479,7 @@ def clean_raw_csv(uploaded_file) -> pd.DataFrame:
 
 # ─── 文件上传 + 清洗模式选择 ────────────────────────────────────
 mode = st.radio(
-    "📂 数据类型",
+    "数据类型",
     ["原始 CSV（含 JSON 列，需清洗）", "已清洗 CSV（直接使用）"],
     horizontal=True,
     help="原始 CSV：上传运行清洗脚本之前的文件；已清洗 CSV：运行完脚本后的文件"
@@ -598,8 +598,7 @@ if uploaded:
         + df["单均价_norm"] * w_apu
     ).round(1)
 
-    df = df.sort_values("综合评分", ascending=False).reset_index(drop=True)
-    df["排名"] = df.index + 1
+    # 排名在筛选后重排，见下方筛选后处理
 
     # ─── 应用筛选 ─────────────────────────────────────────────
     dff = df.copy()
@@ -630,6 +629,11 @@ if uploaded:
             dff[title_col].str.lower().str.contains(kw, na=False) |
             dff[content_col].str.lower().str.contains(kw, na=False)
         ]
+
+    # ─── 筛选后重排排名 ────────────────────────────────────────
+    if len(dff) > 0:
+        dff = dff.sort_values("综合评分", ascending=False).reset_index(drop=True)
+    dff["排名"] = dff.index + 1
 
     # ─── 顶部指标卡 ───────────────────────────────────────────
     total_rows = len(dff)
