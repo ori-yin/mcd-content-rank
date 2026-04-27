@@ -746,16 +746,22 @@ if uploaded:
         owner_c = owner_col if owner_col in dff.columns else None
         display_cols = ["排名", title_col, "内容", "计划类型", "渠道",
                          date_col, owner_c,
-                         "触达成功", "CTR", "订单GC", "订单Sales", "单均价", "综合评分"]
+                         "触达成功", "点击人次", "CTR", "订单GC", "订单Sales", "单均价", "综合评分"]
         display_cols = [c for c in display_cols if c is not None]
         available = [c for c in display_cols if c in dff.columns]
+        # 格式化副本：CTR加%号、订单Sales变整数
+        disp_df = dff[available].copy()
+        if 'CTR' in disp_df.columns:
+            disp_df['CTR'] = disp_df['CTR'].apply(lambda x: f"{x:.2f}%")
+        if '订单Sales' in disp_df.columns:
+            disp_df['订单Sales'] = disp_df['订单Sales'].apply(lambda x: int(x) if pd.notna(x) else '')
         st.dataframe(
-            dff[available],
+            disp_df,
             use_container_width=True,
             hide_index=True,
             height=600
         )
-        csv_out = dff[available].to_csv(index=False, encoding="utf-8-sig")
+        csv_out = disp_df.to_csv(index=False, encoding="utf-8-sig")
         st.download_button(
             "📥 下载排行榜 CSV",
             csv_out,
