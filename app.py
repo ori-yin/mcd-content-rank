@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-app.py - 麦当劳内容排行榜
+app.py - 麦当劳内容排行榜 v3（一比一复刻 Ori 的数据清洗脚本）
 功能：上传原始 CSV（含 JSON 列）→ 自动运行清洗逻辑 → 直接出排行榜
 使用方法: streamlit run app.py
 """
@@ -14,65 +14,332 @@ from datetime import datetime, timedelta
 from io import BytesIO
 
 st.set_page_config(
-    page_title="麦当劳推送内容排行榜",
+    page_title="麦当劳内容排行榜",
     page_icon="🏆",
     layout="wide"
 )
 
 # ─── 品牌色 ─────────────────────────────────────────────────────
-MCD_RED = "#DA291C"
-MCD_GOLD = "#FFC72C"
+MCD_RED = "#E40004"
+MCD_GOLD = "#FFBC0D"
 MCD_GREEN = "#00A04A"
 MCD_BG = "#FAFAFA"
 
 # ─── 样式 ─────────────────────────────────────────────────────
 st.markdown(f"""
 <style>
-  .block-container {{ padding-top: 1rem; }}
-  .mcd-header {{
-    background: linear-gradient(135deg, {MCD_RED}, #b71c1c);
-    border-radius: 14px; padding: 24px 32px; color: #fff;
-    margin-bottom: 20px;
+  /* ─── 全局字体 ─── */
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
+  html, body, .stApp {{
+    font-family: 'Inter', 'PingFang SC', 'Helvetica Neue', sans-serif !important;
+    background: {MCD_BG};
+    color: #1a1a1a;
   }}
-  .mcd-header h1 {{ font-size: 22px; font-weight: 900; margin: 0 0 4px 0; }}
-  .mcd-header p {{ font-size: 13px; opacity: 0.85; margin: 0; }}
+
+  /* ─── Streamlit 顶部导航条 ─── */
+  .st-emotion-cache-1kyxreq {{
+    background: {MCD_GOLD} !important;
+  }}
+
+  /* ─── 侧边栏：金色主题 ─── */
+  [data-testid="stSidebar"] {{
+    background: {MCD_GOLD} !important;
+    border-right: 3px solid rgba(0,0,0,0.08);
+    min-width: 240px !important;
+    max-width: 240px !important;
+  }}
+
+  [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
+  [data-testid="stSidebar"] label,
+  [data-testid="stSidebar"] span,
+  [data-testid="stSidebar"] p {{
+    color: #000000 !important;
+    font-family: 'Inter', 'PingFang SC', sans-serif !important;
+  }}
+
+  [data-testid="stSidebar"] .stRadio label,
+  [data-testid="stSidebar"] .stSelectbox label,
+  [data-testid="stSidebar"] .stTextInput label,
+  [data-testid="stSidebar"] .stDateInput label,
+  [data-testid="stSidebar"] .stSlider label {{
+    color: #000000 !important;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }}
+
+  [data-testid="stSidebar"] hr {{
+    border-color: rgba(0,0,0,0.15) !important;
+    margin: 12px 0;
+  }}
+
+  [data-testid="stSidebar"] .stSlider > div {{
+    padding: 4px 0;
+  }}
+
+  [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] {{
+    background: rgba(0,0,0,0.15) !important;
+  }}
+
+  [data-testid="stSidebar"] .stSelectbox > div > div,
+  [data-testid="stSidebar"] .stTextInput > div > div,
+  [data-testid="stSidebar"] .stDateInput > div > div {{
+    background: rgba(255,255,255,0.6) !important;
+    border: 1px solid rgba(0,0,0,0.12) !important;
+    border-radius: 10px !important;
+    color: #000000 !important;
+  }}
+
+  [data-testid="stSidebar"] [data-baseweb="select"] span {{
+    color: #000000 !important;
+  }}
+
+  [data-testid="stSidebar"] [data-baseweb="input"] {{
+    color: #000000 !important;
+  }}
+
+  [data-testid="stSidebar"] .stDownloadButton > button {{
+    background: {MCD_RED} !important;
+    color: #FFFFFF !important;
+    font-weight: 700;
+    border: none !important;
+    border-radius: 10px !important;
+  }}
+
+  /* ─── 页面布局 ─── */
+  .block-container {{
+    padding-top: 1.5rem;
+    padding-left: 2rem;
+    padding-right: 2rem;
+    background: {MCD_BG};
+  }}
+
+  /* ─── 顶部指标卡 ─── */
+  div[data-testid="stMetricValue"] {{
+    font-size: 22px !important;
+    font-weight: 900 !important;
+    color: {MCD_RED} !important;
+    font-family: 'Inter', sans-serif !important;
+    letter-spacing: -0.02em;
+  }}
+  div[data-testid="stMetricLabel"] {{
+    font-size: 11px !important;
+    color: #666 !important;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }}
+  div[data-testid="stMetricDelta"] {{
+    display: none;
+  }}
+
+  /* ─── Tab 栏 ─── */
+  .stTabs [data-baseweb="tab-list"] {{
+    gap: 4px;
+    border-bottom: 2px solid #EFEFEF;
+  }}
+  .stTabs [data-baseweb="tab"] {{
+    color: #888 !important;
+    font-weight: 600;
+    font-size: 14px;
+    padding: 8px 16px;
+    border-radius: 8px 8px 0 0;
+    border-bottom: 3px solid transparent;
+    transition: all 0.15s ease;
+  }}
+  .stTabs [data-baseweb="tab"]:hover {{
+    color: {MCD_RED} !important;
+  }}
+  .stTabs [aria-selected="true"] {{
+    color: {MCD_RED} !important;
+    border-bottom: 3px solid {MCD_RED} !important;
+    font-weight: 700;
+  }}
+
+  /* ─── 主标题卡片 ─── */
+  .mcd-header {{
+    background: {MCD_RED};
+    border-radius: 16px;
+    padding: 28px 36px;
+    color: #FFFFFF;
+    margin-bottom: 24px;
+    border-left: 6px solid {MCD_GOLD};
+    box-shadow: 0 4px 20px rgba(228,0,4, 0.35);
+  }}
+  .mcd-header h1 {{
+    font-size: 22px;
+    font-weight: 900;
+    margin: 0 0 6px 0;
+    letter-spacing: -0.02em;
+    color: #FFFFFF;
+  }}
+  .mcd-header p {{
+    font-size: 13px;
+    opacity: 1;
+    margin: 0;
+    font-weight: 500;
+    color: #FFFFFF;
+  }}
+
+  /* ─── 排名徽章 ─── */
   .rank-badge {{
     display: inline-block;
-    width: 32px; height: 32px;
+    width: 30px; height: 30px;
     border-radius: 50%;
-    text-align: center; line-height: 32px;
-    font-weight: 900; font-size: 14px; margin-right: 8px;
+    text-align: center; line-height: 30px;
+    font-weight: 900; font-size: 13px;
+    margin-right: 8px;
+    border: 2px solid transparent;
   }}
-  .rank-1 {{ background: {MCD_GOLD}; color: {MCD_RED}; }}
-  .rank-2 {{ background: #C0C0C0; color: #555; }}
-  .rank-3 {{ background: #CD7F32; color: #fff; }}
-  .rank-other {{ background: #EEE; color: #888; }}
+  .rank-1 {{
+    background: {MCD_GOLD};
+    color: {MCD_RED};
+    border-color: rgba(255,255,255,0.5);
+    box-shadow: 0 2px 8px rgba(255,188,13,0.5);
+  }}
+  .rank-2 {{
+    background: #E8E8E8;
+    color: #666;
+    border-color: rgba(0,0,0,0.08);
+  }}
+  .rank-3 {{
+    background: #FFBC0D;
+    color: #000;
+    border-color: rgba(0,0,0,0.1);
+  }}
+  .rank-other {{
+    background: #F2F2F2;
+    color: #AAA;
+    border-color: transparent;
+  }}
+
+  /* ─── 内容卡片 ─── */
   .content-card {{
-    background: #FFF; border: 1px solid #EEE;
-    border-radius: 12px; padding: 16px 20px; margin-bottom: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    background: #FFFFFF;
+    border: 1px solid #EFEFEF;
+    border-radius: 14px;
+    padding: 18px 22px;
+    margin-bottom: 14px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+    transition: box-shadow 0.15s ease, transform 0.15s ease;
   }}
-  .card-title {{ font-size: 15px; font-weight: 700; color: #1a1a1a; margin-bottom: 6px; line-height: 1.4; }}
-  .card-content {{ font-size: 13px; color: #555; line-height: 1.6; margin-bottom: 12px; }}
-  .card-meta {{ display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: #888; }}
-  .card-meta span {{ background: #F5F5F5; padding: 3px 10px; border-radius: 20px; }}
-  .card-score {{ font-size: 24px; font-weight: 900; color: {MCD_RED}; text-align: right; line-height: 1; }}
-  .card-score-label {{ font-size: 11px; color: #AAA; text-align: right; }}
-  .filter-section {{
-    background: #FFF; border: 1px solid #EEE;
-    border-radius: 12px; padding: 16px 20px; margin-bottom: 16px;
+  .content-card:hover {{
+    box-shadow: 0 4px 20px rgba(228,0,4, 0.12);
+    transform: translateY(-1px);
   }}
+  .card-title {{
+    font-size: 14px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 6px;
+    line-height: 1.5;
+    font-family: 'Inter', 'PingFang SC', sans-serif;
+  }}
+  .card-content {{
+    font-size: 13px;
+    color: #666;
+    line-height: 1.7;
+    margin-bottom: 12px;
+  }}
+  .card-meta {{
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-size: 11px;
+    color: #888;
+  }}
+  .card-meta span {{
+    background: #F8F8F8;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-weight: 500;
+    border: 1px solid #EFEFEF;
+  }}
+  .card-score {{
+    font-size: 26px;
+    font-weight: 900;
+    color: {MCD_RED};
+    text-align: right;
+    line-height: 1;
+    font-family: 'Inter', sans-serif;
+  }}
+  .card-score-label {{
+    font-size: 10px;
+    color: #CCC;
+    text-align: right;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }}
+
+  /* ─── 章节标题 ─── */
   .section-title {{
-    font-size: 15px; font-weight: 700; color: #1a1a1a;
-    margin: 24px 0 12px 0; padding-bottom: 8px;
-    border-bottom: 2px solid {MCD_GOLD};
+    font-size: 14px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 28px 0 14px 0;
+    padding-bottom: 8px;
+    border-bottom: 2px solid {MCD_RED};
+    letter-spacing: -0.01em;
   }}
-  div[data-testid="stMetricValue"] {{ font-size: 20px !important; font-weight: 900 !important; color: {MCD_RED} !important; }}
-  div[data-testid="stMetricLabel"] {{ font-size: 11px !important; color: #888 !important; }}
+
+  /* ─── 数据表格 ─── */
+  .stDataFrame thead th {{
+    background: {MCD_RED} !important;
+    color: #FFFFFF !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.03em;
+    border: none !important;
+    padding: 10px 12px !important;
+  }}
+  .stDataFrame tbody tr:hover {{ background: rgba(228,0,4, 0.04) !important; }}
+  .stDataFrame tbody td {{
+    font-size: 13px !important;
+    color: #333 !important;
+    padding: 9px 12px !important;
+    border-color: #F0F0F0 !important;
+  }}
+
+  /* ─── 清洗状态提示 ─── */
   .clean-status {{
-    background: #E8F5E9; border: 1px solid {MCD_GREEN};
-    border-radius: 8px; padding: 10px 16px; margin-bottom: 16px;
-    font-size: 13px; color: #2E7D32;
+    background: #FFF8F0;
+    border: 1px solid {MCD_GOLD};
+    border-left: 4px solid {MCD_GOLD};
+    border-radius: 10px;
+    padding: 10px 16px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    color: #000000;
+    font-weight: 500;
+  }}
+
+  /* ─── Streamlit 按钮 ─── */
+  .stDownloadButton > button {{
+    background: {MCD_RED} !important;
+    color: #FFFFFF !important;
+    font-weight: 700;
+    border: none !important;
+    border-radius: 10px !important;
+    padding: 6px 20px;
+    font-family: 'Inter', sans-serif;
+    transition: background 0.15s ease;
+  }}
+  .stDownloadButton > button:hover {{
+    background: #B80000 !important;
+  }}
+
+  /* ─── 副文本 / 说明文字 ─── */
+  .stCaption, p {{
+    font-size: 12px !important;
+    color: #AAA !important;
+  }}
+
+  /* ─── 数字高亮 ─── */
+  .stAlert {{
+    border-radius: 10px;
   }}
 </style>
 """, unsafe_allow_html=True)
@@ -80,13 +347,13 @@ st.markdown(f"""
 # ─── Header ───────────────────────────────────────────────────
 st.markdown(f"""
 <div class="mcd-header">
-  <h1>🏆 麦当劳推送内容排行榜</h1>
-  <p>上传原始 CSV → 自动清洗 → 生成排行榜</p>
+  <h1>🏆 麦当劳内容排行榜</h1>
+  <p style="color:#FFFFFF;">上传原始 CSV → 自动运行数据清洗 → 生成综合评分排行榜</p>
 </div>
 """, unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════════
-# 一比一复刻 Ori 的数据清洗脚本
+# 一比一复刻 Ori 的数据清洗脚本（核心逻辑，原封不动）
 # ═══════════════════════════════════════════════════════════════
 
 def extract_title_from_forms(forms):
@@ -232,7 +499,7 @@ if uploaded:
                 df = clean_raw_csv(uploaded)
                 col_count_before = df.shape[1] + 1  # +1 因为去掉了 JSON 列，加了 2 个新列
                 st.markdown(
-                    f'<div class="clean-status">清洗完成！去掉了 JSON 列，新增「标题」和「内容」列，'
+                    f'<div class="clean-status">✅ 清洗完成！去掉了 JSON 列，新增「标题」和「内容」列，'
                     f'最终 {df.shape[1]} 列，{df.shape[0]} 行。</div>',
                     unsafe_allow_html=True
                 )
@@ -308,7 +575,7 @@ if uploaded:
         selected_owner = st.selectbox("预算 Owner", owners)
 
         # 关键词搜索
-        keyword = st.text_input("搜索标题/内容关键词", "")
+        keyword = st.text_input("🔍 搜索标题/内容关键词", "")
 
         # 权重调整
         st.markdown("---")
@@ -377,7 +644,7 @@ if uploaded:
     col4.metric("平均 CTR", f"{avg_ctr:.2f}%")
 
     # ─── Tab 切换 ─────────────────────────────────────────────
-    tab1, tab2, tab3 = st.tabs(["🏆 排行榜", "📋 数据表格", "📈 可视化图表"])
+    tab1, tab2, tab3 = st.tabs(["🏆 卡片排行榜", "📋 数据表格", "📈 可视化图表"])
 
     with tab1:
         if total_rows == 0:
@@ -412,47 +679,40 @@ if uploaded:
                         score_color = "#AAA"
 
                     with col:
-                        date_str = str(row[1])[:10] if pd.notna(row[1]) else ""
-                        plan_type_short = str(row[2])[:4] if pd.notna(row[2]) else ""
-                        channel_short = str(row[3]) if pd.notna(row[3]) else ""
-                        owner_short = ""
-                        for val in row:
-                            if val is not None and not isinstance(val, (int, float, bool)):
-                                if str(val) not in [date_str, plan_type_short, channel_short, '']:
-                                    owner_short = str(val)
-                                    break
-                        title = str(row.标题) if hasattr(row, '标题') and row.标题 else ""
-                        content = str(row.内容) if hasattr(row, '内容') and row.内容 else ""
+                        date_val = getattr(row, '发送日期', None)
+                        date_str = str(date_val)[:10] if date_val is not None and pd.notna(date_val) else ""
+                        plan_type_val = getattr(row, '计划类型', None)
+                        plan_type_short = str(plan_type_val)[:4] if plan_type_val is not None and pd.notna(plan_type_val) else ""
+                        channel_val = getattr(row, '渠道', None)
+                        channel_short = str(channel_val) if channel_val is not None and pd.notna(channel_val) else ""
+                        owner_short = str(getattr(row, '预算owner', '')) if hasattr(row, '预算owner') else ''
+                        title = str(getattr(row, '标题', '')) if getattr(row, '标题', '') else ''
+                        content = str(getattr(row, '内容', '')) if getattr(row, '内容', '') else ''
 
                         if not title:
-                            title_col_name = "消息标题" if "消息标题" in dff.columns else None
-                            if title_col_name:
-                                title_idx = list(dff.columns).index(title_col_name)
-                                title = str(row[title_idx + 1]) if title_idx + 1 < len(row) else ""
-                        if not content:
-                            content_col_name = "内容" if "内容" in dff.columns else None
-                            if content_col_name:
-                                content_idx = list(dff.columns).index(content_col_name)
-                                content = str(row[content_idx + 1]) if content_idx + 1 < len(row) else ""
+                            title = str(getattr(row, '消息标题', '')) if getattr(row, '消息标题', '') else ''
 
-                        reach = 0
-                        ctr_val = 0.0
-                        gc_val = 0
-                        sales_val = 0.0
-                        apu_val = 0.0
-                        for k, v in enumerate(row):
-                            if isinstance(v, (int, float)) and not isinstance(v, bool):
-                                col_name = list(dff.columns)[k + 1] if k + 1 < len(list(dff.columns)) else ""
-                                if '触达成功' in str(col_name):
-                                    reach = int(v)
-                                elif str(col_name) == 'CTR':
-                                    ctr_val = float(v)
-                                elif str(col_name) == '订单GC':
-                                    gc_val = int(v)
-                                elif str(col_name) == '订单Sales':
-                                    sales_val = float(v)
-                                elif str(col_name) == '单均价':
-                                    apu_val = float(v)
+                        # 直接用列名从 namedtuple 取值（安全方式）
+                        try:
+                            reach = int(getattr(row, '触达成功', 0))
+                        except (ValueError, TypeError):
+                            reach = 0
+                        try:
+                            ctr_val = float(getattr(row, 'CTR', 0))
+                        except (ValueError, TypeError):
+                            ctr_val = 0.0
+                        try:
+                            gc_val = int(getattr(row, '订单GC', 0))
+                        except (ValueError, TypeError):
+                            gc_val = 0
+                        try:
+                            sales_val = float(getattr(row, '订单Sales', 0))
+                        except (ValueError, TypeError):
+                            sales_val = 0.0
+                        try:
+                            apu_val = float(getattr(row, '单均价', 0))
+                        except (ValueError, TypeError):
+                            apu_val = 0.0
 
                         st.markdown(f"""
                         <div class="content-card">
@@ -497,7 +757,7 @@ if uploaded:
         )
         csv_out = dff[available].to_csv(index=False, encoding="utf-8-sig")
         st.download_button(
-            "下载CSV",
+            "📥 下载排行榜 CSV",
             csv_out,
             "麦当劳内容排行榜.csv",
             "text/csv",
@@ -540,11 +800,11 @@ if uploaded:
 
             c1, c2 = st.columns(2)
             with c1:
-                st.markdown('<div class="section-title">触达量 Top 5</div>', unsafe_allow_html=True)
+                st.markdown('<div class="section-title">📊 触达量 Top 5</div>', unsafe_allow_html=True)
                 top_reach = dff.nlargest(5, "触达成功")[["排名", title_col, "触达成功", "CTR", "综合评分"]]
                 st.dataframe(top_reach, hide_index=True, use_container_width=True)
             with c2:
-                st.markdown('<div class="section-title">订单Sales Top 5</div>', unsafe_allow_html=True)
+                st.markdown('<div class="section-title">💰 订单Sales Top 5</div>', unsafe_allow_html=True)
                 top_sales = dff.nlargest(5, "订单Sales")[["排名", title_col, "订单Sales", "单均价", "综合评分"]]
                 st.dataframe(top_sales, hide_index=True, use_container_width=True)
 
