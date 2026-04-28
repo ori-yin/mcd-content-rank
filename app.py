@@ -602,7 +602,7 @@ if uploaded:
         + df["CTR_norm"] * norm_ctr
         + df["Sales_norm"] * norm_sales
         + df["单均价_norm"] * norm_apu
-    ) * 100
+    ) * 100).round(1)
 
 
     # 排名在筛选后重排，见下方筛选后处理
@@ -682,9 +682,9 @@ if uploaded:
                         badge_class = "rank-other"
 
                     score = row.综合评分
-                    if score >= 70:
+                    if score >= 7000:
                         score_color = MCD_RED
-                    elif score >= 40:
+                    elif score >= 4000:
                         score_color = "#E07B00"
                     else:
                         score_color = "#AAA"
