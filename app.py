@@ -603,7 +603,7 @@ if uploaded:
         + df["Sales_norm"] * norm_sales
         + df["单均价_norm"] * norm_apu
     ) * 100
-    ).round(1)
+
 
     # 排名在筛选后重排，见下方筛选后处理
 
