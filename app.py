@@ -587,15 +587,22 @@ if uploaded:
         total_w = w_reach + w_ctr + w_sales + w_apu
         if total_w == 0:
             st.warning("权重总和为 0，请调整权重")
+            norm_reach, norm_ctr, norm_sales, norm_apu = 0, 0, 0, 0
         else:
-            st.caption(f"权重合计: {total_w:.0%}")
+            # 归一化权重（除以总和），确保相对权重比例正确
+            norm_reach = w_reach / total_w
+            norm_ctr = w_ctr / total_w
+            norm_sales = w_sales / total_w
+            norm_apu = w_apu / total_w
+            st.caption(f"权重合计: {total_w:.0%}（已归一化）")
 
-    # ─── 计算综合评分（基于权重）───────────────────────────────
+    # ─── 计算综合评分（基于归一化权重 × 100）──────────────────
     df["综合评分"] = (
-        df["触达_norm"] * w_reach
-        + df["CTR_norm"] * w_ctr
-        + df["Sales_norm"] * w_sales
-        + df["单均价_norm"] * w_apu
+        df["触达_norm"] * norm_reach
+        + df["CTR_norm"] * norm_ctr
+        + df["Sales_norm"] * norm_sales
+        + df["单均价_norm"] * norm_apu
+    ) * 100
     ).round(1)
 
     # 排名在筛选后重排，见下方筛选后处理
