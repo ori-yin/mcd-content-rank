@@ -20,10 +20,11 @@ st.set_page_config(
 )
 
 # ─── 品牌色 ─────────────────────────────────────────────────────
-MCD_RED = "#E40004"
-MCD_GOLD = "#FFBC0D"
-MCD_GREEN = "#00A04A"
-MCD_BG = "#FAFAFA"
+MCD_RED  = "#DA291C"   # 麦当劳标准红
+MCD_GOLD = "#FFC72C"   # 麦当劳标准金
+MCD_BG   = "#FFFFFF"   # 白色背景
+MCD_GRAY = "#666666"   # 中灰（正文次要文字）
+MCD_LG   = "#F5F5F5"   # 浅灰（卡片背景/分隔）
 
 # ─── 样式 ─────────────────────────────────────────────────────
 st.markdown(f"""
@@ -138,10 +139,10 @@ st.markdown(f"""
   /* ─── Tab 栏 ─── */
   .stTabs [data-baseweb="tab-list"] {{
     gap: 4px;
-    border-bottom: 2px solid #EFEFEF;
+    border-bottom: 2px solid {MCD_LG};
   }}
   .stTabs [data-baseweb="tab"] {{
-    color: #888 !important;
+    color: {MCD_GRAY} !important;
     font-weight: 600;
     font-size: 14px;
     padding: 8px 16px;
@@ -166,7 +167,6 @@ st.markdown(f"""
     color: #FFFFFF;
     margin-bottom: 24px;
     border-left: 6px solid {MCD_GOLD};
-    box-shadow: 0 4px 20px rgba(228,0,4, 0.35);
   }}
   .mcd-header h1 {{
     font-size: 22px;
@@ -195,38 +195,29 @@ st.markdown(f"""
   }}
   .rank-1 {{
     background: {MCD_GOLD};
-    color: {MCD_RED};
-    border-color: rgba(255,255,255,0.5);
-    box-shadow: 0 2px 8px rgba(255,188,13,0.5);
+    color: #000000;
+    border-color: rgba(0,0,0,0.15);
   }}
-  .rank-2 {{
-    background: #E8E8E8;
-    color: #666;
-    border-color: rgba(0,0,0,0.08);
-  }}
-  .rank-3 {{
-    background: #FFBC0D;
-    color: #000;
-    border-color: rgba(0,0,0,0.1);
+  .rank-2, .rank-3 {{
+    background: {MCD_LG};
+    color: {MCD_GRAY};
+    border-color: rgba(0,0,0,0.06);
   }}
   .rank-other {{
-    background: #F2F2F2;
-    color: #AAA;
+    background: {MCD_LG};
+    color: {MCD_GRAY};
     border-color: transparent;
   }}
 
   /* ─── 内容卡片 ─── */
   .content-card {{
     background: #FFFFFF;
-    border: 1px solid #EFEFEF;
+    border: 1px solid #E5E5E5;
     border-radius: 14px;
     padding: 18px 22px;
     margin-bottom: 14px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
-    transition: box-shadow 0.15s ease, transform 0.15s ease;
   }}
   .content-card:hover {{
-    box-shadow: 0 4px 20px rgba(228,0,4, 0.12);
     transform: translateY(-1px);
   }}
   .card-title {{
@@ -248,14 +239,14 @@ st.markdown(f"""
     gap: 10px;
     flex-wrap: wrap;
     font-size: 11px;
-    color: #888;
+    color: {MCD_GRAY};
   }}
   .card-meta span {{
-    background: #F8F8F8;
+    background: {MCD_LG};
     padding: 4px 10px;
     border-radius: 20px;
     font-weight: 500;
-    border: 1px solid #EFEFEF;
+    border: 1px solid #E5E5E5;
   }}
   .card-score {{
     font-size: 26px;
@@ -300,12 +291,12 @@ st.markdown(f"""
     font-size: 13px !important;
     color: #333 !important;
     padding: 9px 12px !important;
-    border-color: #F0F0F0 !important;
+    border-color: #E5E5E5 !important;
   }}
 
   /* ─── 清洗状态提示 ─── */
   .clean-status {{
-    background: #FFF8F0;
+    background: {MCD_LG};
     border: 1px solid {MCD_GOLD};
     border-left: 4px solid {MCD_GOLD};
     border-radius: 10px;
@@ -325,16 +316,12 @@ st.markdown(f"""
     border-radius: 10px !important;
     padding: 6px 20px;
     font-family: 'Inter', sans-serif;
-    transition: background 0.15s ease;
-  }}
-  .stDownloadButton > button:hover {{
-    background: #B80000 !important;
   }}
 
   /* ─── 副文本 / 说明文字 ─── */
   .stCaption, p {{
     font-size: 12px !important;
-    color: #AAA !important;
+    color: {MCD_GRAY} !important;
   }}
 
   /* ─── 数字高亮 ─── */
@@ -684,9 +671,9 @@ if uploaded:
                     if score >= 70:
                         score_color = MCD_RED
                     elif score >= 40:
-                        score_color = "#E07B00"
+                        score_color = MCD_GRAY
                     else:
-                        score_color = "#AAA"
+                        score_color = MCD_GRAY
 
                     with col:
                         date_val = getattr(row, '发送日期', None)
@@ -729,10 +716,10 @@ if uploaded:
                           <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                             <div style="flex:1;">
                               <span class="rank-badge {badge_class}">{rank}</span>
-                              <span style="font-size:12px; color:#888; background:#F5F5F5; padding:2px 8px; border-radius:12px;">
+                              <span style="font-size:12px; color:{MCD_GRAY}; background:{MCD_LG}; padding:2px 8px; border-radius:12px;">
                                 {plan_type_short} · {channel_short}
                               </span>
-                              <span style="font-size:12px; color:#AAA; margin-left:8px;">{date_str}</span>
+                              <span style="font-size:12px; color:{MCD_GRAY}; margin-left:8px;">{date_str}</span>
                             </div>
                             <div>
                               <div class="card-score" style="color:{score_color};">{score}</div>
@@ -787,8 +774,7 @@ if uploaded:
             top10 = dff.head(10)
             fig_bar = px.bar(
                 top10, x="排名", y="综合评分",
-                color="综合评分",
-                color_continuous_scale=["#FFD700", "#DA291C"],
+                color_discrete_sequence=[MCD_RED],
                 text="综合评分",
                 title="Top 10 综合评分"
             )
@@ -796,7 +782,6 @@ if uploaded:
             fig_bar.update_layout(
                 template="plotly_white",
                 showlegend=False,
-                coloraxis_showscale=False,
                 height=400
             )
             st.plotly_chart(fig_bar, use_container_width=True)
@@ -806,10 +791,9 @@ if uploaded:
                 dff,
                 x="触达成功", y="订单Sales",
                 size="CTR",
-                color="综合评分",
-                color_continuous_scale=["#FFD700", "#DA291C"],
+                color_discrete_sequence=[MCD_RED],
                 hover_name=title_col,
-                title="触达量 vs 订单Sales（气泡大小=CTR，颜色=综合评分）"
+                title="触达量 vs 订单Sales（气泡大小=CTR）"
             )
             fig_scatter.update_layout(template="plotly_white", height=450)
             st.plotly_chart(fig_scatter, use_container_width=True)
