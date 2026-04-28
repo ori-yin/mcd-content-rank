@@ -598,12 +598,11 @@ if uploaded:
 
     # ─── 计算综合评分（基于归一化权重 × 100）──────────────────
     df["综合评分"] = (
-        df["触达_norm"] * norm_reach
-        + df["CTR_norm"] * norm_ctr
-        + df["Sales_norm"] * norm_sales
-        + df["单均价_norm"] * norm_apu
-    ) * 100).round(1)
-
+        df["触达_norm"] * norm_reach * 100
+        + df["CTR_norm"] * norm_ctr * 100
+        + df["Sales_norm"] * norm_sales * 100
+        + df["单均价_norm"] * norm_apu * 100
+    ).round(1)
 
     # 排名在筛选后重排，见下方筛选后处理
 
@@ -682,9 +681,9 @@ if uploaded:
                         badge_class = "rank-other"
 
                     score = row.综合评分
-                    if score >= 7000:
+                    if score >= 70:
                         score_color = MCD_RED
-                    elif score >= 4000:
+                    elif score >= 40:
                         score_color = "#E07B00"
                     else:
                         score_color = "#AAA"
