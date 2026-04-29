@@ -601,7 +601,7 @@ if uploaded:
         w_apu = st.slider("单均价权重", 0.0, 1.0, 0.10, 0.05)
 
         st.markdown("**排序方式**")
-        sort_order = st.radio("综合评分排序", ["评分降序", "评分升序"], index=0, horizontal=True, label_visibility="collapsed")
+        sort_order = st.radio("综合评分排序", ["降序", "升序"], index=0, horizontal=True, label_visibility="collapsed")
 
         total_w = w_reach + w_ctr + w_sales + w_apu
         if total_w == 0:
