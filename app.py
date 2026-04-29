@@ -91,11 +91,6 @@ st.markdown(f"""
     background:linear-gradient(90deg, #FF9F1C, #FF6A00) !important;
     border-radius: 6px !important;
 
-    width: calc(100% - 20px) !important;   /* 两边各留10px */
-    margin: 0 auto !important;            /* 居中 */
-
-
-
   }}
 
   [data-testid="stSidebar"] .stSelectbox > div > div,
