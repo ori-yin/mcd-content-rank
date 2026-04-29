@@ -16,7 +16,8 @@ from io import BytesIO
 st.set_page_config(
     page_title="麦当劳内容排行榜",
     page_icon="🏆",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 # ─── 品牌色 ─────────────────────────────────────────────────────
