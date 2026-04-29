@@ -577,13 +577,12 @@ if uploaded:
         # 关键词搜索
         keyword = st.text_input("🔍 搜索标题/内容关键词", "")
 
+                st.markdown("---")
         # 权重调整
-        st.markdown("---")
+        st.markdown("【?】权重配置 &nbsp;<span title='综合评分 = 触达_norm×权重_触达 + CTR_norm×权重_CTR + Sales_norm×权重_订单Sales + 单均价_norm×权重_单均价' style='cursor:help;font-size:11px;color:#888;'>(计算公式)</span>", unsafe_allow_html=True)
 
-st.markdown("【?】权重配置 &nbsp;<span title='综合评分 = 触达_norm×权重_触达 + CTR_norm×权重_CTR + Sales_norm×权重_订单Sales + 单均价_norm×权重_单均价' style='cursor:help;font-size:11px;color:#888;'>(计算公式)</span>", unsafe_allow_html=True)
-
-        w_reach = st.slider("触达量权重", 0.0, 1.0, 0.35, 0.05)w_reach = st.slider("触达量权重", 0.0, 1.0, 0.35, 0.05)
-        w_ctr = st.slider("CTR权重", 0.0, 1.0, 0.15, 0.05)
+        w_reach = st.slider("触达量权重", 0.0, 1.0, 0.35, 0.05)
+w_ctr = st.slider("CTR权重", 0.0, 1.0, 0.15, 0.05)
         w_sales = st.slider("订单Sales权重", 0.0, 1.0, 0.40, 0.05)
         w_apu = st.slider("单均价权重", 0.0, 1.0, 0.10, 0.05)
         total_w = w_reach + w_ctr + w_sales + w_apu
