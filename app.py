@@ -82,11 +82,14 @@ st.markdown(f"""
   }}
 
   [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] {{
-    background: #FFFFFF !important;
+    background: rgba(255,255,255,0.4) !important;
+    border-radius: 999px !important;
+
   }}
 
   [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] [aria-valuenow] {{
-    background: #FFFFFF !important;
+    background:: #FF7A00 !important;
+    border-radius: 999px !important;
   }}
 
   [data-testid="stSidebar"] .stSelectbox > div > div,
