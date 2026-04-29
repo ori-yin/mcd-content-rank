@@ -652,7 +652,8 @@ if uploaded:
 
     # ─── 筛选后重排排名 ────────────────────────────────────────
     if len(dff) > 0:
-        dff = dff.sort_values("综合评分", ascending=False).reset_index(drop=True)
+        asc = (sort_order == "升序（低→高）")
+        dff = dff.sort_values("综合评分", ascending=asc).reset_index(drop=True)
     dff["排名"] = dff.index + 1
 
     # ─── 顶部指标卡 ───────────────────────────────────────────
@@ -746,10 +747,10 @@ if uploaded:
                               <span style="font-size:12px; color:#888; background:#F5F5F5; padding:2px 8px; border-radius:12px;">
                                 {plan_type_short} · {channel_short}
                               </span>
-                              <span style="font-size:12px; color:#AAA; margin-left:8px;">{date_str}</span>
+                              <span style="font-size:12px; color:#AAA; margin-left:8px;">{owner_short} · {date_str}</span>
                             </div>
                             <div>
-                              <div class="card-score" style="color:{score_color};">{score}</div>
+                              <div class="card-score" style="color:{score_color};">{int(score)}</div>
                               <div class="card-score-label">综合评分</div>
                             </div>
                           </div>
