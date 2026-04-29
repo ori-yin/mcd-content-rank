@@ -585,8 +585,7 @@ if uploaded:
         with col_w:
             st.markdown("**权重配置**")
         with col_help:
-            st.radio("", [""], horizontal=True,
-                     help="综合评分 = 触达_norm×权重_触达 + CTR_norm×权重_CTR + Sales_norm×权重_订单Sales + 单均价_norm×权重_单均价")
+            st.markdown(":blue[?] 评分公式", help="综合评分 = 触达_norm×权重_触达 + CTR_norm×权重_CTR + Sales_norm×权重_订单Sales + 单均价_norm×权重_单均价")
 
         w_reach = st.slider("触达量权重", 0.0, 1.0, 0.35, 0.05)
         w_ctr = st.slider("CTR权重", 0.0, 1.0, 0.15, 0.05)
