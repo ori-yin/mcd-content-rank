@@ -88,7 +88,7 @@ st.markdown(f"""
   }}
 
   [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] [aria-valuenow] {{
-    background:linear-gradient(90deg, #FF9F1C, #FF6A00) !important;
+    background: #FFC72C !important;
     border-radius: 6px !important;
 
   }}
@@ -170,7 +170,7 @@ st.markdown(f"""
 
   /* ─── 主标题卡片 ─── */
   .mcd-header {{
-    background: {MCD_RED};
+    background: #DC0008;
     border-radius: 16px;
     padding: 28px 36px;
     color: #FFFFFF;
