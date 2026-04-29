@@ -90,8 +90,10 @@ st.markdown(f"""
   [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] [aria-valuenow] {{
     background:linear-gradient(90deg, #FF9F1C, #FF6A00) !important;
     border-radius: 6px !important;
-    padding-left: 10px;
-    padding-right: 10px;
+
+    width: calc(100% - 20px) !important;   /* 两边各留10px */
+    margin: 0 auto !important;            /* 居中 */
+
 
 
   }}
