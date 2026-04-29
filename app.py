@@ -25,35 +25,6 @@ MCD_GOLD = "#FFBC0D"
 MCD_GREEN = "#00A04A"
 MCD_BG = "#FAFAFA"
 
-
-# ─── 全宽白色 Header Banner（位于 Sidebar + 主内容区上方）───
-st.html("""
-<div style="
-  position: relative;
-  width: 100%;
-  background: #FFFFFF;
-  border-bottom: 1px solid #E8E8E8;
-  padding: 14px 24px;
-  box-sizing: border-box;
-  z-index: 9999;
-">
-  <div style="max-width: 1400px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between;">
-    <div style="display: flex; align-items: center; gap: 10px;">
-      <span style="font-size: 15px; font-weight: 800; color: #DA291C; letter-spacing: -0.02em;">
-        McDonald&apos;s China
-      </span>
-      <span style="color: #DDD; font-weight: 300;">|</span>
-      <span style="font-size: 13px; color: #888; font-weight: 500;">
-        Push 内容运营
-      </span>
-    </div>
-    <div style="font-size: 11px; color: #BBB;">
-      内容排行榜 · 数据驱动决策
-    </div>
-  </div>
-</div>
-""")
-
 # ─── 样式 ─────────────────────────────────────────────────────
 st.markdown(f"""
 <style>
@@ -608,23 +579,17 @@ if uploaded:
 
         # 权重调整
         st.markdown("---")
-        st.markdown("**权重配置** &nbsp;<span style='color:#999;font-size:11px;'>综合评分计算公式</span>", unsafe_allow_html=True)
-        w_reach = st.slider(
-            "触达量权重", 0.0, 1.0, 0.35, 0.05,
-            help="综合评分 = 触达_norm×权重_触达 + CTR_norm×权重_CTR + Sales_norm×权重_订单Sales + 单均价_norm×权重_单均价\n\n各指标均做 Min-Max 归一化（0-100），最终评分范围 0-100"
-        )
-        w_ctr = st.slider(
-            "CTR权重", 0.0, 1.0, 0.15, 0.05,
-            help="综合评分 = 触达_norm×权重_触达 + CTR_norm×权重_CTR + Sales_norm×权重_订单Sales + 单均价_norm×权重_单均价\n\n各指标均做 Min-Max 归一化（0-100），最终评分范围 0-100"
-        )
-        w_sales = st.slider(
-            "订单Sales权重", 0.0, 1.0, 0.40, 0.05,
-            help="综合评分 = 触达_norm×权重_触达 + CTR_norm×权重_CTR + Sales_norm×权重_订单Sales + 单均价_norm×权重_单均价\n\n各指标均做 Min-Max 归一化（0-100），最终评分范围 0-100"
-        )
-        w_apu = st.slider(
-            "单均价权重", 0.0, 1.0, 0.10, 0.05,
-            help="综合评分 = 触达_norm×权重_触达 + CTR_norm×权重_CTR + Sales_norm×权重_订单Sales + 单均价_norm×权重_单均价\n\n各指标均做 Min-Max 归一化（0-100），最终评分范围 0-100"
-        )
+        col_title, col_help = st.columns([1, 0])
+        with col_title:
+            st.markdown("**权重配置**")
+        with col_help:
+            st.caption(f"公式说明 :question:")
+            st.info(body="综合评分 = 触达_norm×权重_触达 + CTR_norm×权重_CTR + Sales_norm×权重_订单Sales + 单均价_norm×权重_单均价\n各指标均做 Min-Max 归一化（0-100），最终评分范围 0-100", icon="💡")
+
+        w_reach = st.slider("触达量权重", 0.0, 1.0, 0.35, 0.05)
+        w_ctr = st.slider("CTR权重", 0.0, 1.0, 0.15, 0.05)
+        w_sales = st.slider("订单Sales权重", 0.0, 1.0, 0.40, 0.05)
+        w_apu = st.slider("单均价权重", 0.0, 1.0, 0.10, 0.05)
         total_w = w_reach + w_ctr + w_sales + w_apu
         if total_w == 0:
             st.warning("权重总和为 0，请调整权重")
