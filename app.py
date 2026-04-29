@@ -579,14 +579,10 @@ if uploaded:
 
         # 权重调整
         st.markdown("---")
-        col_title, col_help = st.columns([1, 0])
-        with col_title:
-            st.markdown("**权重配置**")
-        with col_help:
-            st.caption(f"公式说明 :question:")
-            st.info(body="综合评分 = 触达_norm×权重_触达 + CTR_norm×权重_CTR + Sales_norm×权重_订单Sales + 单均价_norm×权重_单均价\n各指标均做 Min-Max 归一化（0-100），最终评分范围 0-100", icon="💡")
 
-        w_reach = st.slider("触达量权重", 0.0, 1.0, 0.35, 0.05)
+st.markdown("【?】权重配置 &nbsp;<span title='综合评分 = 触达_norm×权重_触达 + CTR_norm×权重_CTR + Sales_norm×权重_订单Sales + 单均价_norm×权重_单均价' style='cursor:help;font-size:11px;color:#888;'>(计算公式)</span>", unsafe_allow_html=True)
+
+        w_reach = st.slider("触达量权重", 0.0, 1.0, 0.35, 0.05)w_reach = st.slider("触达量权重", 0.0, 1.0, 0.35, 0.05)
         w_ctr = st.slider("CTR权重", 0.0, 1.0, 0.15, 0.05)
         w_sales = st.slider("订单Sales权重", 0.0, 1.0, 0.40, 0.05)
         w_apu = st.slider("单均价权重", 0.0, 1.0, 0.10, 0.05)
