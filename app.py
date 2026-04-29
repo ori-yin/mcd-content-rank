@@ -599,6 +599,10 @@ if uploaded:
         w_ctr = st.slider("CTR权重", 0.0, 1.0, 0.15, 0.05)
         w_sales = st.slider("订单Sales权重", 0.0, 1.0, 0.40, 0.05)
         w_apu = st.slider("单均价权重", 0.0, 1.0, 0.10, 0.05)
+
+        st.markdown("**排序方式**")
+        sort_order = st.radio("综合评分排序", ["降序（高→低）", "升序（低→高）"], index=0, horizontal=True, label_visibility="collapsed")
+
         total_w = w_reach + w_ctr + w_sales + w_apu
         if total_w == 0:
             st.warning("权重总和为 0，请调整权重")
