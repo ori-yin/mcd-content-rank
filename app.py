@@ -83,13 +83,14 @@ st.markdown(f"""
 
   [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] {{
     background: rgba(255,255,255,0.4) !important;
-    border-radius: 999px !important;
-
+    border-radius: 6px !important;
+    height: 6px;
   }}
 
   [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] [aria-valuenow] {{
-    background:: #FF7A00 !important;
-    border-radius: 999px !important;
+    background:linear-gradient(90deg, #FF9F1C, #FF6A00) !important;
+    border-radius: 6px !important;
+    height: 6px;
   }}
 
   [data-testid="stSidebar"] .stSelectbox > div > div,
