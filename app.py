@@ -341,6 +341,16 @@ st.markdown(f"""
   .stAlert {{
     border-radius: 10px;
   }}
+
+  /* -- Main area slider thumb color (MCD RED) -- */
+  [data-testid="stMainBlockContainer"] .stSlider [data-baseweb="slider"] {
+    color: #DA291C !important;
+  }
+  [data-testid="stMainBlockContainer"] .stSlider [data-baseweb="slider"] [data-attr-var="thumb"],
+  [data-testid="stMainBlockContainer"] .stSlider [role="slider"] {
+    background: #DA291C !important;
+    border-color: #DA291C !important;
+  }
 </style>
 """, unsafe_allow_html=True)
 
@@ -579,7 +589,12 @@ if uploaded:
 
         st.markdown("---")
         # 权重调整
-        st.markdown("【?】权重配置 &nbsp;<span title='综合评分 = 触达_norm×权重_触达 + CTR_norm×权重_CTR + Sales_norm×权重_订单Sales + 单均价_norm×权重_单均价' style='cursor:help;font-size:11px;color:#888;'>(计算公式)</span>", unsafe_allow_html=True)
+        col_w, col_help = st.columns([1, 0])
+        with col_w:
+            st.markdown("**权重配置**")
+        with col_help:
+            st.radio("", [""], horizontal=True,
+                     help="综合评分 = 触达_norm×权重_触达 + CTR_norm×权重_CTR + Sales_norm×权重_订单Sales + 单均价_norm×权重_单均价")
 
         w_reach = st.slider("触达量权重", 0.0, 1.0, 0.35, 0.05)
         w_ctr = st.slider("CTR权重", 0.0, 1.0, 0.15, 0.05)
@@ -595,7 +610,6 @@ if uploaded:
             norm_ctr = w_ctr / total_w
             norm_sales = w_sales / total_w
             norm_apu = w_apu / total_w
-            st.caption(f"权重合计: {total_w:.0%}（已归一化）")
 
     # ─── 计算综合评分（基于归一化权重 × 100）──────────────────
     df["综合评分"] = (
