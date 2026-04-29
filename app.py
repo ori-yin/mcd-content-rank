@@ -90,7 +90,7 @@ st.markdown(f"""
   [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] [aria-valuenow] {{
     background:linear-gradient(90deg, #FF9F1C, #FF6A00) !important;
     border-radius: 6px !important;
-    transform: translateX(10px);
+    width: 92% !important;
   }}
 
   [data-testid="stSidebar"] .stSelectbox > div > div,
