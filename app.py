@@ -656,7 +656,7 @@ if uploaded:
 
     # ─── 筛选后重排排名 ────────────────────────────────────────
     if len(dff) > 0:
-        asc = (sort_order == "升序（低→高）")
+        asc = (sort_order == "升序")
         dff = dff.sort_values("综合评分", ascending=asc).reset_index(drop=True)
     dff["排名"] = dff.index + 1
 
