@@ -342,15 +342,6 @@ st.markdown(f"""
     border-radius: 10px;
   }}
 
-  /* -- Main area slider thumb color (MCD RED) -- */
-  [data-testid="stMainBlockContainer"] .stSlider [data-baseweb="slider"] {
-    color: #DA291C !important;
-  }
-  [data-testid="stMainBlockContainer"] .stSlider [data-baseweb="slider"] [data-attr-var="thumb"],
-  [data-testid="stMainBlockContainer"] .stSlider [role="slider"] {
-    background: #DA291C !important;
-    border-color: #DA291C !important;
-  }
 </style>
 """, unsafe_allow_html=True)
 
