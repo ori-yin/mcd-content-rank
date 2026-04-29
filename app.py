@@ -81,13 +81,13 @@ st.markdown(f"""
     padding: 4px 0;
   }}
 
-  [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] {
+  [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] {{
     background: #FFFFFF !important;
-  }
+  }}
 
-  [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] [aria-valuenow] {
+  [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] [aria-valuenow] {{
     background: #FFFFFF !important;
-  }
+  }}
 
   [data-testid="stSidebar"] .stSelectbox > div > div,
   [data-testid="stSidebar"] .stTextInput > div > div,
