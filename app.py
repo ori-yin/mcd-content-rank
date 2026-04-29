@@ -81,53 +81,13 @@ st.markdown(f"""
     padding: 4px 0;
   }}
 
-/* ===== Slider整体间距优化 ===== */
-[data-testid="stSidebar"] .stSlider > div {
-  padding: 8px 0 2px 0;
-}
+  [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] {
+    background: #FFFFFF !important;
+  }
 
-/* ===== Slider轨道（底层灰色） ===== */
-[data-testid="stSidebar"] .stSlider [data-baseweb="slider"] > div > div {
-  height: 6px !important;
-  background: rgba(255,255,255,0.35) !important;  /* 半透明白 */
-  border-radius: 999px;
-}
-
-/* ===== 已选中部分（高亮进度） ===== */
-[data-testid="stSidebar"] .stSlider [data-baseweb="slider"] [aria-valuenow] {
-  height: 6px !important;
-  background: #FF7A00 !important;  /* 更高级的橙红 */
-  border-radius: 999px;
-}
-
-/* ===== 滑块（重点！） ===== */
-[data-testid="stSidebar"] .stSlider [role="slider"] {
-  width: 16px !important;
-  height: 16px !important;
-  background: #FFFFFF !important;
-  border: 3px solid #FF7A00 !important;
-  border-radius: 50% !important;
-
-  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-  transition: transform 0.15s ease;
-}
-
-/* ===== hover 放大一点（高级感关键） ===== */
-[data-testid="stSidebar"] .stSlider [role="slider"]:hover {
-  transform: scale(1.15);
-}
-
-/* ===== 当前值气泡（Streamlit自带那个）隐藏，更干净 ===== */
-[data-testid="stSidebar"] .stSlider [data-testid="stThumbValue"] {
-  display: none;
-}
-
-/* ===== label 和数值排版优化 ===== */
-[data-testid="stSidebar"] .stSlider label {
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 6px;
-}
+  [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] [aria-valuenow] {
+    background: #FFFFFF !important;
+  }
 
   [data-testid="stSidebar"] .stSelectbox > div > div,
   [data-testid="stSidebar"] .stTextInput > div > div,
