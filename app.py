@@ -81,7 +81,11 @@ st.markdown(f"""
   }}
 
   [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] {{
-    background: rgba(0,0,0,0.15) !important;
+    background: #FFE49E !important;
+  }}
+
+  [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] [aria-valuenow] {{
+    background: #1a1a1a !important;
   }}
 
   [data-testid="stSidebar"] .stSelectbox > div > div,
