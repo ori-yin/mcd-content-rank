@@ -580,7 +580,7 @@ if uploaded:
 
         st.markdown("---")
         # 权重调整
-        col_w, col_help = st.columns([1, 0])
+        col_w, col_help = st.columns([4, 1])
         with col_w:
             st.markdown("**权重配置**")
         with col_help:
