@@ -82,7 +82,7 @@ st.markdown(f"""
   }}
 
   [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] {{
-    background: rgba(255,255,255,0.30) !important;
+    background: rgba(255,255,255,0.15) !important;
     border-radius: 6px !important;
 
   }}
