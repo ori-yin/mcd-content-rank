@@ -588,7 +588,7 @@ if uploaded:
         # 权重调整
         col_w, _ = st.columns([4, 1])
         with col_w:
-            st.markdown("**权重配置**", help="综合评分 = 触达_norm×权重_触达 + CTR_norm×权重_CTR + Sales_norm×权重_订单Sales + 单均价_norm×权重_单均价")
+            st.markdown("**权重配置**", help="综合评分 = 触达_归一 × 权重 + CTR_归一 × 权重 + Sales_归一 × 权重 + 单均价_归一 × 权重")
 
 
         w_reach = st.slider("触达量权重", 0.0, 1.0, 0.35, 0.05)
