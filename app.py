@@ -48,6 +48,7 @@ st.markdown(f"""
     border-right: 3px solid rgba(0,0,0,0.08);
     min-width: 240px !important;
     max-width: 240px !important;
+    overflow: hidden !important;
   }}
 
   [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
@@ -81,11 +82,11 @@ st.markdown(f"""
   }}
 
   [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] {{
-    background: #FFE49E !important;
+    background: #FFFFFF !important;
   }}
 
   [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] [aria-valuenow] {{
-    background: #1a1a1a !important;
+    background: #FFFFFF !important;
   }}
 
   [data-testid="stSidebar"] .stSelectbox > div > div,
@@ -588,8 +589,7 @@ if uploaded:
         col_w, col_help = st.columns([4, 1])
         with col_w:
             st.markdown("**权重配置**")
-        with col_help:
-            st.markdown(":blue[?] 评分公式", help="综合评分 = 触达_norm×权重_触达 + CTR_norm×权重_CTR + Sales_norm×权重_订单Sales + 单均价_norm×权重_单均价")
+
 
         w_reach = st.slider("触达量权重", 0.0, 1.0, 0.35, 0.05)
         w_ctr = st.slider("CTR权重", 0.0, 1.0, 0.15, 0.05)
