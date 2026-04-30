@@ -47,12 +47,12 @@ st.markdown(f"""
     border-right: 3px solid rgba(0,0,0,0.08);
     min-width: 240px !important;
     max-width: 240px !important;
-    overflow-x: hidden !important; overflow-y: auto !important;
+    overflow: hidden !important;
   }}
 
   /* 隐藏侧边栏原生滚动条 */
   [data-testid="stSidebar"] * {{
-    overflow-x: hidden !important; overflow-y: auto !important;
+    overflow: hidden !important;
   }}
 
   /* 隐藏侧边栏折叠按钮（keyboard_double_arrow_left） */
