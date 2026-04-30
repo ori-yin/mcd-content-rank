@@ -30,9 +30,8 @@ OWNER_COL = "预算owner"
 st.markdown(f"""
 <style>
   /* ─── 全局字体 ─── */
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
-  html, body, .stApp {{
-    font-family: 'Inter', 'PingFang SC', 'Helvetica Neue', sans-serif !important;
+    html, body, .stApp {{
+    font-family: 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif !important;
     background: {MCD_BG};
     color: #1a1a1a;
   }}
@@ -56,7 +55,7 @@ st.markdown(f"""
   [data-testid="stSidebar"] span,
   [data-testid="stSidebar"] p {{
     color: #000000 !important;
-    font-family: 'Inter', 'PingFang SC', sans-serif !important;
+    font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif !important;
   }}
 
   [data-testid="stSidebar"] .stRadio label,
@@ -131,7 +130,7 @@ st.markdown(f"""
     font-size: 22px !important;
     font-weight: 900 !important;
     color: {MCD_RED} !important;
-    font-family: 'Inter', sans-serif !important;
+    font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif !important;
     letter-spacing: -0.02em;
   }}
   div[data-testid="stMetricLabel"] {{
@@ -244,7 +243,7 @@ st.markdown(f"""
     color: #1a1a1a;
     margin-bottom: 6px;
     line-height: 1.5;
-    font-family: 'Inter', 'PingFang SC', sans-serif;
+    font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
   }}
   .card-content {{
     font-size: 13px;
@@ -272,7 +271,7 @@ st.markdown(f"""
     color: {MCD_RED};
     text-align: right;
     line-height: 1;
-    font-family: 'Inter', sans-serif;
+    font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
   }}
   .card-score-label {{
     font-size: 10px;
