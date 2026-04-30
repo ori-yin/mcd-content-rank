@@ -51,19 +51,8 @@ st.markdown(f"""
   }}
 
   /* 隐藏侧边栏原生滚动条 */
-  [data-testid="stSidebar"] * {{
-    overflow: hidden !important;
-  }}
 
-  /* 隐藏侧边栏折叠按钮（keyboard_double_arrow_left） */
-  [data-testid="stMainBlockContainer"] button[kind="icon"],
-  .stMainBlockContainer button[data-testid="stMainBlockContainer"],
-  section[data-testid="stMain"][data-has-sidebar="true"] > div:first-child button,
-  button[data-testid="stSidebarCloseButton"],
 
-  /* Streamlit collapse sidebar button */
-  section[data-testid="stMain"] header button:first-child,
-  .stMain header .stToolbarActions button,
 
   [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
   [data-testid="stSidebar"] label,
