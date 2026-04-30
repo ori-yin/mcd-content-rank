@@ -326,8 +326,8 @@ st.markdown(f"""
   }}
 
   /* ─── Streamlit 按钮 ─── */
-  .stDownloadButton > button {{
-    background: {MCD_RED} !important;
+  .stDownloadButton > button, [data-testid="stDownloadButton"] button {{
+    background: #DA291C !important;
     color: #FFFFFF !important;
     font-weight: 700;
     border: none !important;
@@ -507,11 +507,7 @@ if uploaded:
             try:
                 df = clean_raw_csv(uploaded)
                 col_count_before = df.shape[1] + 1  # +1 因为去掉了 JSON 列，加了 2 个新列
-                st.markdown(
-                    f'<div class="clean-status">✅ 清洗完成！去掉了 JSON 列，新增「标题」和「内容」列，'
-                    f'最终 {df.shape[1]} 列，{df.shape[0]} 行。</div>',
-                    unsafe_allow_html=True
-                )
+                # 清洗在 clean_raw_csv() 中静默完成
             except ValueError as e:
                 st.error(str(e))
                 st.stop()
