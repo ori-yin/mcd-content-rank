@@ -18,10 +18,9 @@ st.set_page_config(
 )
 
 # ─── 品牌色 ─────────────────────────────────────────────────────
-MCD_RED = "#E40004"
-MCD_GOLD = "#FFBC0D"
-MCD_GREEN = "#00A04A"
-MCD_BG = "#FAFAFA"
+MCD_RED = "#DB0003"
+MCD_GOLD = "#FFC000"
+MCD_BG = "#F5F5F5"
 
 # ─── 列名常量 ──────────────────────────────────────────────────
 OWNER_COL = "预算owner"   
@@ -33,7 +32,7 @@ st.markdown(f"""
     html, body, .stApp {{
     font-family: 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif !important;
     background: {MCD_BG};
-    color: #1a1a1a;
+    color: #000000;
   }}
 
   /* ─── Streamlit 顶部导航条 ─── */
@@ -54,7 +53,7 @@ st.markdown(f"""
   [data-testid="stSidebar"] label,
   [data-testid="stSidebar"] span,
   [data-testid="stSidebar"] p {{
-    color: #000000 !important;
+    color: #000000000 !important;
     font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif !important;
   }}
 
@@ -63,7 +62,7 @@ st.markdown(f"""
   [data-testid="stSidebar"] .stTextInput label,
   [data-testid="stSidebar"] .stDateInput label,
   [data-testid="stSidebar"] .stSlider label {{
-    color: #000000 !important;
+    color: #000000000 !important;
     font-weight: 700;
     font-size: 12px;
     letter-spacing: 0.04em;
@@ -87,7 +86,7 @@ st.markdown(f"""
   }}
 
   [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] [aria-valuenow] {{
-    background: #DC0008 !important;
+    background: #DB0003 !important;
     border-radius: 6px !important;
 
   }}
@@ -98,15 +97,15 @@ st.markdown(f"""
     background: rgba(255,255,255,0.6) !important;
     border: 1px solid rgba(0,0,0,0.12) !important;
     border-radius: 10px !important;
-    color: #000000 !important;
+    color: #000000000 !important;
   }}
 
   [data-testid="stSidebar"] [data-baseweb="select"] span {{
-    color: #000000 !important;
+    color: #000000000 !important;
   }}
 
   [data-testid="stSidebar"] [data-baseweb="input"] {{
-    color: #000000 !important;
+    color: #000000000 !important;
   }}
 
   [data-testid="stSidebar"] .stDownloadButton > button {{
@@ -147,10 +146,10 @@ st.markdown(f"""
   /* ─── Tab 栏 ─── */
   .stTabs [data-baseweb="tab-list"] {{
     gap: 4px;
-    border-bottom: 2px solid #EFEFEF;
+    border-bottom: 2px solid #F5F5F5;
   }}
   .stTabs [data-baseweb="tab"] {{
-    color: #888 !important;
+    color: #666666 !important;
     font-weight: 600;
     font-size: 14px;
     padding: 8px 16px;
@@ -169,7 +168,7 @@ st.markdown(f"""
 
   /* ─── 主标题卡片 ─── */
   .mcd-header {{
-    background: #DC0008;
+    background: #DB0003;
     border-radius: 16px;
     padding: 28px 36px;
     color: #FFFFFF;
@@ -208,17 +207,17 @@ st.markdown(f"""
     box-shadow: 0 2px 8px rgba(255,188,13,0.5);
   }}
   .rank-2 {{
-    background: #E8E8E8;
+    background: #F5F5F5;
     color: #666;
     border-color: rgba(0,0,0,0.08);
   }}
   .rank-3 {{
-    background: #FFBC0D;
-    color: #000;
+    background: #FFC000;
+    color: #000000;
     border-color: rgba(0,0,0,0.1);
   }}
   .rank-other {{
-    background: #F2F2F2;
+    background: #F5F5F5;
     color: #AAA;
     border-color: transparent;
   }}
@@ -226,7 +225,7 @@ st.markdown(f"""
   /* ─── 内容卡片 ─── */
   .content-card {{
     background: #FFFFFF;
-    border: 1px solid #EFEFEF;
+    border: 1px solid #F5F5F5;
     border-radius: 14px;
     padding: 18px 22px;
     margin-bottom: 14px;
@@ -240,7 +239,7 @@ st.markdown(f"""
   .card-title {{
     font-size: 14px;
     font-weight: 700;
-    color: #1a1a1a;
+    color: #000000;
     margin-bottom: 6px;
     line-height: 1.5;
     font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
@@ -256,14 +255,14 @@ st.markdown(f"""
     gap: 10px;
     flex-wrap: wrap;
     font-size: 12px;
-    color: #888;
+    color: #666666;
   }}
   .card-meta span {{
-    background: #F8F8F8;
+    background: #F5F5F5;
     padding: 4px 10px;
     border-radius: 20px;
     font-weight: 500;
-    border: 1px solid #EFEFEF;
+    border: 1px solid #F5F5F5;
   }}
   .card-score {{
     font-size: 26px;
@@ -275,7 +274,7 @@ st.markdown(f"""
   }}
   .card-score-label {{
     font-size: 10px;
-    color: #CCC;
+    color: #F5F5F5;
     text-align: right;
     font-weight: 500;
     text-transform: uppercase;
@@ -286,7 +285,7 @@ st.markdown(f"""
   .section-title {{
     font-size: 14px;
     font-weight: 700;
-    color: #1a1a1a;
+    color: #000000;
     margin: 28px 0 14px 0;
     padding-bottom: 8px;
     border-bottom: 2px solid {MCD_RED};
@@ -306,21 +305,21 @@ st.markdown(f"""
   .stDataFrame tbody tr:hover {{ background: rgba(228,0,4, 0.04) !important; }}
   .stDataFrame tbody td {{
     font-size: 13px !important;
-    color: #333 !important;
+    color: #000000 !important;
     padding: 9px 12px !important;
-    border-color: #F0F0F0 !important;
+    border-color: #F5F5F5 !important;
   }}
 
   /* ─── 清洗状态提示 ─── */
   .clean-status {{
-    background: #FFF8F0;
+    background: #F5F5F5;
     border: 1px solid {MCD_GOLD};
     border-left: 4px solid {MCD_GOLD};
     border-radius: 10px;
     padding: 10px 16px;
     margin-bottom: 20px;
     font-size: 13px;
-    color: #000000;
+    color: #000000000;
     font-weight: 500;
   }}
 
@@ -690,7 +689,7 @@ if uploaded:
                     if score >= 70:
                         score_color = MCD_RED
                     elif score >= 40:
-                        score_color = "#E07B00"
+                        score_color = "#FF6600"
                     else:
                         score_color = "#AAA"
 
@@ -735,7 +734,7 @@ if uploaded:
                           <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                             <div style="flex:1;">
                               <span class="rank-badge {badge_class}">{rank}</span>
-                              <span style="font-size:12px; color:#888; background:#F5F5F5; padding:2px 8px; border-radius:12px;">
+                              <span style="font-size:12px; color:#666666; background:#F5F5F5; padding:2px 8px; border-radius:12px;">
                                 {plan_type_short} · {channel_short}
                               </span>
                               <span style="font-size:12px; color:#AAA; margin-left:8px;">{owner_short} · {date_str}</span>
@@ -811,17 +810,17 @@ if uploaded:
             fig = make_subplots(specs=[[{"secondary_y": True}]])
             fig.add_trace(go.Bar(
                 x=agg[dim_name], y=agg["日均触达量"],
-                name="日均触达量", marker_color="#DA291C", opacity=0.85,
+                name="日均触达量", marker_color="#DB0003", opacity=0.85,
                 text=agg["日均触达量"].apply(_fmt_num), textposition="outside"
             ), secondary_y=False)
             fig.add_trace(go.Scatter(
                 x=agg[dim_name], y=agg["CTR"],
                 name="CTR (%)", mode="lines+markers+text",
-                line=dict(color="#FFC72C", width=3),
-                marker=dict(size=10, color="#FFC72C"),
+                line=dict(color="#FFC000", width=3),
+                marker=dict(size=10, color="#FFC000"),
                 text=agg["CTR"].apply(lambda x: f"{x:.2f}%"),
                 textposition="top center",
-                textfont=dict(color="#FFC72C", size=12, family="PingFang SC, Microsoft YaHei, sans-serif")
+                textfont=dict(color="#FFC000", size=12, family="PingFang SC, Microsoft YaHei, sans-serif")
             ), secondary_y=True)
             ctr_max = agg["CTR"].max() * 1.5
             fig.update_layout(
@@ -903,7 +902,7 @@ if uploaded:
                 )
                 fig_scatter.update_traces(
                     hovertemplate=h_template,
-                    marker=dict(size=14, color="#DA291C", opacity=0.75, line=dict(width=0))
+                    marker=dict(size=14, color="#DB0003", opacity=0.75, line=dict(width=0))
                 )
                 fig_scatter.update_layout(
                     template="plotly_white",
