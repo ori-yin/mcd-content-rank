@@ -50,6 +50,27 @@ st.markdown(f"""
     overflow: hidden !important;
   }}
 
+  /* 隐藏侧边栏原生滚动条 */
+  [data-testid="stSidebar"] * {{
+    overflow: hidden !important;
+  }}
+
+  /* 隐藏侧边栏折叠按钮（keyboard_double_arrow_left） */
+  [data-testid="stMainBlockContainer"] button[kind="icon"],
+  .stMainBlockContainer button[data-testid="stMainBlockContainer"],
+  section[data-testid="stMain"][data-has-sidebar="true"] > div:first-child button,
+  button[data-testid="stSidebarCloseButton"],
+  [data-testid="stMain"] > div > div:first-child > div:first-child button {{
+    display: none !important;
+  }}
+
+  /* Streamlit collapse sidebar button */
+  section[data-testid="stMain"] header button:first-child,
+  .stMain header .stToolbarActions button,
+  header[data-testid="stHeader"] button {{
+    display: none !important;
+  }}
+
   [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
   [data-testid="stSidebar"] label,
   [data-testid="stSidebar"] span,
