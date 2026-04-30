@@ -325,21 +325,6 @@ st.markdown(f"""
     font-weight: 500;
   }}
 
-  /* ─── Streamlit 按钮 ─── */
-  .stDownloadButton > button, [data-testid="stDownloadButton"] button {{
-    background: #DA291C !important;
-    color: #FFFFFF !important;
-    font-weight: 700;
-    border: none !important;
-    border-radius: 10px !important;
-    padding: 6px 20px;
-    font-family: 'Inter', sans-serif;
-    transition: background 0.15s ease;
-  }}
-  .stDownloadButton > button:hover {{
-    background: #B80000 !important;
-  }}
-
   /* ─── 副文本 / 说明文字 ─── */
   .stCaption, p {{
     font-size: 12px !important;
