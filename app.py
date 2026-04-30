@@ -849,36 +849,27 @@ if uploaded:
                 title_col = "标题" if "标题" in dff.columns else "消息标题"
                 owner_col = "预算owner" if "预算owner" in dff.columns else None
 
-                # 把CTR值单独存成字符串（用于hover），然后从DataFrame删除，
-                # 防止Plotly自动用它编码opacity/size等视觉通道
-                ctr_vals = dff["CTR"].apply(lambda v: f"{v:.1f}%").tolist()
-
+                # 建立helper列（格式化字符串，Plotly默认不显示_前缀列）
                 dff_h = dff.copy()
-                # 也删掉触达量和Sales的原始列，防止Plotly自动编码
-                for c in ["CTR", "触达成功", "订单Sales"]:
-                    if c in dff_h.columns:
-                        del dff_h[c]
+                dff_h["_reach_fmt"] = dff_h["触达成功"].apply(
+                    lambda v: f"{v/1000:.1f}k" if abs(v) >= 1000 else f"{v:.0f}"
+                )
+                dff_h["_sales_fmt"] = dff_h["订单Sales"].apply(
+                    lambda v: f"{v/1000:.1f}k" if abs(v) >= 1000 else f"{v:.0f}"
+                )
+                dff_h["_ctr_fmt"] = dff_h["CTR"].apply(lambda v: f"{v:.1f}%")
 
-                # 格式化触达量和Sales（从原dff取值）
-                reach_vals = dff["触达成功"].apply(
-                    lambda v: f"{v/1000:.1f}k" if abs(v) >= 1000 else f"{v:.1f}"
-                ).tolist()
-                sales_vals = dff["订单Sales"].apply(
-                    lambda v: f"{v/1000:.1f}k" if abs(v) >= 1000 else f"{v:.1f}"
-                ).tolist()
-
-                # customdata: [触达_fmt, Sales_fmt, CTR_fmt, BU_fmt(可选)]
-                cd = [reach_vals, sales_vals, ctr_vals]
+                # customdata只传列名（字符串），Plotly自动从DataFrame取值
+                cd = ["_reach_fmt", "_sales_fmt", "_ctr_fmt"]
                 h_parts = [
                     "<b>%{hovertext}</b>",
                     "%{customdata[0]} 触达",
                     "%{customdata[1]} 订单",
                     "%{customdata[2]} CTR"
                 ]
-                bu_vals = None
-                if owner_col and owner_col in dff.columns:
-                    bu_vals = dff[owner_col].fillna("").astype(str).tolist()
-                    cd.append(bu_vals)
+                if owner_col and owner_col in dff_h.columns:
+                    dff_h["_bu_fmt"] = dff_h[owner_col].fillna("").astype(str)
+                    cd.append("_bu_fmt")
                     h_parts.append("%{customdata[3]}")
 
                 h_template = "<br>".join(h_parts) + "<extra></extra>"
