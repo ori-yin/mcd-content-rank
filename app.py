@@ -822,7 +822,7 @@ if uploaded:
             fig.update_yaxes(title_text="日均触达量", secondary_y=False, showgrid=False)
             fig.update_yaxes(title_text="CTR (%)", secondary_y=True, range=[0, max(ctr_max, 1)], showgrid=False)
             fig.update_xaxes(showgrid=False)
-            fig.update_xaxes(title_text=dim_label, tickangle=-20)
+            fig.update_xaxes(title_text="", tickangle=-20)
             return fig
 
         if total_rows == 0:
@@ -857,7 +857,7 @@ if uploaded:
                 dff_h["_sales_fmt"] = dff_h["订单Sales"].apply(
                     lambda v: f"{v/1000:.1f}k" if abs(v) >= 1000 else f"{v:.0f}"
                 )
-                dff_h["_ctr_fmt"] = dff_h["CTR"].apply(lambda v: f"{v:.1f}%")
+                dff_h["_ctr_fmt"] = dff_h["CTR"].apply(lambda v: f"{v:.2f}%")
 
                 # customdata只传列名（字符串），Plotly自动从DataFrame取值
                 cd = ["_reach_fmt", "_sales_fmt", "_ctr_fmt"]
@@ -882,7 +882,7 @@ if uploaded:
                 )
                 fig_scatter.update_traces(
                     hovertemplate=h_template,
-                    marker=dict(size=14, color="#DA291C", opacity=0.75, line=dict(width=0))
+                    marker=dict(size=14, color=dff_h["CTR"], colorscale=[[0,"#FFC72C"],[0.25,"#FF8C00"],[0.5,"#DA291C"],[0.75,"#B22222"],[1,"#8B0000"]], cmin=0, cmax=dff_h["CTR"].max() if dff_h["CTR"].max() > 0 else 1, showscale=True, colorbar=dict(title="CTR (%)", titleside="right", titlefont=dict(size=11, color="#666666"), tickfont=dict(color="#666666", size=10)), line=dict(width=0), opacity=0.85)
                 )
                 fig_scatter.update_layout(
                     template="plotly_white",
