@@ -61,14 +61,14 @@ st.markdown(f"""
   section[data-testid="stMain"][data-has-sidebar="true"] > div:first-child button,
   button[data-testid="stSidebarCloseButton"],
   [data-testid="stMain"] > div > div:first-child > div:first-child button {{
-    display: none !important;
+    pointer-events: none !important;
   }}
 
   /* Streamlit collapse sidebar button */
   section[data-testid="stMain"] header button:first-child,
   .stMain header .stToolbarActions button,
   header[data-testid="stHeader"] button {{
-    display: none !important;
+    pointer-events: none !important;
   }}
 
   [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
