@@ -835,29 +835,39 @@ if uploaded:
                 num_days = 1
 
             if "渠道" in dff.columns and dff["渠道"].notna().sum() > 0:
-                st.markdown("**按渠道**", unsafe_allow_html=True)
                 st.plotly_chart(_bar_line_chart(dff, "渠道", "渠道"), use_container_width=True)
             else:
                 st.info("当前数据无渠道维度")
 
             owner_col = "预算owner"
             if owner_col in dff.columns and dff[owner_col].notna().sum() > 0:
-                st.markdown("**按预算Owner**", unsafe_allow_html=True)
                 st.plotly_chart(_bar_line_chart(dff, owner_col, "预算Owner"), use_container_width=True)
             else:
                 st.info("当前数据无预算Owner维度")
 
             if "触达成功" in dff.columns and "订单Sales" in dff.columns and "CTR" in dff.columns:
                 title_col = "标题" if "标题" in dff.columns else "消息标题"
+                import numpy as np
+                dff_bubble = dff.copy()
+                dff_bubble["CTR_clipped"] = dff_bubble["CTR"].clip(lower=0.05)
                 fig_scatter = px.scatter(
-                    dff,
+                    dff_bubble,
                     x="触达成功", y="订单Sales",
-                    size="CTR",
-                    color="综合评分",
-                    color_continuous_scale=["#FFC72C", "#DA291C"],
+                    size="CTR_clipped",
                     hover_name=title_col,
-                    title="触达量 vs 订单Sales（气泡大小=CTR，颜色=综合评分）"
+                    title="触达量 vs 订单Sales（气泡大小=CTR）"
                 )
                 fig_scatter.update_layout(template="plotly_white", height=450)
-                fig_scatter.update_traces(marker=dict(opacity=0.8))
+                fig_scatter.update_traces(
+                    marker=dict(opacity=0.75, sizemin=6),
+                    hovertemplate=fig_scatter.data[0].hovertemplate.replace(
+                        "CTR_clipped", "CTR"
+                    )
+                )
+                # Clip marker size to 10-70 range
+                fig_scatter.update_traces(
+                    marker=dict(
+                        size=[max(10, min(70, s)) for s in dff_bubble["CTR_clipped"]]
+                    )
+                )
                 st.plotly_chart(fig_scatter, use_container_width=True)
