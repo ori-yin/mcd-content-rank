@@ -547,7 +547,7 @@ if uploaded:
             max_dt = df[date_col].max().date()
             default_start = max(min_dt, max_dt - timedelta(days=6))
             date_range = st.date_input(
-                "📅 日期范围",
+                "日期范围",
                 value=(default_start, max_dt),
                 min_value=min_dt,
                 max_value=max_dt,
@@ -573,7 +573,7 @@ if uploaded:
         selected_owner = st.selectbox("预算 Owner", owners)
 
         # ─── 关键词搜索 ───────────────────────────────────────
-        keyword = st.text_input("🔍 搜索关键词", "")
+        keyword = st.text_input("搜索关键词", "")
 
         st.markdown("---")
         # ─── 权重调整 ─────────────────────────────────────────
