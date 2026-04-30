@@ -781,46 +781,82 @@ if uploaded:
         if total_rows == 0:
             st.warning("当前筛选条件下无数据")
         else:
-            top10 = dff.head(10)
-            fig_bar = px.bar(
-                top10, x="排名", y="综合评分",
-                color="综合评分",
-                color_continuous_scale=["#FFD700", "#DA291C"],
-                text="综合评分",
-                title="Top 10 综合评分"
-            )
-            fig_bar.update_traces(textposition="outside")
-            fig_bar.update_layout(
-                template="plotly_white",
-                showlegend=False,
-                coloraxis_showscale=False,
-                height=400
-            )
-            st.plotly_chart(fig_bar, use_container_width=True)
+            # 按渠道聚合：触达量=sum(触达成功)，CTR=加权平均(sum(点击)/sum(触达))
+            if "渠道" in dff.columns and dff["渠道"].notna().sum() > 0:
+                ch_agg = dff.groupby("渠道").agg(
+                    触达量=("触达成功", "sum"),
+                    点击人次=("点击人次", "sum")
+                ).reset_index()
+                ch_agg["CTR"] = (ch_agg["点击人次"] / ch_agg["触达量"] * 100).round(2)
+                ch_agg["CTR"] = ch_agg["CTR"].fillna(0).replace([float("inf"), -float("inf")], 0)
+                ch_agg = ch_agg.sort_values("触达量", ascending=False)
 
-            title_col = "标题" if "标题" in dff.columns else "消息标题"
-            fig_scatter = px.scatter(
-                dff,
-                x="触达成功", y="订单Sales",
-                size="CTR",
-                color="综合评分",
-                color_continuous_scale=["#FFD700", "#DA291C"],
-                hover_name=title_col,
-                title="触达量 vs 订单Sales（气泡大小=CTR，颜色=综合评分）"
-            )
-            fig_scatter.update_layout(template="plotly_white", height=450)
-            st.plotly_chart(fig_scatter, use_container_width=True)
+                from plotly.subplots import make_subplots
+                import plotly.graph_objects as go
 
-            c1, c2 = st.columns(2)
-            with c1:
-                st.markdown('<div class="section-title">📊 触达量 Top 5</div>', unsafe_allow_html=True)
-                top_reach = dff.nlargest(5, "触达成功")[["排名", title_col, "触达成功", "CTR", "综合评分"]]
-                st.dataframe(top_reach, hide_index=True, use_container_width=True)
-            with c2:
-                st.markdown('<div class="section-title">💰 订单Sales Top 5</div>', unsafe_allow_html=True)
-                top_sales = dff.nlargest(5, "订单Sales")[["排名", title_col, "订单Sales", "单均价", "综合评分"]]
-                st.dataframe(top_sales, hide_index=True, use_container_width=True)
+                fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-else:
-    st.info("请上传 CSV 文件开始分析")
-    pass
+                # 触达量柱状图
+                fig.add_trace(
+                    go.Bar(
+                        x=ch_agg["渠道"],
+                        y=ch_agg["触达量"],
+                        name="触达量",
+                        marker_color="#DA291C",
+                        opacity=0.85,
+                        text=ch_agg["触达量"].apply(lambda x: f"{x:,}"),
+                        textposition="outside"
+                    ),
+                    secondary_y=False
+                )
+
+                # CTR折线+数据标签
+                fig.add_trace(
+                    go.Scatter(
+                        x=ch_agg["渠道"],
+                        y=ch_agg["CTR"],
+                        name="CTR (%)",
+                        mode="lines+markers+text",
+                        line=dict(color="#FFC72C", width=3),
+                        marker=dict(size=10, color="#FFC72C"),
+                        text=ch_agg["CTR"].apply(lambda x: f"{x:.2f}%"),
+                        textposition="top center",
+                        textfont=dict(color="#FFC72C", size=12, family="Inter, sans-serif")
+                    ),
+                    secondary_y=True
+                )
+
+                fig.update_layout(
+                    template="plotly_white",
+                    height=420,
+                    showlegend=True,
+                    legend=dict(
+                        orientation="h",
+                        yanchor="bottom", y=1.02,
+                        xanchor="right", x=1
+                    ),
+                    margin=dict(t=60, b=20)
+                )
+                fig.update_yaxes(title_text="触达量", secondary_y=False)
+                fig.update_yaxes(title_text="CTR (%)", secondary_y=True, range=[0, max(ch_agg["CTR"].max() * 1.3, 5)])
+                fig.update_xaxes(title_text="渠道", tickangle=-20)
+
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("当前数据无渠道维度")
+
+            # 保留气泡图
+            if "触达成功" in dff.columns and "订单Sales" in dff.columns and "CTR" in dff.columns:
+                title_col = "标题" if "标题" in dff.columns else "消息标题"
+                fig_scatter = px.scatter(
+                    dff,
+                    x="触达成功", y="订单Sales",
+                    size="CTR",
+                    color="综合评分",
+                    color_continuous_scale=["#FFC72C", "#DA291C"],
+                    hover_name=title_col,
+                    title="触达量 vs 订单Sales（气泡大小=CTR，颜色=综合评分）"
+                )
+                fig_scatter.update_layout(template="plotly_white", height=450)
+                fig_scatter.update_traces(marker=dict(opacity=0.8))
+                st.plotly_chart(fig_scatter, use_container_width=True)
