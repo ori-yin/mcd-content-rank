@@ -778,83 +778,74 @@ if uploaded:
         )
 
     with tab3:
+        def _fmt_num(x):
+            if abs(x) >= 1_000_000:
+                return f"{x/1_000_000:.1f}M"
+            elif abs(x) >= 1000:
+                return f"{x/1000:.1f}k"
+            else:
+                return f"{x:.2f}"
+
+        def _bar_line_chart(df_grp, dim_name, dim_label):
+            agg = df_grp.groupby(dim_name).agg(
+                触达量=("触达成功", "sum"),
+                点击人次=("点击人次", "sum")
+            ).reset_index()
+            agg["日均触达量"] = (agg["触达量"] / num_days).round(2)
+            agg["CTR"] = (agg["点击人次"] / agg["触达量"] * 100).round(2)
+            agg["CTR"] = agg["CTR"].fillna(0).replace([float("inf"), -float("inf")], 0)
+            agg = agg.sort_values("触达量", ascending=False)
+            from plotly.subplots import make_subplots
+            import plotly.graph_objects as go
+            fig = make_subplots(specs=[[{"secondary_y": True}]])
+            fig.add_trace(go.Bar(
+                x=agg[dim_name], y=agg["日均触达量"],
+                name="日均触达量", marker_color="#DA291C", opacity=0.85,
+                text=agg["日均触达量"].apply(_fmt_num), textposition="outside"
+            ), secondary_y=False)
+            fig.add_trace(go.Scatter(
+                x=agg[dim_name], y=agg["CTR"],
+                name="CTR (%)", mode="lines+markers+text",
+                line=dict(color="#FFC72C", width=3),
+                marker=dict(size=10, color="#FFC72C"),
+                text=agg["CTR"].apply(lambda x: f"{x:.2f}%"),
+                textposition="top center",
+                textfont=dict(color="#FFC72C", size=12, family="Inter, sans-serif")
+            ), secondary_y=True)
+            ctr_max = agg["CTR"].max() * 1.5
+            fig.update_layout(
+                template="plotly_white", height=400,
+                showlegend=True,
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                margin=dict(t=60, b=20)
+            )
+            fig.update_yaxes(title_text="日均触达量", secondary_y=False)
+            fig.update_yaxes(title_text="CTR (%)", secondary_y=True, range=[0, max(ctr_max, 1)])
+            fig.update_xaxes(title_text=dim_label, tickangle=-20)
+            return fig
+
         if total_rows == 0:
             st.warning("当前筛选条件下无数据")
         else:
-            # 按渠道聚合：触达量=sum(触达成功)，CTR=加权平均(sum(点击)/sum(触达))
+            if date_range and isinstance(date_range, (list, tuple)) and len(date_range) == 2:
+                start_dt, end_dt = date_range
+                num_days = max((end_dt - start_dt).days, 1)
+            else:
+                num_days = 1
+
             if "渠道" in dff.columns and dff["渠道"].notna().sum() > 0:
-                # 计算筛选天数（日均口径）
-                if date_range and isinstance(date_range, (list, tuple)) and len(date_range) == 2:
-                    start_dt, end_dt = date_range
-                    num_days = max((end_dt - start_dt).days, 1)
-                else:
-                    num_days = 1
-
-                ch_agg = dff.groupby("渠道").agg(
-                    触达量=("触达成功", "sum"),
-                    点击人次=("点击人次", "sum")
-                ).reset_index()
-                ch_agg["日均触达量"] = (ch_agg["触达量"] / num_days).round(2)
-                ch_agg["CTR"] = (ch_agg["点击人次"] / ch_agg["触达量"] * 100).round(2)
-                ch_agg["CTR"] = ch_agg["CTR"].fillna(0).replace([float("inf"), -float("inf")], 0)
-                ch_agg = ch_agg.sort_values("触达量", ascending=False)
-
-                from plotly.subplots import make_subplots
-                import plotly.graph_objects as go
-
-                fig = make_subplots(specs=[[{"secondary_y": True}]])
-
-                # 触达量柱状图
-                fig.add_trace(
-                    go.Bar(
-                        x=ch_agg["渠道"],
-                        y=ch_agg["日均触达量"],
-                        name="日均触达量",
-                        marker_color="#DA291C",
-                        opacity=0.85,
-                        text=ch_agg["日均触达量"].apply(lambda x: f"{x:,.2f}"),
-                        textposition="outside"
-                    ),
-                    secondary_y=False
-                )
-
-                # CTR折线+数据标签
-                fig.add_trace(
-                    go.Scatter(
-                        x=ch_agg["渠道"],
-                        y=ch_agg["CTR"],
-                        name="CTR (%)",
-                        mode="lines+markers+text",
-                        line=dict(color="#FFC72C", width=3),
-                        marker=dict(size=10, color="#FFC72C"),
-                        text=ch_agg["CTR"].apply(lambda x: f"{x:.2f}%"),
-                        textposition="top center",
-                        textfont=dict(color="#FFC72C", size=12, family="Inter, sans-serif")
-                    ),
-                    secondary_y=True
-                )
-
-                fig.update_layout(
-                    template="plotly_white",
-                    height=420,
-                    showlegend=True,
-                    legend=dict(
-                        orientation="h",
-                        yanchor="bottom", y=1.02,
-                        xanchor="right", x=1
-                    ),
-                    margin=dict(t=60, b=20)
-                )
-                fig.update_yaxes(title_text="日均触达量", secondary_y=False)
-                ctr_max = ch_agg["CTR"].max() * 1.5
-                fig.update_yaxes(title_text="CTR (%)", secondary_y=True, range=[0, max(ctr_max, 1)])
-                fig.update_xaxes(title_text="渠道", tickangle=-20)
-
-                st.plotly_chart(fig, use_container_width=True)
+                st.markdown("**按渠道**", unsafe_allow_html=True)
+                st.plotly_chart(_bar_line_chart(dff, "渠道", "渠道"), use_container_width=True)
             else:
                 st.info("当前数据无渠道维度")
 
-            # 保留气泡图
+            owner_col = "预算owner"
+            if owner_col in dff.columns and dff[owner_col].notna().sum() > 0:
+                st.markdown("**按预算Owner**", unsafe_allow_html=True)
+                st.plotly_chart(_bar_line_chart(dff, owner_col, "预算Owner"), use_container_width=True)
+            else:
+                st.info("当前数据无预算Owner维度")
+
             if "触达成功" in dff.columns and "订单Sales" in dff.columns and "CTR" in dff.columns:
                 title_col = "标题" if "标题" in dff.columns else "消息标题"
                 fig_scatter = px.scatter(
