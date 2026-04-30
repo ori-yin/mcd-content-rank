@@ -836,13 +836,13 @@ if uploaded:
                 num_days = 1
 
             if "渠道" in dff.columns and dff["渠道"].notna().sum() > 0:
-                st.plotly_chart(_bar_line_chart(dff, "渠道", "渠道"), use_container_width=True)
+                st.plotly_chart(_bar_line_chart(dff, "渠道", ""), use_container_width=True)
             else:
                 st.info("当前数据无渠道维度")
 
             owner_col = "预算owner"
             if owner_col in dff.columns and dff[owner_col].notna().sum() > 0:
-                st.plotly_chart(_bar_line_chart(dff, owner_col, "预算Owner"), use_container_width=True)
+                st.plotly_chart(_bar_line_chart(dff, owner_col, ""), use_container_width=True)
             else:
                 st.info("当前数据无预算Owner维度")
 
