@@ -29,19 +29,16 @@ OWNER_COL = "预算owner"
 # ─── 样式 ─────────────────────────────────────────────────────
 st.markdown(f"""
 <style>
-  /* ─── 全局字体 ─── */
     html, body, .stApp {{
     font-family: 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif !important;
     background: {MCD_BG};
     color: #1a1a1a;
   }}
 
-  /* ─── Streamlit 顶部导航条 ─── */
   .st-emotion-cache-1kyxreq {{
     background: {MCD_GOLD} !important;
   }}
 
-  /* ─── 侧边栏：金色主题 ─── */
   [data-testid="stSidebar"] {{
     background: {MCD_GOLD} !important;
     border-right: 3px solid rgba(0,0,0,0.08);
@@ -49,9 +46,6 @@ st.markdown(f"""
     max-width: 240px !important;
     overflow: hidden !important;
   }}
-
-  /* 隐藏侧边栏原生滚动条 */
-
 
 
   [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
@@ -121,7 +115,6 @@ st.markdown(f"""
     border-radius: 10px !important;
   }}
 
-  /* ─── 页面布局 ─── */
   .block-container {{
     padding-top: 1.5rem;
     padding-left: 2rem;
@@ -129,7 +122,6 @@ st.markdown(f"""
     background: {MCD_BG};
   }}
 
-  /* ─── 顶部指标卡 ─── */
   div[data-testid="stMetricValue"] {{
     font-size: 22px !important;
     font-weight: 900 !important;
@@ -148,7 +140,6 @@ st.markdown(f"""
     display: none;
   }}
 
-  /* ─── Tab 栏 ─── */
   .stTabs [data-baseweb="tab-list"] {{
     gap: 4px;
     border-bottom: 2px solid #EFEFEF;
@@ -171,7 +162,6 @@ st.markdown(f"""
     font-weight: 700;
   }}
 
-  /* ─── 主标题卡片 ─── */
   .mcd-header {{
     background: #DB0003;
     border-radius: 16px;
@@ -195,7 +185,6 @@ st.markdown(f"""
     color: #FFFFFF;
   }}
 
-  /* ─── 排名徽章 ─── */
   .rank-badge {{
     display: inline-block;
     width: 30px; height: 30px;
@@ -227,7 +216,6 @@ st.markdown(f"""
     border-color: transparent;
   }}
 
-  /* ─── 内容卡片 ─── */
   .content-card {{
     background: #FFFFFF;
     border: 1px solid #EFEFEF;
@@ -286,7 +274,6 @@ st.markdown(f"""
     letter-spacing: 0.05em;
   }}
 
-  /* ─── 章节标题 ─── */
   .section-title {{
     font-size: 14px;
     font-weight: 700;
@@ -297,7 +284,6 @@ st.markdown(f"""
     letter-spacing: -0.01em;
   }}
 
-  /* ─── 数据表格 ─── */
   .stDataFrame thead th {{
     background: {MCD_RED} !important;
     color: #FFFFFF !important;
@@ -315,7 +301,6 @@ st.markdown(f"""
     border-color: #F0F0F0 !important;
   }}
 
-  /* ─── 清洗状态提示 ─── */
   .clean-status {{
     background: #FFF8F0;
     border: 1px solid {MCD_GOLD};
@@ -328,13 +313,11 @@ st.markdown(f"""
     font-weight: 500;
   }}
 
-  /* ─── 副文本 / 说明文字 ─── */
   .stCaption, p {{
     font-size: 12px !important;
     color: #AAA !important;
   }}
 
-  /* ─── 数字高亮 ─── */
   .stAlert {{
     border-radius: 10px;
   }}
