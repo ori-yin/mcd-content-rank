@@ -1,7 +1,5 @@
-# -*- coding: utf-8 -*-
 """
-app.py - 麦当劳内容排行榜 v3
-使用方法: streamlit run app.py
+app.py - 麦当劳内容排行榜
 """
 import streamlit as st
 import pandas as pd
@@ -26,7 +24,7 @@ MCD_GREEN = "#00A04A"
 MCD_BG = "#FAFAFA"
 
 # ─── 列名常量 ──────────────────────────────────────────────────
-OWNER_COL = "预算owner"   # 预算 Owner 列名，全文件统一引用
+OWNER_COL = "预算owner"   
 
 # ─── 样式 ─────────────────────────────────────────────────────
 st.markdown(f"""
@@ -356,7 +354,7 @@ st.markdown(f"""
 # Section 2: 数据清洗函数
 # ═══════════════════════════════════════════════════════════════
 
-# 一比一复刻 Ori 的数据清洗脚本（核心逻辑，原封不动）
+# Ori 的数据清洗脚本
 # ═══════════════════════════════════════════════════════════════
 
 def extract_title_from_forms(forms):
@@ -437,7 +435,6 @@ def parse_message(raw):
 
 def clean_raw_csv(uploaded_file) -> pd.DataFrame:
     """
-    一比一复刻清洗逻辑：
     1. 尝试多种编码读取原始 CSV
     2. 检查是否有至少 15 列
     3. 读取第 O 列（索引 14，即第 15 列）
@@ -492,7 +489,7 @@ mode = st.radio(
 )
 
 uploaded = st.file_uploader(
-    "📤 上传 CSV 文件",
+    "上传 CSV 文件",
     type=["csv"],
     help="支持 UTF-8、GBK、GB2312、Latin1 编码"
 )
@@ -577,7 +574,7 @@ if uploaded:
         selected_owner = st.selectbox("预算 Owner", owners)
 
         # ─── 关键词搜索 ───────────────────────────────────────
-        keyword = st.text_input("🔍 搜索标题/内容关键词", "")
+        keyword = st.text_input("🔍 搜索关键词", "")
 
         st.markdown("---")
         # ─── 权重调整 ─────────────────────────────────────────
