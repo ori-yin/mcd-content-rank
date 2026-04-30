@@ -822,7 +822,7 @@ if uploaded:
             fig.update_yaxes(title_text="日均触达量", secondary_y=False, showgrid=False)
             fig.update_yaxes(title_text="CTR (%)", secondary_y=True, range=[0, max(ctr_max, 1)], showgrid=False)
             fig.update_xaxes(showgrid=False)
-            fig.update_xaxes(title_text="", tickangle=-20)
+            fig.update_xaxes(title_text=dim_label, tickangle=-20)
             return fig
 
         if total_rows == 0:
@@ -849,18 +849,18 @@ if uploaded:
                 title_col = "标题" if "标题" in dff.columns else "消息标题"
                 owner_col = "预算owner" if "预算owner" in dff.columns else None
 
-                # 建立helper列（格式化字符串，Plotly默认不显示_前缀列）
+                # 预格式化hover显示列（用于hover_name和customdata）
                 dff_h = dff.copy()
-                dff_h["_reach_fmt"] = dff_h["触达成功"].apply(
-                    lambda v: f"{v/1000:.1f}k" if abs(v) >= 1000 else f"{v:.0f}"
+                dff_h["_触达_h"] = dff_h["触达成功"].apply(
+                    lambda v: f"{v/1000:.1f}k" if abs(v) >= 1000 else f"{v:.1f}"
                 )
-                dff_h["_sales_fmt"] = dff_h["订单Sales"].apply(
-                    lambda v: f"{v/1000:.1f}k" if abs(v) >= 1000 else f"{v:.0f}"
+                dff_h["_Sales_h"] = dff_h["订单Sales"].apply(
+                    lambda v: f"{v/1000:.1f}k" if abs(v) >= 1000 else f"{v:.1f}"
                 )
-                dff_h["_ctr_fmt"] = dff_h["CTR"].apply(lambda v: f"{v:.2f}%")
+                dff_h["_CTR_h"] = dff_h["CTR"].apply(lambda v: f"{v:.1f}%")
 
-                # customdata只传列名（字符串），Plotly自动从DataFrame取值
-                cd = ["_reach_fmt", "_sales_fmt", "_ctr_fmt"]
+                # customdata顺序: 0=触达, 1=Sales, 2=CTR, 3=BU(可选)
+                cd = ["_触达_h", "_Sales_h", "_CTR_h"]
                 h_parts = [
                     "<b>%{hovertext}</b>",
                     "%{customdata[0]} 触达",
@@ -868,8 +868,8 @@ if uploaded:
                     "%{customdata[2]} CTR"
                 ]
                 if owner_col and owner_col in dff_h.columns:
-                    dff_h["_bu_fmt"] = dff_h[owner_col].fillna("").astype(str)
-                    cd.append("_bu_fmt")
+                    dff_h["_BU_h"] = dff_h[owner_col].fillna("").astype(str)
+                    cd.append("_BU_h")
                     h_parts.append("%{customdata[3]}")
 
                 h_template = "<br>".join(h_parts) + "<extra></extra>"
@@ -877,10 +877,21 @@ if uploaded:
                 fig_scatter = px.scatter(
                     dff_h,
                     x="触达成功", y="订单Sales",
+                    custom_data=cd,
+                    hover_name=title_col,
+                    hover_data={
+                        "触达成功": False,
+                        "订单Sales": False,
+                        "CTR": False,
+                        "_触达_h": False,
+                        "_Sales_h": False,
+                        "_CTR_h": False,
+                        "_BU_h": False,
+                    }
                 )
                 fig_scatter.update_traces(
-                    hovertemplate="<b>%{hovertext}</b><br>触达成功: %{x:,.0f}<br>订单Sales: %{y:,.0f}<extra></extra>",
-                    marker=dict(size=14, color="#DA291C", opacity=0.85, line=dict(width=0))
+                    hovertemplate=h_template,
+                    marker=dict(size=14, color="#DA291C", opacity=0.75, line=dict(width=0))
                 )
                 fig_scatter.update_layout(
                     template="plotly_white",
