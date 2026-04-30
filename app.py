@@ -849,27 +849,33 @@ if uploaded:
                 title_col = "标题" if "标题" in dff.columns else "消息标题"
                 owner_col = "预算owner" if "预算owner" in dff.columns else None
 
-                # hover数据：各数值最多1位小数
-                dff_hover = dff.copy()
-                dff_hover["CTR_显示"] = dff_hover["CTR"].apply(lambda x: f"{x:.1f}%" if x == int(x) else f"{x:.1f}%")
-                dff_hover["触达_显示"] = dff_hover["触达成功"].apply(
-                    lambda x: f"{x/1000:.1f}k" if abs(x) >= 1000 else f"{x:.1f}"
-                )
-                dff_hover["Sales_显示"] = dff_hover["订单Sales"].apply(
-                    lambda x: f"{x/1000:.1f}k" if abs(x) >= 1000 else f"{x:.1f}"
-                )
+                dff_h = dff.copy()
+                # 格式化触达量和Sales：>=1000显示xk，否则显示原值
+                def fmt_num(v):
+                    if abs(v) >= 1000:
+                        return f"{v/1000:.1f}k"
+                    return f"{v:.1f}"
+                def fmt_ctr(v):
+                    return f"{v:.1f}%"
 
-                hover_parts = [f"<b>{'{'+title_col+'}'}</b>"]
-                if owner_col:
-                    hover_parts.append(f"{'{'+owner_col+'}'}")
-                hover_parts.extend(["{触达_显示} 触达", "{Sales_显示} 订单", "{CTR_显示} CTR"])
-                hovertpl = "<br>".join(hover_parts) + "<extra></extra>"
+                dff_h["触达_fmt"] = dff_h["触达成功"].apply(fmt_num)
+                dff_h["Sales_fmt"] = dff_h["订单Sales"].apply(fmt_num)
+                dff_h["CTR_fmt"] = dff_h["CTR"].apply(fmt_ctr)
+
+                # customdata顺序：触达_fmt, Sales_fmt, CTR_fmt, [owner_fmt]
+                cd = ["触达_fmt", "Sales_fmt", "CTR_fmt"]
+                labels = ["触达: %{customdata[0]}", "订单: %{customdata[1]}", "CTR: %{customdata[2]}"]
+                if owner_col and owner_col in dff_h.columns:
+                    dff_h["BU_fmt"] = dff_h[owner_col].fillna("")
+                    cd.append("BU_fmt")
+                    labels.append("%{customdata[3]}")
+
+                hovertpl = "<br>".join(labels) + "<extra></extra>"
 
                 fig_scatter = px.scatter(
-                    dff_hover,
+                    dff_h,
                     x="触达成功", y="订单Sales",
-                    custom_data=["触达_显示", "Sales_显示", "CTR_显示", title_col] +
-                                ([owner_col] if owner_col else []),
+                    custom_data=cd,
                     hover_name=title_col,
                     hovertemplate=hovertpl
                 )
