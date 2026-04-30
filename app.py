@@ -847,37 +847,40 @@ if uploaded:
 
             if "触达成功" in dff.columns and "订单Sales" in dff.columns and "CTR" in dff.columns:
                 title_col = "标题" if "标题" in dff.columns else "消息标题"
+                owner_col = "预算owner" if "预算owner" in dff.columns else None
 
-                # CTR分桶：三档颜色
-                def ctr_bucket(val):
-                    if val >= 0.5:       return "高CTR(≥0.5%)"
-                    elif val >= 0.1:     return "中CTR(0.1-0.5%)"
-                    else:                return "低CTR(<0.1%)"
+                # hover数据：各数值最多1位小数
+                dff_hover = dff.copy()
+                dff_hover["CTR_显示"] = dff_hover["CTR"].apply(lambda x: f"{x:.1f}%" if x == int(x) else f"{x:.1f}%")
+                dff_hover["触达_显示"] = dff_hover["触达成功"].apply(
+                    lambda x: f"{x/1000:.1f}k" if abs(x) >= 1000 else f"{x:.1f}"
+                )
+                dff_hover["Sales_显示"] = dff_hover["订单Sales"].apply(
+                    lambda x: f"{x/1000:.1f}k" if abs(x) >= 1000 else f"{x:.1f}"
+                )
 
-                dff_bucket = dff.copy()
-                dff_bucket["CTR档位"] = dff_bucket["CTR"].apply(ctr_bucket)
+                hover_parts = [f"<b>{'{'+title_col+'}'}</b>"]
+                if owner_col:
+                    hover_parts.append(f"{'{'+owner_col+'}'}")
+                hover_parts.extend(["{触达_显示} 触达", "{Sales_显示} 订单", "{CTR_显示} CTR"])
+                hovertpl = "<br>".join(hover_parts) + "<extra></extra>"
 
                 fig_scatter = px.scatter(
-                    dff_bucket,
+                    dff_hover,
                     x="触达成功", y="订单Sales",
-                    color="CTR档位",
-                    color_discrete_map={
-                        "高CTR(≥0.5%)":    "#8B0000",
-                        "中CTR(0.1-0.5%)": "#FF8C00",
-                        "低CTR(<0.1%)":   "#FFD700"
-                    },
+                    custom_data=["触达_显示", "Sales_显示", "CTR_显示", title_col] +
+                                ([owner_col] if owner_col else []),
                     hover_name=title_col,
-                    title="触达量 vs 订单Sales（颜色=CTR档位）"
+                    hovertemplate=hovertpl
                 )
-                fig_scatter.update_traces(marker=dict(opacity=0.75, line=dict(width=0)))
+                fig_scatter.update_traces(
+                    marker=dict(size=14, color="#DA291C", opacity=0.75, line=dict(width=0))
+                )
                 fig_scatter.update_layout(
                     template="plotly_white",
                     height=450,
-                    legend_title_text="",
-                    legend=dict(
-                        orientation="h",
-                        yanchor="bottom", y=1.02,
-                        xanchor="right", x=1
-                    )
+                    showlegend=False,
+                    xaxis_title="",
+                    yaxis_title=""
                 )
                 st.plotly_chart(fig_scatter, use_container_width=True)
