@@ -783,10 +783,18 @@ if uploaded:
         else:
             # 按渠道聚合：触达量=sum(触达成功)，CTR=加权平均(sum(点击)/sum(触达))
             if "渠道" in dff.columns and dff["渠道"].notna().sum() > 0:
+                # 计算筛选天数（日均口径）
+                if date_range and isinstance(date_range, (list, tuple)) and len(date_range) == 2:
+                    start_dt, end_dt = date_range
+                    num_days = max((end_dt - start_dt).days, 1)
+                else:
+                    num_days = 1
+
                 ch_agg = dff.groupby("渠道").agg(
                     触达量=("触达成功", "sum"),
                     点击人次=("点击人次", "sum")
                 ).reset_index()
+                ch_agg["日均触达量"] = (ch_agg["触达量"] / num_days).round(2)
                 ch_agg["CTR"] = (ch_agg["点击人次"] / ch_agg["触达量"] * 100).round(2)
                 ch_agg["CTR"] = ch_agg["CTR"].fillna(0).replace([float("inf"), -float("inf")], 0)
                 ch_agg = ch_agg.sort_values("触达量", ascending=False)
@@ -800,11 +808,11 @@ if uploaded:
                 fig.add_trace(
                     go.Bar(
                         x=ch_agg["渠道"],
-                        y=ch_agg["触达量"],
-                        name="触达量",
+                        y=ch_agg["日均触达量"],
+                        name="日均触达量",
                         marker_color="#DA291C",
                         opacity=0.85,
-                        text=ch_agg["触达量"].apply(lambda x: f"{x:,}"),
+                        text=ch_agg["日均触达量"].apply(lambda x: f"{x:,.2f}"),
                         textposition="outside"
                     ),
                     secondary_y=False
@@ -837,8 +845,9 @@ if uploaded:
                     ),
                     margin=dict(t=60, b=20)
                 )
-                fig.update_yaxes(title_text="触达量", secondary_y=False)
-                fig.update_yaxes(title_text="CTR (%)", secondary_y=True, range=[0, max(ch_agg["CTR"].max() * 1.3, 5)])
+                fig.update_yaxes(title_text="日均触达量", secondary_y=False)
+                ctr_max = ch_agg["CTR"].max() * 1.5
+                fig.update_yaxes(title_text="CTR (%)", secondary_y=True, range=[0, max(ctr_max, 1)])
                 fig.update_xaxes(title_text="渠道", tickangle=-20)
 
                 st.plotly_chart(fig, use_container_width=True)
