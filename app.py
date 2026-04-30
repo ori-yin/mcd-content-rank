@@ -821,7 +821,7 @@ if uploaded:
                 marker=dict(size=10, color="#FFC72C"),
                 text=agg["CTR"].apply(lambda x: f"{x:.2f}%"),
                 textposition="top center",
-                textfont=dict(color="#FFC72C", size=12, family="Inter, sans-serif")
+                textfont=dict(color="#FFC72C", size=12, family="PingFang SC, Microsoft YaHei, sans-serif")
             ), secondary_y=True)
             ctr_max = agg["CTR"].max() * 1.5
             fig.update_layout(
