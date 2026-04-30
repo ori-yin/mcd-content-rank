@@ -19,7 +19,7 @@ st.set_page_config(
 
 # ─── 品牌色 ─────────────────────────────────────────────────────
 MCD_RED = "#E40004"
-MCD_GOLD = "#FFBC0D"
+MCD_GOLD = "#FFC000"
 MCD_GREEN = "#00A04A"
 MCD_BG = "#FAFAFA"
 
@@ -87,7 +87,7 @@ st.markdown(f"""
   }}
 
   [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] [aria-valuenow] {{
-    background: #DC0008 !important;
+    background: #DB0003 !important;
     border-radius: 6px !important;
 
   }}
@@ -169,7 +169,7 @@ st.markdown(f"""
 
   /* ─── 主标题卡片 ─── */
   .mcd-header {{
-    background: #DC0008;
+    background: #DB0003;
     border-radius: 16px;
     padding: 28px 36px;
     color: #FFFFFF;
@@ -213,7 +213,7 @@ st.markdown(f"""
     border-color: rgba(0,0,0,0.08);
   }}
   .rank-3 {{
-    background: #FFBC0D;
+    background: #FFC000;
     color: #000;
     border-color: rgba(0,0,0,0.1);
   }}
@@ -811,17 +811,17 @@ if uploaded:
             fig = make_subplots(specs=[[{"secondary_y": True}]])
             fig.add_trace(go.Bar(
                 x=agg[dim_name], y=agg["日均触达量"],
-                name="日均触达量", marker_color="#DA291C", opacity=0.85,
+                name="日均触达量", marker_color="#DB0003", opacity=0.85,
                 text=agg["日均触达量"].apply(_fmt_num), textposition="outside"
             ), secondary_y=False)
             fig.add_trace(go.Scatter(
                 x=agg[dim_name], y=agg["CTR"],
                 name="CTR (%)", mode="lines+markers+text",
-                line=dict(color="#FFC72C", width=3),
-                marker=dict(size=10, color="#FFC72C"),
+                line=dict(color="#FFC000", width=3),
+                marker=dict(size=10, color="#FFC000"),
                 text=agg["CTR"].apply(lambda x: f"{x:.2f}%"),
                 textposition="top center",
-                textfont=dict(color="#FFC72C", size=12, family="PingFang SC, Microsoft YaHei, sans-serif")
+                textfont=dict(color="#FFC000", size=12, family="PingFang SC, Microsoft YaHei, sans-serif")
             ), secondary_y=True)
             ctr_max = agg["CTR"].max() * 1.5
             fig.update_layout(
@@ -903,7 +903,7 @@ if uploaded:
                 )
                 fig_scatter.update_traces(
                     hovertemplate=h_template,
-                    marker=dict(size=14, color="#DA291C", opacity=0.75, line=dict(width=0))
+                    marker=dict(size=14, color="#DB0003", opacity=0.75, line=dict(width=0))
                 )
                 fig_scatter.update_layout(
                     template="plotly_white",
