@@ -823,4 +823,3 @@ if uploaded:
 
 else:
     st.info("请上传 CSV 文件开始分析")
-    st.info("👆 请上传 CSV 文件开始分析")
