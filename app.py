@@ -25,6 +25,9 @@ MCD_GOLD = "#FFBC0D"
 MCD_GREEN = "#00A04A"
 MCD_BG = "#FAFAFA"
 
+# ─── 列名常量 ──────────────────────────────────────────────────
+OWNER_COL = "预算owner"   # 预算 Owner 列名，全文件统一引用
+
 # ─── 样式 ─────────────────────────────────────────────────────
 st.markdown(f"""
 <style>
@@ -338,6 +341,10 @@ st.markdown(f"""
 </style>
 """, unsafe_allow_html=True)
 
+# ═══════════════════════════════════════════════════════════════
+# Section 1: 全局配置与样式
+# ═══════════════════════════════════════════════════════════════
+
 # ─── Header ───────────────────────────────────────────────────
 st.markdown(f"""
 <div class="mcd-header">
@@ -346,6 +353,9 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════════
+# Section 2: 数据清洗函数
+# ═══════════════════════════════════════════════════════════════
+
 # 一比一复刻 Ori 的数据清洗脚本（核心逻辑，原封不动）
 # ═══════════════════════════════════════════════════════════════
 
@@ -467,6 +477,9 @@ def clean_raw_csv(uploaded_file) -> pd.DataFrame:
     return df
 
 # ═══════════════════════════════════════════════════════════════
+# Section 3: App 主逻辑
+# ═══════════════════════════════════════════════════════════════
+
 # App 主逻辑
 # ═══════════════════════════════════════════════════════════════
 
@@ -532,7 +545,7 @@ if uploaded:
     with st.sidebar:
         st.markdown("**筛选条件**")
 
-        # 日期范围筛选
+        # ─── 日期范围筛选 ───────────────────────────────────
         if date_col in df.columns and df[date_col].notna().any():
             min_dt = df[date_col].min().date()
             max_dt = df[date_col].max().date()
@@ -547,27 +560,27 @@ if uploaded:
         else:
             date_range = None
 
-        # 计划类型筛选
+        # ─── 计划类型筛选 ───────────────────────────────────
         plan_types = ["全部"] + df["计划类型"].dropna().unique().tolist()
         selected_plan = st.selectbox("计划类型", plan_types)
 
-        # 渠道筛选
+        # ─── 渠道筛选 ─────────────────────────────────────────
         channels = ["全部"] + df["渠道"].dropna().unique().tolist()
         selected_channel = st.selectbox("渠道", channels)
 
         # 预算 Owner 筛选
-        owner_col = "预算owner"
+        owner_col = OWNER_COL
         if owner_col in df.columns:
             owners = ["全部"] + df[owner_col].dropna().unique().tolist()
         else:
             owners = ["全部"]
         selected_owner = st.selectbox("预算 Owner", owners)
 
-        # 关键词搜索
+        # ─── 关键词搜索 ───────────────────────────────────────
         keyword = st.text_input("🔍 搜索标题/内容关键词", "")
 
         st.markdown("---")
-        # 权重调整
+        # ─── 权重调整 ─────────────────────────────────────────
         col_w, _ = st.columns([4, 1])
         with col_w:
             st.markdown("**权重配置**", help="综合评分 = 触达_归一 × 权重 + CTR_归一 × 权重 + Sales_归一 × 权重 + 单均价_归一 × 权重")
@@ -689,7 +702,7 @@ if uploaded:
                         date_val = getattr(row, '发送日期', None)
                         date_str = str(date_val)[:10] if date_val is not None and pd.notna(date_val) else ""
                         plan_type_val = getattr(row, '计划类型', None)
-                        plan_type_short = str(plan_type_val)[:4] if plan_type_val is not None and pd.notna(plan_type_val) else ""
+                        plan_type_short = ""
                         channel_val = getattr(row, '渠道', None)
                         channel_short = str(channel_val) if channel_val is not None and pd.notna(channel_val) else ""
                         owner_short = str(getattr(row, '预算owner', '')) if hasattr(row, '预算owner') else ''
@@ -748,6 +761,7 @@ if uploaded:
                         </div>
                         """, unsafe_allow_html=True)
 
+    # ─── Tab 2: 数据表格 ──────────────────────────────────────
     with tab2:
         title_col = "标题" if "标题" in dff.columns else "消息标题"
         owner_c = owner_col if owner_col in dff.columns else None
@@ -777,7 +791,9 @@ if uploaded:
             use_container_width=True
         )
 
+    # ─── Tab 3: 可视化图表 ───────────────────────────────────
     with tab3:
+        # 图表辅助函数
         def _fmt_num(x):
             if abs(x) >= 1_000_000:
                 return f"{x/1_000_000:.1f}M"
@@ -796,7 +812,6 @@ if uploaded:
             agg["CTR"] = agg["CTR"].fillna(0).replace([float("inf"), -float("inf")], 0)
             agg = agg.sort_values("触达量", ascending=False)
             from plotly.subplots import make_subplots
-            import plotly.graph_objects as go
             fig = make_subplots(specs=[[{"secondary_y": True}]])
             fig.add_trace(go.Bar(
                 x=agg[dim_name], y=agg["日均触达量"],
@@ -840,7 +855,7 @@ if uploaded:
             else:
                 st.info("当前数据无渠道维度")
 
-            owner_col = "预算owner"
+            owner_col = OWNER_COL
             if owner_col in dff.columns and dff[owner_col].notna().sum() > 0:
                 st.plotly_chart(_bar_line_chart(dff, owner_col, ""), use_container_width=True)
             else:
@@ -848,7 +863,7 @@ if uploaded:
 
             if "触达成功" in dff.columns and "订单Sales" in dff.columns and "CTR" in dff.columns:
                 title_col = "标题" if "标题" in dff.columns else "消息标题"
-                owner_col = "预算owner" if "预算owner" in dff.columns else None
+                owner_col = OWNER_COL if "预算owner" in dff.columns else None
 
                 # 预格式化hover显示列（用于hover_name和customdata）
                 dff_h = dff.copy()
