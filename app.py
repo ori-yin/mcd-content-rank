@@ -876,19 +876,24 @@ if uploaded:
 
                 fig_scatter = px.scatter(
                     dff_h,
-                    x="触达成功", y="订单Sales",
+                    x="解成功", y="订单Sales",
+                    color=dff_h["CTR"],
+                    color_continuous_scale=[[0, "#FFC72C"], [0.25, "#FF8C00"], [0.5, "#DA291C"], [0.75, "#B22222"], [1, "#8B0000"]],
                     custom_data=cd,
                     hover_name=title_col,
                 )
                 fig_scatter.update_traces(
                     hovertemplate=h_template,
-                    marker=dict(size=14, color=dff_h["CTR"], colorscale=[[0,"#FFC72C"],[0.25,"#FF8C00"],[0.5,"#DA291C"],[0.75,"#B22222"],[1,"#8B0000"]], cmin=0, cmax=dff_h["CTR"].max() if dff_h["CTR"].max() > 0 else 1, showscale=True, colorbar=dict(title="CTR (%)", titleside="right", titlefont=dict(size=11, color="#666666"), tickfont=dict(color="#666666", size=10)), line=dict(width=0), opacity=0.85)
+                    marker=dict(size=14, opacity=0.85, line=dict(width=0))
                 )
                 fig_scatter.update_layout(
                     template="plotly_white",
                     height=450,
                     showlegend=False,
                     xaxis_title="",
-                    yaxis_title=""
+                    yaxis_title="",
+                    coloraxis=dict(
+                        colorbar=dict(title="CTR (%)", titleside="right", titlefont=dict(size=11, color="#666666"), tickfont=dict(color="#666666", size=10))
+                    )
                 )
                 st.plotly_chart(fig_scatter, use_container_width=True)
