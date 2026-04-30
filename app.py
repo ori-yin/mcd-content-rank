@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-app.py - 麦当劳内容排行榜 v3（一比一复刻 Ori 的数据清洗脚本）
-功能：上传原始 CSV（含 JSON 列）→ 自动运行清洗逻辑 → 直接出排行榜
+app.py - 麦当劳内容排行榜 v3
 使用方法: streamlit run app.py
 """
 import streamlit as st
@@ -335,12 +334,6 @@ st.markdown(f"""
   .stAlert {{
     border-radius: 10px;
   }}
-
-  /* ─── 侧边栏滑轨间距 ─── */
-  [data-testid="stSlider"] [data-baseweb="slider"] {
-    padding-left: 10px !important;
-    padding-right: 10px !important;
-  }
 
 </style>
 """, unsafe_allow_html=True)
@@ -829,7 +822,7 @@ if uploaded:
                 st.dataframe(top_sales, hide_index=True, use_container_width=True)
 
 else:
-    st.info("👆 请上传 CSV 文件开始分析")
+    st.info("请上传 CSV 文件开始分析")
     st.markdown("""
     **使用方式：**
 
