@@ -134,7 +134,7 @@ st.markdown(f"""
     letter-spacing: -0.02em;
   }}
   div[data-testid="stMetricLabel"] {{
-    font-size: 11px !important;
+    font-size: 12px !important;
     color: #666 !important;
     font-weight: 500;
     letter-spacing: 0.03em;
@@ -255,7 +255,7 @@ st.markdown(f"""
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
-    font-size: 11px;
+    font-size: 12px;
     color: #888;
   }}
   .card-meta span {{
