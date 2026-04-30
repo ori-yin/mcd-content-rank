@@ -336,6 +336,12 @@ st.markdown(f"""
     border-radius: 10px;
   }}
 
+  /* ─── 侧边栏滑轨间距 ─── */
+  [data-testid="stSlider"] [data-baseweb="slider"] {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
 </style>
 """, unsafe_allow_html=True)
 
