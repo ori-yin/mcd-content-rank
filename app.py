@@ -847,27 +847,33 @@ if uploaded:
 
             if "触达成功" in dff.columns and "订单Sales" in dff.columns and "CTR" in dff.columns:
                 title_col = "标题" if "标题" in dff.columns else "消息标题"
-                import numpy as np
-                dff_bubble = dff.copy()
-                dff_bubble["CTR_clipped"] = dff_bubble["CTR"].clip(lower=0.05)
+
+                # Build bubble size manually: linear map CTR to [8, 65] px
+                ctr_vals = dff["CTR"].fillna(0).replace([float("inf"), -float("inf")], 0).values
+                ctr_min = max(ctr_vals.min(), 0.05)   # floor at 0.05 so tiny CTRs still visible
+                ctr_max = ctr_vals.max()
+                if ctr_max > ctr_min:
+                    raw_sizes = 8 + (ctr_vals - ctr_min) / (ctr_max - ctr_min) * 57
+                else:
+                    raw_sizes = [35] * len(ctr_vals)
+                sizes_px = [max(8, min(65, float(s))) for s in raw_sizes]
+
                 fig_scatter = px.scatter(
-                    dff_bubble,
+                    dff,
                     x="触达成功", y="订单Sales",
-                    size="CTR_clipped",
                     hover_name=title_col,
                     title="触达量 vs 订单Sales（气泡大小=CTR）"
                 )
-                fig_scatter.update_layout(template="plotly_white", height=450)
-                fig_scatter.update_traces(
-                    marker=dict(opacity=0.75, sizemin=6),
-                    hovertemplate=fig_scatter.data[0].hovertemplate.replace(
-                        "CTR_clipped", "CTR"
-                    )
-                )
-                # Clip marker size to 10-70 range
                 fig_scatter.update_traces(
                     marker=dict(
-                        size=[max(10, min(70, s)) for s in dff_bubble["CTR_clipped"]]
+                        size=sizes_px,
+                        color="#DA291C",
+                        opacity=0.75,
+                        line=dict(width=0)
                     )
+                )
+                fig_scatter.update_layout(
+                    template="plotly_white",
+                    height=450
                 )
                 st.plotly_chart(fig_scatter, use_container_width=True)
