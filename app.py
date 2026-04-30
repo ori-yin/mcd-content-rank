@@ -879,12 +879,14 @@ if uploaded:
                     x="触达成功", y="订单Sales",
                 )
                 fig_scatter.update_traces(
-                    hovertemplate=(
-                        "<b>%{hovertext}</b><br>"
-                        "触通成功: %{x:,.0f}<br>"
-                        "订单Sales: %{y:,.0f}<br>"
-                        "CTR: %{customdata[0]:.2f}%<extra></extra>"
-                    ),
-                    customdata=dff_h["CTR"].fillna(0).astype(float).values.reshape(-1,1),
+                    hovertemplate="<b>%{hovertext}</b><br>触达成功: %{x:,.0f}<br>订单Sales: %{y:,.0f}<extra></extra>",
                     marker=dict(size=14, color="#DA291C", opacity=0.85, line=dict(width=0))
                 )
+                fig_scatter.update_layout(
+                    template="plotly_white",
+                    height=450,
+                    showlegend=False,
+                    xaxis_title="",
+                    yaxis_title=""
+                )
+                st.plotly_chart(fig_scatter, use_container_width=True)
