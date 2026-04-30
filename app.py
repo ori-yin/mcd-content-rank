@@ -134,7 +134,7 @@ st.markdown(f"""
   }}
   div[data-testid="stMetricLabel"] {{
     font-size: 12px !important;
-    color: #666 !important;
+    color: #666666 !important;
     font-weight: 500;
     letter-spacing: 0.03em;
     text-transform: uppercase;
@@ -149,7 +149,7 @@ st.markdown(f"""
     border-bottom: 2px solid #F5F5F5;
   }}
   .stTabs [data-baseweb="tab"] {{
-    color: #666666 !important;
+    color: #666666666 !important;
     font-weight: 600;
     font-size: 14px;
     padding: 8px 16px;
@@ -208,7 +208,7 @@ st.markdown(f"""
   }}
   .rank-2 {{
     background: #F5F5F5;
-    color: #666;
+    color: #666666;
     border-color: rgba(0,0,0,0.08);
   }}
   .rank-3 {{
@@ -246,7 +246,7 @@ st.markdown(f"""
   }}
   .card-content {{
     font-size: 13px;
-    color: #666;
+    color: #666666;
     line-height: 1.7;
     margin-bottom: 12px;
   }}
@@ -255,7 +255,7 @@ st.markdown(f"""
     gap: 10px;
     flex-wrap: wrap;
     font-size: 12px;
-    color: #666666;
+    color: #666666666;
   }}
   .card-meta span {{
     background: #F5F5F5;
@@ -734,7 +734,7 @@ if uploaded:
                           <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                             <div style="flex:1;">
                               <span class="rank-badge {badge_class}">{rank}</span>
-                              <span style="font-size:12px; color:#666666; background:#F5F5F5; padding:2px 8px; border-radius:12px;">
+                              <span style="font-size:12px; color:#666666666; background:#F5F5F5; padding:2px 8px; border-radius:12px;">
                                 {plan_type_short} · {channel_short}
                               </span>
                               <span style="font-size:12px; color:#AAA; margin-left:8px;">{owner_short} · {date_str}</span>
