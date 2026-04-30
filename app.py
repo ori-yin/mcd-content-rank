@@ -849,27 +849,36 @@ if uploaded:
                 title_col = "标题" if "标题" in dff.columns else "消息标题"
                 owner_col = "预算owner" if "预算owner" in dff.columns else None
 
-                # 预格式化hover显示列（用于hover_name和customdata）
-                dff_h = dff.copy()
-                dff_h["_触达_h"] = dff_h["触达成功"].apply(
-                    lambda v: f"{v/1000:.1f}k" if abs(v) >= 1000 else f"{v:.1f}"
-                )
-                dff_h["_Sales_h"] = dff_h["订单Sales"].apply(
-                    lambda v: f"{v/1000:.1f}k" if abs(v) >= 1000 else f"{v:.1f}"
-                )
-                dff_h["_CTR_h"] = dff_h["CTR"].apply(lambda v: f"{v:.1f}%")
+                # 把CTR值单独存成字符串（用于hover），然后从DataFrame删除，
+                # 防止Plotly自动用它编码opacity/size等视觉通道
+                ctr_vals = dff["CTR"].apply(lambda v: f"{v:.1f}%").tolist()
 
-                # customdata顺序: 0=触达, 1=Sales, 2=CTR, 3=BU(可选)
-                cd = ["_触达_h", "_Sales_h", "_CTR_h"]
+                dff_h = dff.copy()
+                # 也删掉触达量和Sales的原始列，防止Plotly自动编码
+                for c in ["CTR", "触达成功", "订单Sales"]:
+                    if c in dff_h.columns:
+                        del dff_h[c]
+
+                # 格式化触达量和Sales（从原dff取值）
+                reach_vals = dff["触达成功"].apply(
+                    lambda v: f"{v/1000:.1f}k" if abs(v) >= 1000 else f"{v:.1f}"
+                ).tolist()
+                sales_vals = dff["订单Sales"].apply(
+                    lambda v: f"{v/1000:.1f}k" if abs(v) >= 1000 else f"{v:.1f}"
+                ).tolist()
+
+                # customdata: [触达_fmt, Sales_fmt, CTR_fmt, BU_fmt(可选)]
+                cd = [reach_vals, sales_vals, ctr_vals]
                 h_parts = [
                     "<b>%{hovertext}</b>",
                     "%{customdata[0]} 触达",
                     "%{customdata[1]} 订单",
                     "%{customdata[2]} CTR"
                 ]
-                if owner_col and owner_col in dff_h.columns:
-                    dff_h["_BU_h"] = dff_h[owner_col].fillna("").astype(str)
-                    cd.append("_BU_h")
+                bu_vals = None
+                if owner_col and owner_col in dff.columns:
+                    bu_vals = dff[owner_col].fillna("").astype(str).tolist()
+                    cd.append(bu_vals)
                     h_parts.append("%{customdata[3]}")
 
                 h_template = "<br>".join(h_parts) + "<extra></extra>"
@@ -879,15 +888,6 @@ if uploaded:
                     x="触达成功", y="订单Sales",
                     custom_data=cd,
                     hover_name=title_col,
-                    hover_data={
-                        "触达成功": False,
-                        "订单Sales": False,
-                        "CTR": False,
-                        "_触达_h": False,
-                        "_Sales_h": False,
-                        "_CTR_h": False,
-                        "_BU_h": False,
-                    }
                 )
                 fig_scatter.update_traces(
                     hovertemplate=h_template,
