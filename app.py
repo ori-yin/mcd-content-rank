@@ -848,32 +848,36 @@ if uploaded:
             if "触达成功" in dff.columns and "订单Sales" in dff.columns and "CTR" in dff.columns:
                 title_col = "标题" if "标题" in dff.columns else "消息标题"
 
-                # Build bubble size manually: linear map CTR to [8, 65] px
-                ctr_vals = dff["CTR"].fillna(0).replace([float("inf"), -float("inf")], 0).values
-                ctr_min = max(ctr_vals.min(), 0.05)   # floor at 0.05 so tiny CTRs still visible
-                ctr_max = ctr_vals.max()
-                if ctr_max > ctr_min:
-                    raw_sizes = 8 + (ctr_vals - ctr_min) / (ctr_max - ctr_min) * 57
-                else:
-                    raw_sizes = [35] * len(ctr_vals)
-                sizes_px = [max(8, min(65, float(s))) for s in raw_sizes]
+                # CTR分桶：三档颜色
+                def ctr_bucket(val):
+                    if val >= 0.5:       return "高CTR(≥0.5%)"
+                    elif val >= 0.1:     return "中CTR(0.1-0.5%)"
+                    else:                return "低CTR(<0.1%)"
+
+                dff_bucket = dff.copy()
+                dff_bucket["CTR档位"] = dff_bucket["CTR"].apply(ctr_bucket)
 
                 fig_scatter = px.scatter(
-                    dff,
+                    dff_bucket,
                     x="触达成功", y="订单Sales",
+                    color="CTR档位",
+                    color_discrete_map={
+                        "高CTR(≥0.5%)":    "#8B0000",
+                        "中CTR(0.1-0.5%)": "#FF8C00",
+                        "低CTR(<0.1%)":   "#FFD700"
+                    },
                     hover_name=title_col,
-                    title="触达量 vs 订单Sales（气泡大小=CTR）"
+                    title="触达量 vs 订单Sales（颜色=CTR档位）"
                 )
-                fig_scatter.update_traces(
-                    marker=dict(
-                        size=sizes_px,
-                        color="#DA291C",
-                        opacity=0.75,
-                        line=dict(width=0)
-                    )
-                )
+                fig_scatter.update_traces(marker=dict(opacity=0.75, line=dict(width=0)))
                 fig_scatter.update_layout(
                     template="plotly_white",
-                    height=450
+                    height=450,
+                    legend_title_text="",
+                    legend=dict(
+                        orientation="h",
+                        yanchor="bottom", y=1.02,
+                        xanchor="right", x=1
+                    )
                 )
                 st.plotly_chart(fig_scatter, use_container_width=True)
