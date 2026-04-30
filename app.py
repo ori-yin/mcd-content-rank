@@ -876,7 +876,7 @@ if uploaded:
 
                 fig_scatter = px.scatter(
                     dff_h,
-                    x="解成功", y="订单Sales",
+                    x="触推成功", y="订单Sales",
                     custom_data=cd,
                     hover_name=title_col,
                 )
