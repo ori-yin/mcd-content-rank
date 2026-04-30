@@ -817,7 +817,8 @@ if uploaded:
                 template="plotly_white", height=400,
                 showlegend=True,
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                margin=dict(t=60, b=20)
+                margin=dict(t=60, b=20),
+                xaxis_title=""
             )
             fig.update_yaxes(title_text="日均触达量", secondary_y=False, showgrid=False)
             fig.update_yaxes(title_text="CTR (%)", secondary_y=True, range=[0, max(ctr_max, 1)], showgrid=False)
@@ -857,7 +858,7 @@ if uploaded:
                 dff_h["_Sales_h"] = dff_h["订单Sales"].apply(
                     lambda v: f"{v/1000:.1f}k" if abs(v) >= 1000 else f"{v:.1f}"
                 )
-                dff_h["_CTR_h"] = dff_h["CTR"].apply(lambda v: f"{v:.1f}%")
+                dff_h["_CTR_h"] = dff_h["CTR"].apply(lambda v: f"{v:.2f}%")
 
                 # customdata顺序: 0=触达, 1=Sales, 2=CTR, 3=BU(可选)
                 cd = ["_触达_h", "_Sales_h", "_CTR_h"]
