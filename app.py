@@ -642,7 +642,7 @@ if uploaded:
     total_rows = len(dff)
     total_score = dff["综合评分"].mean() if total_rows > 0 else 0
     top1_score = dff["综合评分"].max() if total_rows > 0 else 0
-    avg_ctr = dff["CTR"].mean() if total_rows > 0 else 0
+    avg_ctr = (dff["点击人次"].sum() / dff["触达成功"].sum() * 100) if dff["触达成功"].sum() > 0 else 0 if total_rows > 0 else 0
 
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("上榜内容", f"{total_rows} 条")
@@ -819,8 +819,9 @@ if uploaded:
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
                 margin=dict(t=60, b=20)
             )
-            fig.update_yaxes(title_text="日均触达量", secondary_y=False)
-            fig.update_yaxes(title_text="CTR (%)", secondary_y=True, range=[0, max(ctr_max, 1)])
+            fig.update_yaxes(title_text="日均触达量", secondary_y=False, showgrid=False)
+            fig.update_yaxes(title_text="CTR (%)", secondary_y=True, range=[0, max(ctr_max, 1)], showgrid=False)
+            fig.update_xaxes(showgrid=False)
             fig.update_xaxes(title_text=dim_label, tickangle=-20)
             return fig
 
