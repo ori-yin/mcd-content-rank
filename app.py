@@ -17,20 +17,11 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ─── 设计规范 ─────────────────────────────────────────────────
-BG       = "#FFFFFF"
-CARD     = "#FFFFFF"
-CARD2    = "#F7F7F7"
-BORDER   = "#E5E5E5"
-TEXT     = "#1a1a1a"
-TEXT_SUB = "#666666"
-TEXT_DIM = "#999999"
-RED      = "#DA291C"      # 麦当劳品牌红
-GOLD     = "#FFC72C"      # 麦当劳品牌金
-GREEN    = "#00A04A"      # 品牌绿（跌/流失）
-SIDEBAR_BG   = "#FFC72C"
-SIDEBAR_TEXT = "#1a1a1a"
-RADIUS   = "14px"
+# ─── 品牌色 ─────────────────────────────────────────────────────
+MCD_RED = "#E40004"
+MCD_GOLD = "#FFC000"
+MCD_GREEN = "#00A04A"
+MCD_BG = "#FAFAFA"
 
 # ─── 列名常量 ──────────────────────────────────────────────────
 OWNER_COL = "预算owner"   
@@ -41,20 +32,22 @@ st.markdown(f"""
   /* ─── 全局字体 ─── */
     html, body, .stApp {{
     font-family: 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif !important;
-    background: {BG};
+    background: {MCD_BG};
     color: #1a1a1a;
   }}
 
   /* ─── Streamlit 顶部导航条 ─── */
   .st-emotion-cache-1kyxreq {{
-    background: {GOLD} !important;
+    background: {MCD_GOLD} !important;
   }}
 
   /* ─── 侧边栏：金色主题 ─── */
   [data-testid="stSidebar"] {{
-    background: {GOLD} !important;
-    min-width: 260px !important;
-    max-width: 260px !important;
+    background: {MCD_GOLD} !important;
+    border-right: 3px solid rgba(0,0,0,0.08);
+    min-width: 240px !important;
+    max-width: 240px !important;
+    overflow: hidden !important;
   }}
 
   [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
@@ -68,19 +61,11 @@ st.markdown(f"""
   [data-testid="stSidebar"] .stRadio label,
   [data-testid="stSidebar"] .stSelectbox label,
   [data-testid="stSidebar"] .stTextInput label,
-  [data-testid="stSidebar"] .stDateInput label {{
-    color: #1a1a1a !important;
-    font-weight: 600;
-    font-size: 11px;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    margin-bottom: 4px;
-  }}
-
+  [data-testid="stSidebar"] .stDateInput label,
   [data-testid="stSidebar"] .stSlider label {{
-    color: #666666 !important;
-    font-weight: 600;
-    font-size: 11px;
+    color: #000000 !important;
+    font-weight: 700;
+    font-size: 12px;
     letter-spacing: 0.04em;
     text-transform: uppercase;
     margin-bottom: 4px;
@@ -102,7 +87,7 @@ st.markdown(f"""
   }}
 
   [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] [aria-valuenow] {{
-    background: RED !important;
+    background: #DB0003 !important;
     border-radius: 6px !important;
 
   }}
@@ -110,11 +95,10 @@ st.markdown(f"""
   [data-testid="stSidebar"] .stSelectbox > div > div,
   [data-testid="stSidebar"] .stTextInput > div > div,
   [data-testid="stSidebar"] .stDateInput > div > div {{
-    background: rgba(255,255,255,0.9) !important;
-    border: 1px solid rgba(0,0,0,0.15) !important;
+    background: rgba(255,255,255,0.6) !important;
+    border: 1px solid rgba(0,0,0,0.12) !important;
     border-radius: 10px !important;
     color: #000000 !important;
-    font-size: 11px;
   }}
 
   [data-testid="stSidebar"] [data-baseweb="select"] span {{
@@ -126,21 +110,11 @@ st.markdown(f"""
   }}
 
   [data-testid="stSidebar"] .stDownloadButton > button {{
-    background: {RED} !important;
+    background: {MCD_RED} !important;
     color: #FFFFFF !important;
     font-weight: 700;
     border: none !important;
     border-radius: 10px !important;
-  }}
-
-  /* ─── 侧边栏筛选分组标题 ─── */
-  .sidebar-filter-title {{
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #1a1a1a;
-    margin: 6px 0 2px 0;
   }}
 
   /* ─── 页面布局 ─── */
@@ -148,14 +122,14 @@ st.markdown(f"""
     padding-top: 1.5rem;
     padding-left: 2rem;
     padding-right: 2rem;
-    background: {BG};
+    background: {MCD_BG};
   }}
 
   /* ─── 顶部指标卡 ─── */
   div[data-testid="stMetricValue"] {{
     font-size: 22px !important;
     font-weight: 900 !important;
-    color: {RED} !important;
+    color: {MCD_RED} !important;
     font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif !important;
     letter-spacing: -0.02em;
   }}
@@ -185,22 +159,22 @@ st.markdown(f"""
     transition: all 0.15s ease;
   }}
   .stTabs [data-baseweb="tab"]:hover {{
-    color: {RED} !important;
+    color: {MCD_RED} !important;
   }}
   .stTabs [aria-selected="true"] {{
-    color: {RED} !important;
-    border-bottom: 3px solid {RED} !important;
+    color: {MCD_RED} !important;
+    border-bottom: 3px solid {MCD_RED} !important;
     font-weight: 700;
   }}
 
   /* ─── 主标题卡片 ─── */
   .mcd-header {{
-    background: #DA291C;
+    background: #DB0003;
     border-radius: 16px;
     padding: 28px 36px;
     color: #FFFFFF;
     margin-bottom: 24px;
-    border-left: 6px solid {GOLD};
+    border-left: 6px solid {MCD_GOLD};
   }}
   .mcd-header h1 {{
     font-size: 22px;
@@ -228,8 +202,8 @@ st.markdown(f"""
     border: 2px solid transparent;
   }}
   .rank-1 {{
-    background: {GOLD};
-    color: {RED};
+    background: {MCD_GOLD};
+    color: {MCD_RED};
     border-color: rgba(255,255,255,0.5);
     box-shadow: 0 2px 8px rgba(255,188,13,0.5);
   }}
@@ -294,7 +268,7 @@ st.markdown(f"""
   .card-score {{
     font-size: 26px;
     font-weight: 900;
-    color: {RED};
+    color: {MCD_RED};
     text-align: right;
     line-height: 1;
     font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
@@ -315,13 +289,13 @@ st.markdown(f"""
     color: #1a1a1a;
     margin: 28px 0 14px 0;
     padding-bottom: 8px;
-    border-bottom: 2px solid {RED};
+    border-bottom: 2px solid {MCD_RED};
     letter-spacing: -0.01em;
   }}
 
   /* ─── 数据表格 ─── */
   .stDataFrame thead th {{
-    background: {RED} !important;
+    background: {MCD_RED} !important;
     color: #FFFFFF !important;
     font-size: 12px !important;
     font-weight: 700 !important;
@@ -340,8 +314,8 @@ st.markdown(f"""
   /* ─── 清洗状态提示 ─── */
   .clean-status {{
     background: #FFF8F0;
-    border: 1px solid {GOLD};
-    border-left: 4px solid {GOLD};
+    border: 1px solid {MCD_GOLD};
+    border-left: 4px solid {MCD_GOLD};
     border-radius: 10px;
     padding: 10px 16px;
     margin-bottom: 20px;
@@ -371,7 +345,7 @@ st.markdown(f"""
 # ─── Header ───────────────────────────────────────────────────
 st.markdown(f"""
 <div class="mcd-header">
-  <h1>麦当劳内容排行榜</h1>
+  <h1>🏆 麦当劳内容排行榜</h1>
 </div>
 """, unsafe_allow_html=True)
 
@@ -565,55 +539,56 @@ if uploaded:
 
     # ─── 侧边筛选 ─────────────────────────────────────────────
     with st.sidebar:
+        st.markdown("**筛选条件**")
+
         # ─── 日期范围筛选 ───────────────────────────────────
         if date_col in df.columns and df[date_col].notna().any():
             min_dt = df[date_col].min().date()
             max_dt = df[date_col].max().date()
             default_start = max(min_dt, max_dt - timedelta(days=6))
-            st.markdown('<div class="sidebar-filter-title">日期范围</div>', unsafe_allow_html=True)
             date_range = st.date_input(
-                "",
+                "日期范围",
                 value=(default_start, max_dt),
                 min_value=min_dt,
                 max_value=max_dt,
-                label_visibility="collapsed"
+                help="筛选发送日期范围"
             )
         else:
             date_range = None
 
         # ─── 计划类型筛选 ───────────────────────────────────
-        st.markdown('<div class="sidebar-filter-title">计划类型</div>', unsafe_allow_html=True)
         plan_types = ["全部"] + df["计划类型"].dropna().unique().tolist()
-        selected_plan = st.selectbox("", plan_types, label_visibility="collapsed")
+        selected_plan = st.selectbox("计划类型", plan_types)
 
         # ─── 渠道筛选 ─────────────────────────────────────────
-        st.markdown('<div class="sidebar-filter-title">渠道</div>', unsafe_allow_html=True)
         channels = ["全部"] + df["渠道"].dropna().unique().tolist()
-        selected_channel = st.selectbox("", channels, label_visibility="collapsed")
+        selected_channel = st.selectbox("渠道", channels)
 
-        # ─── 预算 Owner 筛选 ──────────────────────────────────
-        st.markdown('<div class="sidebar-filter-title">Owner</div>', unsafe_allow_html=True)
+        # 预算 Owner 筛选
         owner_col = OWNER_COL
         if owner_col in df.columns:
             owners = ["全部"] + df[owner_col].dropna().unique().tolist()
         else:
             owners = ["全部"]
-        selected_owner = st.selectbox("", owners, label_visibility="collapsed")
+        selected_owner = st.selectbox("预算 Owner", owners)
 
         # ─── 关键词搜索 ───────────────────────────────────────
-        st.markdown('<div class="sidebar-filter-title">关键词搜索</div>', unsafe_allow_html=True)
-        keyword = st.text_input("", "", label_visibility="collapsed", placeholder="搜索标题或内容...")
+        keyword = st.text_input("搜索关键词", "")
 
-        # ─── 权重配置 ─────────────────────────────────────────
-        st.markdown('<div class="sidebar-filter-title">权重配置</div>', unsafe_allow_html=True)
+        st.markdown("---")
+        # ─── 权重调整 ─────────────────────────────────────────
+        col_w, _ = st.columns([4, 1])
+        with col_w:
+            st.markdown("**权重配置**", help="综合评分 = 触达_归一 × 权重 + CTR_归一 × 权重 + Sales_归一 × 权重 + 单均价_归一 × 权重")
+
 
         w_reach = st.slider("触达量权重", 0.0, 1.0, 0.35, 0.05)
         w_ctr = st.slider("CTR权重", 0.0, 1.0, 0.15, 0.05)
         w_sales = st.slider("订单Sales权重", 0.0, 1.0, 0.40, 0.05)
         w_apu = st.slider("单均价权重", 0.0, 1.0, 0.10, 0.05)
 
-        st.markdown('<div class="sidebar-filter-title">排序方式</div>', unsafe_allow_html=True)
-        sort_order = st.radio("", ["降序", "升序"], index=0, horizontal=True, label_visibility="collapsed")
+        st.markdown("**排序方式**")
+        sort_order = st.radio("综合评分排序", ["降序", "升序"], index=0, horizontal=True, label_visibility="collapsed")
 
         total_w = w_reach + w_ctr + w_sales + w_apu
         if total_w == 0:
@@ -672,8 +647,7 @@ if uploaded:
         dff = dff.sort_values("综合评分", ascending=asc).reset_index(drop=True)
     dff["排名"] = dff.index + 1
 
-    # ─── 核心指标 ───────────────────────────────────────────
-    st.markdown('<div class="section-title">核心指标</div>', unsafe_allow_html=True)
+    # ─── 顶部指标卡 ───────────────────────────────────────────
     total_rows = len(dff)
     total_score = dff["综合评分"].mean() if total_rows > 0 else 0
     top1_score = dff["综合评分"].max() if total_rows > 0 else 0
@@ -685,13 +659,10 @@ if uploaded:
     col3.metric("最高综合评分", f"{top1_score:.1f}")
     col4.metric("平均 CTR", f"{avg_ctr:.2f}%")
 
-    st.divider()
-
     # ─── Tab 切换 ─────────────────────────────────────────────
-    tab1, tab2, tab3 = st.tabs(["卡片排行榜", "数据表格", "可视化图表"])
+    tab1, tab2, tab3 = st.tabs(["🏆 卡片排行榜", "📋 数据表格", "📈 可视化图表"])
 
     with tab1:
-        st.markdown('<div class="section-title">卡片排行榜</div>', unsafe_allow_html=True)
         if total_rows == 0:
             st.warning("当前筛选条件下无数据，请调整筛选条件")
         else:
@@ -717,7 +688,7 @@ if uploaded:
 
                     score = row.综合评分
                     if score >= 70:
-                        score_color = RED
+                        score_color = MCD_RED
                     elif score >= 40:
                         score_color = "#E07B00"
                     else:
@@ -787,7 +758,6 @@ if uploaded:
                         """, unsafe_allow_html=True)
 
     # ─── Tab 2: 数据表格 ──────────────────────────────────────
-    st.markdown('<div class="section-title">数据表格</div>', unsafe_allow_html=True)
     with tab2:
         title_col = "标题" if "标题" in dff.columns else "消息标题"
         owner_c = owner_col if owner_col in dff.columns else None
@@ -810,7 +780,7 @@ if uploaded:
         )
         csv_out = disp_df.to_csv(index=False, encoding="utf-8-sig")
         st.download_button(
-            "下载排行榜 CSV",
+            "📥 下载排行榜 CSV",
             csv_out,
             "麦当劳内容排行榜.csv",
             "text/csv",
@@ -818,7 +788,6 @@ if uploaded:
         )
 
     # ─── Tab 3: 可视化图表 ───────────────────────────────────
-    st.markdown('<div class="section-title">可视化图表</div>', unsafe_allow_html=True)
     with tab3:
         # 图表辅助函数
         def _fmt_num(x):
@@ -842,21 +811,21 @@ if uploaded:
             fig = make_subplots(specs=[[{"secondary_y": True}]])
             fig.add_trace(go.Bar(
                 x=agg[dim_name], y=agg["日均触达量"],
-                name="日均触达量", marker_color=RED, opacity=0.85,
+                name="日均触达量", marker_color="#DB0003", opacity=0.85,
                 text=agg["日均触达量"].apply(_fmt_num), textposition="outside"
             ), secondary_y=False)
             fig.add_trace(go.Scatter(
                 x=agg[dim_name], y=agg["CTR"],
                 name="CTR (%)", mode="lines+markers+text",
-                line=dict(color=GOLD, width=3),
-                marker=dict(size=10, color=GOLD),
+                line=dict(color="#FFC000", width=3),
+                marker=dict(size=10, color="#FFC000"),
                 text=agg["CTR"].apply(lambda x: f"{x:.2f}%"),
                 textposition="top center",
-                textfont=dict(color=GOLD, size=12, family="PingFang SC, Microsoft YaHei, sans-serif")
+                textfont=dict(color="#FFC000", size=12, family="PingFang SC, Microsoft YaHei, sans-serif")
             ), secondary_y=True)
             ctr_max = agg["CTR"].max() * 1.5
             fig.update_layout(
-                paper_bgcolor=BG, plot_bgcolor=BG, font=dict(color=TEXT), height=400,
+                template="plotly_white", height=400,
                 showlegend=True,
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
                 margin=dict(t=60, b=20),
@@ -934,10 +903,10 @@ if uploaded:
                 )
                 fig_scatter.update_traces(
                     hovertemplate=h_template,
-                    marker=dict(size=14, color=RED, opacity=0.75, line=dict(width=0))
+                    marker=dict(size=14, color="#DB0003", opacity=0.75, line=dict(width=0))
                 )
                 fig_scatter.update_layout(
-                    paper_bgcolor=BG, plot_bgcolor=BG, font=dict(color=TEXT),
+                    template="plotly_white",
                     height=450,
                     showlegend=False,
                     xaxis_title="",
