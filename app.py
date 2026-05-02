@@ -363,7 +363,6 @@ st.markdown(f"""
 st.markdown(f"""
 <div class="mcd-header">
   <h1>麦当劳内容排行榜</h1>
-  <p>综合评分 · 卡片视图 · 数据表格 · 可视化图表</p>
 </div>
 """, unsafe_allow_html=True)
 
