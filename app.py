@@ -130,7 +130,7 @@ st.markdown(f"""
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: rgba(26,26,26,0.55);
+    color: #1a1a1a;
     margin: 6px 0 2px 0;
   }}
 
