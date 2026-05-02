@@ -114,7 +114,7 @@ st.markdown(f"""
     border: 1px solid rgba(0,0,0,0.15) !important;
     border-radius: 10px !important;
     color: #000000 !important;
-    font-size: 13px;
+    font-size: 11px;
   }}
 
   [data-testid="stSidebar"] [data-baseweb="select"] span {{
