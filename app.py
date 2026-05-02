@@ -53,10 +53,8 @@ st.markdown(f"""
   /* ─── 侧边栏：金色主题 ─── */
   [data-testid="stSidebar"] {{
     background: {GOLD} !important;
-    border-right: 3px solid rgba(0,0,0,0.08);
     min-width: 260px !important;
     max-width: 260px !important;
-    overflow: hidden !important;
   }}
 
   [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
@@ -133,9 +131,7 @@ st.markdown(f"""
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: rgba(26,26,26,0.55);
-    margin: 14px 0 4px 0;
-    padding-bottom: 4px;
-    border-bottom: 1px solid rgba(0,0,0,0.12);
+    margin: 6px 0 2px 0;
   }}
 
   /* ─── 页面布局 ─── */
