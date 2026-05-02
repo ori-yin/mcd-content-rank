@@ -54,8 +54,8 @@ st.markdown(f"""
   [data-testid="stSidebar"] {{
     background: {GOLD} !important;
     border-right: 3px solid rgba(0,0,0,0.08);
-    min-width: 240px !important;
-    max-width: 240px !important;
+    min-width: 260px !important;
+    max-width: 260px !important;
     overflow: hidden !important;
   }}
 
@@ -72,8 +72,8 @@ st.markdown(f"""
   [data-testid="stSidebar"] .stTextInput label,
   [data-testid="stSidebar"] .stDateInput label,
   [data-testid="stSidebar"] .stSlider label {{
-    color: #000000 !important;
-    font-weight: 700;
+    color: #1a1a1a !important;
+    font-weight: 600;
     font-size: 12px;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -104,8 +104,8 @@ st.markdown(f"""
   [data-testid="stSidebar"] .stSelectbox > div > div,
   [data-testid="stSidebar"] .stTextInput > div > div,
   [data-testid="stSidebar"] .stDateInput > div > div {{
-    background: rgba(255,255,255,0.6) !important;
-    border: 1px solid rgba(0,0,0,0.12) !important;
+    background: rgba(255,255,255,0.9) !important;
+    border: 1px solid rgba(0,0,0,0.15) !important;
     border-radius: 10px !important;
     color: #000000 !important;
   }}
