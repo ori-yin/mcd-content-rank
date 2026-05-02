@@ -68,11 +68,19 @@ st.markdown(f"""
   [data-testid="stSidebar"] .stRadio label,
   [data-testid="stSidebar"] .stSelectbox label,
   [data-testid="stSidebar"] .stTextInput label,
-  [data-testid="stSidebar"] .stDateInput label,
-  [data-testid="stSidebar"] .stSlider label {{
+  [data-testid="stSidebar"] .stDateInput label {{
     color: #1a1a1a !important;
     font-weight: 600;
-    font-size: 12px;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }}
+
+  [data-testid="stSidebar"] .stSlider label {{
+    color: #666666 !important;
+    font-weight: 600;
+    font-size: 11px;
     letter-spacing: 0.04em;
     text-transform: uppercase;
     margin-bottom: 4px;
@@ -106,6 +114,7 @@ st.markdown(f"""
     border: 1px solid rgba(0,0,0,0.15) !important;
     border-radius: 10px !important;
     color: #000000 !important;
+    font-size: 13px;
   }}
 
   [data-testid="stSidebar"] [data-baseweb="select"] span {{
