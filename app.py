@@ -17,11 +17,20 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ─── 品牌色 ─────────────────────────────────────────────────────
-MCD_RED = "#E40004"
-MCD_GOLD = "#FFC000"
-MCD_GREEN = "#00A04A"
-MCD_BG = "#FAFAFA"
+# ─── 设计规范 ─────────────────────────────────────────────────
+BG       = "#FFFFFF"
+CARD     = "#FFFFFF"
+CARD2    = "#F7F7F7"
+BORDER   = "#E5E5E5"
+TEXT     = "#1a1a1a"
+TEXT_SUB = "#666666"
+TEXT_DIM = "#999999"
+RED      = "#DA291C"      # 麦当劳品牌红
+GOLD     = "#FFC72C"      # 麦当劳品牌金
+GREEN    = "#00A04A"      # 品牌绿（跌/流失）
+SIDEBAR_BG   = "#FFC72C"
+SIDEBAR_TEXT = "#1a1a1a"
+RADIUS   = "14px"
 
 # ─── 列名常量 ──────────────────────────────────────────────────
 OWNER_COL = "预算owner"   
@@ -32,18 +41,18 @@ st.markdown(f"""
   /* ─── 全局字体 ─── */
     html, body, .stApp {{
     font-family: 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif !important;
-    background: {MCD_BG};
+    background: {BG};
     color: #1a1a1a;
   }}
 
   /* ─── Streamlit 顶部导航条 ─── */
   .st-emotion-cache-1kyxreq {{
-    background: {MCD_GOLD} !important;
+    background: {GOLD} !important;
   }}
 
   /* ─── 侧边栏：金色主题 ─── */
   [data-testid="stSidebar"] {{
-    background: {MCD_GOLD} !important;
+    background: {GOLD} !important;
     border-right: 3px solid rgba(0,0,0,0.08);
     min-width: 240px !important;
     max-width: 240px !important;
@@ -87,7 +96,7 @@ st.markdown(f"""
   }}
 
   [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] [aria-valuenow] {{
-    background: #DB0003 !important;
+    background: RED !important;
     border-radius: 6px !important;
 
   }}
@@ -110,7 +119,7 @@ st.markdown(f"""
   }}
 
   [data-testid="stSidebar"] .stDownloadButton > button {{
-    background: {MCD_RED} !important;
+    background: {RED} !important;
     color: #FFFFFF !important;
     font-weight: 700;
     border: none !important;
@@ -122,14 +131,14 @@ st.markdown(f"""
     padding-top: 1.5rem;
     padding-left: 2rem;
     padding-right: 2rem;
-    background: {MCD_BG};
+    background: {BG};
   }}
 
   /* ─── 顶部指标卡 ─── */
   div[data-testid="stMetricValue"] {{
     font-size: 22px !important;
     font-weight: 900 !important;
-    color: {MCD_RED} !important;
+    color: {RED} !important;
     font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif !important;
     letter-spacing: -0.02em;
   }}
@@ -159,22 +168,22 @@ st.markdown(f"""
     transition: all 0.15s ease;
   }}
   .stTabs [data-baseweb="tab"]:hover {{
-    color: {MCD_RED} !important;
+    color: {RED} !important;
   }}
   .stTabs [aria-selected="true"] {{
-    color: {MCD_RED} !important;
-    border-bottom: 3px solid {MCD_RED} !important;
+    color: {RED} !important;
+    border-bottom: 3px solid {RED} !important;
     font-weight: 700;
   }}
 
   /* ─── 主标题卡片 ─── */
   .mcd-header {{
-    background: #DB0003;
+    background: #DA291C;
     border-radius: 16px;
     padding: 28px 36px;
     color: #FFFFFF;
     margin-bottom: 24px;
-    border-left: 6px solid {MCD_GOLD};
+    border-left: 6px solid {GOLD};
   }}
   .mcd-header h1 {{
     font-size: 22px;
@@ -202,8 +211,8 @@ st.markdown(f"""
     border: 2px solid transparent;
   }}
   .rank-1 {{
-    background: {MCD_GOLD};
-    color: {MCD_RED};
+    background: {GOLD};
+    color: {RED};
     border-color: rgba(255,255,255,0.5);
     box-shadow: 0 2px 8px rgba(255,188,13,0.5);
   }}
@@ -268,7 +277,7 @@ st.markdown(f"""
   .card-score {{
     font-size: 26px;
     font-weight: 900;
-    color: {MCD_RED};
+    color: {RED};
     text-align: right;
     line-height: 1;
     font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
@@ -289,13 +298,13 @@ st.markdown(f"""
     color: #1a1a1a;
     margin: 28px 0 14px 0;
     padding-bottom: 8px;
-    border-bottom: 2px solid {MCD_RED};
+    border-bottom: 2px solid {RED};
     letter-spacing: -0.01em;
   }}
 
   /* ─── 数据表格 ─── */
   .stDataFrame thead th {{
-    background: {MCD_RED} !important;
+    background: {RED} !important;
     color: #FFFFFF !important;
     font-size: 12px !important;
     font-weight: 700 !important;
@@ -314,8 +323,8 @@ st.markdown(f"""
   /* ─── 清洗状态提示 ─── */
   .clean-status {{
     background: #FFF8F0;
-    border: 1px solid {MCD_GOLD};
-    border-left: 4px solid {MCD_GOLD};
+    border: 1px solid {GOLD};
+    border-left: 4px solid {GOLD};
     border-radius: 10px;
     padding: 10px 16px;
     margin-bottom: 20px;
@@ -345,7 +354,8 @@ st.markdown(f"""
 # ─── Header ───────────────────────────────────────────────────
 st.markdown(f"""
 <div class="mcd-header">
-  <h1>🏆 麦当劳内容排行榜</h1>
+  <h1>麦当劳内容排行榜</h1>
+  <p>综合评分 · 卡片视图 · 数据表格 · 可视化图表</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -647,7 +657,8 @@ if uploaded:
         dff = dff.sort_values("综合评分", ascending=asc).reset_index(drop=True)
     dff["排名"] = dff.index + 1
 
-    # ─── 顶部指标卡 ───────────────────────────────────────────
+    # ─── 核心指标 ───────────────────────────────────────────
+    st.markdown('<div class="section-title">核心指标</div>', unsafe_allow_html=True)
     total_rows = len(dff)
     total_score = dff["综合评分"].mean() if total_rows > 0 else 0
     top1_score = dff["综合评分"].max() if total_rows > 0 else 0
@@ -659,10 +670,13 @@ if uploaded:
     col3.metric("最高综合评分", f"{top1_score:.1f}")
     col4.metric("平均 CTR", f"{avg_ctr:.2f}%")
 
+    st.divider()
+
     # ─── Tab 切换 ─────────────────────────────────────────────
-    tab1, tab2, tab3 = st.tabs(["🏆 卡片排行榜", "📋 数据表格", "📈 可视化图表"])
+    tab1, tab2, tab3 = st.tabs(["卡片排行榜", "数据表格", "可视化图表"])
 
     with tab1:
+        st.markdown('<div class="section-title">卡片排行榜</div>', unsafe_allow_html=True)
         if total_rows == 0:
             st.warning("当前筛选条件下无数据，请调整筛选条件")
         else:
@@ -688,7 +702,7 @@ if uploaded:
 
                     score = row.综合评分
                     if score >= 70:
-                        score_color = MCD_RED
+                        score_color = RED
                     elif score >= 40:
                         score_color = "#E07B00"
                     else:
@@ -758,6 +772,7 @@ if uploaded:
                         """, unsafe_allow_html=True)
 
     # ─── Tab 2: 数据表格 ──────────────────────────────────────
+    st.markdown('<div class="section-title">数据表格</div>', unsafe_allow_html=True)
     with tab2:
         title_col = "标题" if "标题" in dff.columns else "消息标题"
         owner_c = owner_col if owner_col in dff.columns else None
@@ -780,7 +795,7 @@ if uploaded:
         )
         csv_out = disp_df.to_csv(index=False, encoding="utf-8-sig")
         st.download_button(
-            "📥 下载排行榜 CSV",
+            "下载排行榜 CSV",
             csv_out,
             "麦当劳内容排行榜.csv",
             "text/csv",
@@ -788,6 +803,7 @@ if uploaded:
         )
 
     # ─── Tab 3: 可视化图表 ───────────────────────────────────
+    st.markdown('<div class="section-title">可视化图表</div>', unsafe_allow_html=True)
     with tab3:
         # 图表辅助函数
         def _fmt_num(x):
@@ -811,21 +827,21 @@ if uploaded:
             fig = make_subplots(specs=[[{"secondary_y": True}]])
             fig.add_trace(go.Bar(
                 x=agg[dim_name], y=agg["日均触达量"],
-                name="日均触达量", marker_color="#DB0003", opacity=0.85,
+                name="日均触达量", marker_color=RED, opacity=0.85,
                 text=agg["日均触达量"].apply(_fmt_num), textposition="outside"
             ), secondary_y=False)
             fig.add_trace(go.Scatter(
                 x=agg[dim_name], y=agg["CTR"],
                 name="CTR (%)", mode="lines+markers+text",
-                line=dict(color="#FFC000", width=3),
-                marker=dict(size=10, color="#FFC000"),
+                line=dict(color=GOLD, width=3),
+                marker=dict(size=10, color=GOLD),
                 text=agg["CTR"].apply(lambda x: f"{x:.2f}%"),
                 textposition="top center",
-                textfont=dict(color="#FFC000", size=12, family="PingFang SC, Microsoft YaHei, sans-serif")
+                textfont=dict(color=GOLD, size=12, family="PingFang SC, Microsoft YaHei, sans-serif")
             ), secondary_y=True)
             ctr_max = agg["CTR"].max() * 1.5
             fig.update_layout(
-                template="plotly_white", height=400,
+                paper_bgcolor=BG, plot_bgcolor=BG, font=dict(color=TEXT), height=400,
                 showlegend=True,
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
                 margin=dict(t=60, b=20),
@@ -903,10 +919,10 @@ if uploaded:
                 )
                 fig_scatter.update_traces(
                     hovertemplate=h_template,
-                    marker=dict(size=14, color="#DB0003", opacity=0.75, line=dict(width=0))
+                    marker=dict(size=14, color=RED, opacity=0.75, line=dict(width=0))
                 )
                 fig_scatter.update_layout(
-                    template="plotly_white",
+                    paper_bgcolor=BG, plot_bgcolor=BG, font=dict(color=TEXT),
                     height=450,
                     showlegend=False,
                     xaxis_title="",
