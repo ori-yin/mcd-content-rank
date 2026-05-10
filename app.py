@@ -337,10 +337,10 @@ st.markdown(f"""
   }}
 
   /* ─── 副文本 / 说明文字 ─── */
-  .stCaption {
+  .stCaption {{
     font-size: 12px !important;
     color: #AAA !important;
-  }
+  }}
 
   /* ─── 数字高亮 ─── */
   .stAlert {{
