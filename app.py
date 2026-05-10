@@ -495,6 +495,7 @@ st.markdown(f"""
     line-height: 1.65;
     min-width: 240px;
     max-width: 320px;
+    text-align: left;
     box-shadow: 0 8px 24px rgba(0,0,0,0.18);
     z-index: 9999;
     pointer-events: none;
@@ -910,7 +911,7 @@ if uploaded is not None:
                             <div style="flex:1; min-width:0;">
                               <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
                                 <span class="rank-badge {badge_class}">{rank}</span>
-                                <span style="font-size:11px;font-weight:600;color:{MCD_RED};background:rgba(228,0,4,0.06);padding:2px 10px;border-radius:12px;">{channel_short}</span>
+                                <span style="font-size:11px;font-weight:500;color:#999;background:#F5F5F5;padding:2px 10px;border-radius:12px;">{channel_short}</span>
                                 <span style="font-size:11px;color:#AAA;">{owner_short}</span>
                                 <span style="font-size:11px;color:#BBB;">{plan_type_short} · {date_str}</span>
                               </div>
