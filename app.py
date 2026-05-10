@@ -410,13 +410,6 @@ st.markdown(f"""
     opacity: 1;
   }}
 
-  /* 弱化上传区域和指标卡 */
-  [data-testid="stRadio"] {{ opacity: 0.7; }}
-  [data-testid="stFileUploader"] {{ opacity: 0.65; }}
-  [data-testid="stMetric"] {{ opacity: 0.6; border: none; background: transparent !important; box-shadow: none !important; }}
-  [data-testid="stMetricLabel"] {{ font-size: 12px !important; color: #888 !important; }}
-  [data-testid="stMetricValue"] {{ font-size: 16px !important; color: #555 !important; }}
-
 </style>
 """, unsafe_allow_html=True)
 
@@ -658,19 +651,9 @@ if uploaded is not None:
 
         # ─── 权重配置（折叠）─────────────────────────────────────
         with st.expander("权重配置", expanded=False):
-            # 自定义滑块样式：标签左、数值右、滑块下
-            def weighted_slider(label, default):
-                col_l, col_r = st.columns([3, 1])
-                with col_l:
-                    st.markdown(f'<div style="font-size:14px;color:#333;margin-bottom:4px">{label}</div>', unsafe_allow_html=True)
-                with col_r:
-                    val = st.slider(label, 0.0, 1.0, default, 0.05, label_visibility="collapsed")
-                    st.markdown(f'<div style="text-align:right;font-size:15px;font-weight:600;color:#DA291C">{val:.2f}</div>', unsafe_allow_html=True)
-                return val
-
-            w_reach = weighted_slider("触达量权重", 0.20)
-            w_ctr = weighted_slider("CTR权重", 0.45)
-            w_gc = weighted_slider("订单GC转化率权重", 0.35)
+            w_reach = st.slider("触达权重", 0.0, 1.0, 0.35, 0.05)
+            w_ctr = st.slider("CTR权重", 0.0, 1.0, 0.35, 0.05)
+            w_gc = st.slider("GC转化率权重", 0.0, 1.0, 0.30, 0.05)
 
         total_w = w_reach + w_ctr + w_gc
         if total_w == 0:
