@@ -645,12 +645,12 @@ if uploaded is not None:
 
         keyword = st.text_input("搜索关键词", "")
 
+        # ─── 权重配置（折叠）─────────────────────────────────────
+        with st.expander("权重配置", expanded=False):
+
         # ─── 排序 ────────────────────────────────────────────────
         st.markdown("**排序**")
         sort_order = st.radio("综合评分排序", ["降序", "升序"], index=0, horizontal=True, label_visibility="collapsed")
-
-        # ─── 权重配置（折叠）─────────────────────────────────────
-        with st.expander("权重配置", expanded=False):
             w_reach = st.slider("触达权重", 0.0, 1.0, 0.35, 0.05)
             w_ctr = st.slider("CTR权重", 0.0, 1.0, 0.35, 0.05)
             w_gc = st.slider("GC转化率权重", 0.0, 1.0, 0.30, 0.05)
