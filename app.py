@@ -70,15 +70,6 @@ st.markdown(f"""
     font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif !important;
   }}
 
-  /* ─── 文件上传区：弱化数据类型和上传 CSV 文件标签（主内容区）─── */
-  [data-testid="stHorizontalBlock"] [data-testid="stRadio"] label,
-  [data-testid="stHorizontalBlock"] [data-testid="stFileUploader"] label {
-    color: #999 !important;
-    font-weight: 300 !important;
-    font-size: 10px !important;
-    letter-spacing: 0.02em;
-  }
-
   /* ─── 侧边栏：弱化数据类型和上传文件标签 ─── */
   [data-testid="stSidebar"] [data-testid="stRadio"] label,
   [data-testid="stSidebar"] [data-testid="stFileUploader"] label {{
