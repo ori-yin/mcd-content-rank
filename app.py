@@ -753,7 +753,7 @@ if uploaded is not None:
         if total_rows == 0:
             st.warning("当前筛选条件下无数据，请调整筛选条件")
         else:
-            
+            st.markdown(f"**{total_rows} 条内容 · 按综合评分排序**")
             cards = list(dff.itertuples())
 
             # 动态颜色：基于该批次综合评分分布的百分位
@@ -877,7 +877,7 @@ if uploaded is not None:
                               <div class="card-score-label">综合评分</div>
                             </div>
                           </div>
-                          
+                          <div class="card-title">【标题】{title[:80]}{'...' if len(title) > 80 else ''}</div>
                           <div class="card-content">{content[:200]}{'...' if len(content) > 200 else ''}</div>
                           <div class="card-meta">
                             <span>触达 {reach:,}</span>
