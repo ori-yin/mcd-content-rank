@@ -614,9 +614,9 @@ if uploaded is not None:
 
     # ─── 侧边筛选 ─────────────────────────────────────────────
     with st.sidebar:
+        # ─── 筛选条件 ───────────────────────────────────────────
         st.markdown("**筛选条件**")
 
-        # ─── 日期范围筛选 ───────────────────────────────────
         if date_col in df.columns and df[date_col].notna().any():
             min_dt = df[date_col].min().date()
             max_dt = df[date_col].max().date()
@@ -625,21 +625,17 @@ if uploaded is not None:
                 "日期范围",
                 value=(default_start, max_dt),
                 min_value=min_dt,
-                max_value=max_dt,
-                help="筛选发送日期范围"
+                max_value=max_dt
             )
         else:
             date_range = None
 
-        # ─── 计划类型筛选 ───────────────────────────────────
         plan_types = ["全部"] + df["计划类型"].dropna().unique().tolist()
         selected_plan = st.selectbox("计划类型", plan_types)
 
-        # ─── 渠道筛选 ─────────────────────────────────────────
         channels = ["全部"] + df["渠道"].dropna().unique().tolist()
         selected_channel = st.selectbox("渠道", channels)
 
-        # 预算 Owner 筛选
         owner_col = OWNER_COL
         if owner_col in df.columns:
             owners = ["全部"] + df[owner_col].dropna().unique().tolist()
@@ -647,16 +643,17 @@ if uploaded is not None:
             owners = ["全部"]
         selected_owner = st.selectbox("预算 Owner", owners)
 
-        # ─── 关键词搜索 ───────────────────────────────────────
         keyword = st.text_input("搜索关键词", "")
 
-        # ─── 权重配置（折叠）─────────────────────────────────
+        # ─── 排序 ────────────────────────────────────────────────
+        st.markdown("**排序**")
+        sort_order = st.radio("综合评分排序", ["降序", "升序"], index=0, horizontal=True, label_visibility="collapsed")
+
+        # ─── 权重配置（折叠）─────────────────────────────────────
         with st.expander("权重配置", expanded=False):
-            st.caption("综合评分 = 触达×权重 + CTR×权重 + GC转化率×权重")
-            w_reach = st.slider("触达量权重", 0.0, 1.0, 0.35, 0.05)
+            w_reach = st.slider("触达权重", 0.0, 1.0, 0.35, 0.05)
             w_ctr = st.slider("CTR权重", 0.0, 1.0, 0.35, 0.05)
-            w_gc = st.slider("订单GC转化率权重", 0.0, 1.0, 0.30, 0.05)
-            sort_order = st.radio("综合评分排序", ["降序", "升序"], index=0, horizontal=True)
+            w_gc = st.slider("GC转化率权重", 0.0, 1.0, 0.30, 0.05)
 
         total_w = w_reach + w_ctr + w_gc
         if total_w == 0:
