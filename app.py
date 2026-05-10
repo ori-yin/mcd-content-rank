@@ -741,19 +741,26 @@ if uploaded is not None:
     avg_ctr = (dff["点击人次"].sum() / dff["触达成功"].sum() * 100) if dff["触达成功"].sum() > 0 else 0 if total_rows > 0 else 0
 
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("上榜内容", f"{total_rows} 条")
-    col2.metric("平均综合评分", f"{total_score:.2f}")
-    col3.metric("最高综合评分", f"{top1_score:.2f}")
-    col4.metric("平均 CTR", f"{avg_ctr:.2f}%")
+    for col, label, val, bg, clr in [
+        (col1, "上榜内容", f"{total_rows} 条", "#DA291C", "#FFFFFF"),
+        (col2, "平均综合评分", f"{total_score:.2f}", "#FFC72C", "#1a1a1a"),
+        (col3, "最高综合评分", f"{top1_score:.2f}", "#FFC72C", "#1a1a1a"),
+        (col4, "平均 CTR", f"{avg_ctr:.2f}%", "#00A04A", "#FFFFFF"),
+    ]:
+        col.markdown(f"""
+        <div style="background:{bg};color:{clr};border-radius:12px;padding:16px 12px;text-align:center;">
+            <div style="font-size:11px;font-weight:600;opacity:.8;margin-bottom:6px;">{label}</div>
+            <div style="font-size:24px;font-weight:900;line-height:1;">{val}</div>
+        </div>""", unsafe_allow_html=True)
 
     # ─── Tab 切换 ─────────────────────────────────────────────
-    tab1, tab2, tab3 = st.tabs(["🏆 卡片排行榜", "📋 数据表格", "📈 可视化图表"])
+    tab1, tab2, tab3 = st.tabs(["卡片排行榜", "数据表格", "可视化图表"])
 
     with tab1:
         if total_rows == 0:
             st.warning("当前筛选条件下无数据，请调整筛选条件")
         else:
-            st.markdown(f"**{total_rows} 条内容 · 按综合评分排序**")
+            
             cards = list(dff.itertuples())
 
             # 动态颜色：基于该批次综合评分分布的百分位
