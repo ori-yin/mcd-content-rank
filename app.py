@@ -878,7 +878,7 @@ if uploaded is not None:
                             </div>
                           </div>
                           
-                          <div class="card-content">{content[:200]}{'...' if len(content) > 200 else ''}</div>
+                          
                           <div class="card-meta">
                             <span>触达 {reach:,}</span>
                             <span>点击人次 {clicks_val:,}</span>
