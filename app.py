@@ -236,46 +236,78 @@ st.markdown(f"""
   }}
 
   /* ─── 内容卡片 ─── */
+  /* ─── 内容卡片（重新设计）─── */
   .content-card {{
     background: #FFFFFF;
-    border: 1px solid #EFEFEF;
-    border-radius: 14px;
-    padding: 18px 22px;
-    margin-bottom: 14px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
-    transition: box-shadow 0.15s ease, transform 0.15s ease;
+    border: 1.5px solid #F0F0F0;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
   }}
   .content-card:hover {{
-    box-shadow: 0 4px 20px rgba(228,0,4, 0.12);
+    box-shadow: 0 4px 16px rgba(218,41,28, 0.10);
     transform: translateY(-1px);
   }}
+  .card-top-bar {{
+    height: 3px;
+    background: linear-gradient(90deg, #DA291C 0%, #FFC72C 100%);
+  }}
+  .card-header {{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 18px 10px;
+    border-bottom: 1px solid #F5F5F5;
+  }}
+  .card-header-left {{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }}
+  .card-score-wrap {{
+    text-align: right;
+  }}
+  .card-score {{
+    font-size: 28px;
+    font-weight: 900;
+    line-height: 1;
+    font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  }}
+  .card-score-label {{
+    font-size: 10px;
+    color: #AAA;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }}
   .card-title {{
-    font-size: 14px;
-    font-weight: 700;
+    font-size: 15px;
+    font-weight: 600;
     color: #1a1a1a;
-    margin-bottom: 6px;
+    padding: 12px 18px 8px;
     line-height: 1.5;
     font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
   }}
-  .card-content {{
-    font-size: 13px;
-    color: #666;
-    line-height: 1.7;
-    margin-bottom: 12px;
-  }}
   .card-meta {{
     display: flex;
-    gap: 10px;
+    gap: 8px;
     flex-wrap: wrap;
-    font-size: 12px;
-    color: #888;
+    padding: 8px 18px 14px;
   }}
   .card-meta span {{
+    font-size: 11px;
+    color: #666;
     background: #F8F8F8;
-    padding: 4px 10px;
+    padding: 3px 9px;
     border-radius: 20px;
     font-weight: 500;
-    border: 1px solid #EFEFEF;
+    white-space: nowrap;
+  }}
+  .card-meta em {{
+    font-style: normal;
+    color: #333;
+    font-weight: 700;
   }}
   .card-score {{
     font-size: 26px;
@@ -858,34 +890,29 @@ if uploaded is not None:
 
                         st.markdown(f"""
                         <div class="content-card">
-                          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                            <div style="flex:1;">
+                          <div class="card-top-bar"></div>
+                          <div class="card-header">
+                            <div class="card-header-left">
                               <span class="rank-badge {badge_class}">{rank}</span>
-                              <span style="font-size:12px; color:#888; background:#F5F5F5; padding:2px 8px; border-radius:12px;">
+                              <span style="font-size:12px; color:#666; background:#FFF3E0; padding:2px 9px; border-radius:12px; font-weight:600;">
                                 {channel_short}
                               </span>
-                              <span style="font-size:12px; color:#AAA;"> · {owner_short} · {plan_type_short} · {date_str}</span>
+                              <span style="font-size:11px; color:#AAA;">{owner_short} · {plan_type_short}</span>
+                              <span style="font-size:11px; color:#CCC;">· {date_str}</span>
                             </div>
-                            <div>
-                              <div style="display:flex;align-items:flex-start;justify-content:flex-end;gap:0;">
-                                <div class="card-score" style="color:{score_color};">{score:.2f}</div>
-                                <div class="score-info-wrap">
-                                  <span class="info-icon">i</span>
-                                  <div class="score-tooltip">{tooltip_text}</div>
-                                </div>
-                              </div>
+                            <div class="card-score-wrap">
+                              <div class="card-score" style="color:{score_color};">{score:.2f}</div>
                               <div class="card-score-label">综合评分</div>
                             </div>
                           </div>
-                          <div class="card-title">【标题】{title[:80]}{'...' if len(title) > 80 else ''}</div>
-                          <div class="card-content">{content[:200]}{'...' if len(content) > 200 else ''}</div>
+                          <div class="card-title">{title[:80]}{'...' if len(title) > 80 else ''}</div>
                           <div class="card-meta">
-                            <span>触达 {reach:,}</span>
-                            <span>点击人次 {clicks_val:,}</span>
-                            <span>CTR {ctr_val:.2f}%</span>
-                            <span>订单GC {gc_val:,}</span>
-                            <span>订单Sales {int(sales_val):,}</span>
-                            <span>订单GC转化率 {gc_rate_val:.2f}%</span>
+                            <span>触达 <em>{reach:,}</em></span>
+                            <span>点击 <em>{clicks_val:,}</em></span>
+                            <span>CTR <em>{ctr_val:.2f}%</em></span>
+                            <span>订单GC <em>{gc_val:,}</em></span>
+                            <span>订单Sales <em>{int(sales_val):,}</em></span>
+                            <span>GC转化率 <em>{gc_rate_val:.2f}%</em></span>
                           </div>
                         </div>
                         """, unsafe_allow_html=True)
