@@ -753,7 +753,7 @@ if uploaded is not None:
         if total_rows == 0:
             st.warning("当前筛选条件下无数据，请调整筛选条件")
         else:
-            st.markdown(f"**{total_rows} 条内容 · 按综合评分排序**")
+            
             cards = list(dff.itertuples())
 
             # 动态颜色：基于该批次综合评分分布的百分位
