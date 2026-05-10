@@ -570,8 +570,12 @@ with col_right:
         help="支持 UTF-8、GBK、GB2312、Latin1 编码"
     )
 
+# 只在首次上传或文件变化时触发气球
 if uploaded is not None:
-    st.balloons()
+    current_file_id = uploaded.file_id
+    if st.session_state.get("last_file_id") != current_file_id:
+        st.balloons()
+        st.session_state.last_file_id = current_file_id
 
     # ─── 读取数据 ───────────────────────────────────────────────
     if mode == "原始 CSV（含 JSON 列，需清洗）":
