@@ -654,7 +654,7 @@ if uploaded is not None:
         st.markdown("**排序**")
         sort_order = st.radio("综合评分排序", ["降序", "升序"], index=0, horizontal=True, label_visibility="collapsed")
 
-                total_w = w_reach + w_ctr + w_gc
+        total_w = w_reach + w_ctr + w_gc
         if total_w == 0:
             st.warning("权重总和为 0，请调整权重")
             norm_reach, norm_ctr, norm_gc = 0, 0, 0
