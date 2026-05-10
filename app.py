@@ -249,7 +249,14 @@ st.markdown(f"""
     box-shadow: 0 4px 20px rgba(228,0,4, 0.12);
     transform: translateY(-1px);
   }}
-
+  .card-title {{
+    font-size: 14px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 6px;
+    line-height: 1.5;
+    font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  }}
   .card-content {{
     font-size: 13px;
     color: #666;
@@ -740,7 +747,7 @@ if uploaded is not None:
     col4.metric("平均 CTR", f"{avg_ctr:.2f}%")
 
     # ─── Tab 切换 ─────────────────────────────────────────────
-    tab1, tab2, tab3 = st.tabs(["卡片排行榜", "数据表格", "可视化图表"])
+    tab1, tab2, tab3 = st.tabs(["🏆 卡片排行榜", "📋 数据表格", "📈 可视化图表"])
 
     with tab1:
         if total_rows == 0:
