@@ -73,11 +73,13 @@ st.markdown(f"""
   /* ─── 侧边栏：弱化数据类型和上传文件标签 ─── */
   [data-testid="stSidebar"] [data-testid="stRadio"] label,
   [data-testid="stSidebar"] [data-testid="stFileUploader"] label {{
-    color: #AAA !important;
-    font-weight: 400 !important;
-    font-size: 11px !important;
+    color: #CCC !important;
+    font-weight: 300 !important;
+    font-size: 10px !important;
+    letter-spacing: 0.02em;
   }}
 
+  /* ─── 侧边栏：其他标签保持正常 ─── */
   [data-testid="stSidebar"] .stRadio label,
   [data-testid="stSidebar"] .stSelectbox label,
   [data-testid="stSidebar"] .stTextInput label,
@@ -145,19 +147,19 @@ st.markdown(f"""
     background: {MCD_BG};
   }}
 
-  /* ─── 顶部指标卡（弱化：小字+灰色）─── */
+  /* ─── 顶部指标卡（更弱化：小字+浅灰）─── */
   div[data-testid="stMetricValue"] {{
-    font-size: 16px !important;
-    font-weight: 600 !important;
-    color: #999 !important;
+    font-size: 14px !important;
+    font-weight: 300 !important;
+    color: #CCC !important;
     font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif !important;
-    letter-spacing: -0.01em;
+    letter-spacing: 0;
   }}
   div[data-testid="stMetricLabel"] {{
-    font-size: 11px !important;
-    color: #BBB !important;
-    font-weight: 400;
-    letter-spacing: 0.03em;
+    font-size: 10px !important;
+    color: #DDD !important;
+    font-weight: 300;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
   }}
   div[data-testid="stMetricDelta"] {{
