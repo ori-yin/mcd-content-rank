@@ -645,11 +645,25 @@ if uploaded is not None:
 
         keyword = st.text_input("搜索关键词", "")
 
-                # ─── 权重配置（折叠）─────────────────────────────────────
+                        # ─── 权重配置（折叠）─────────────────────────────────────
+        st.markdown("**大招正在冷却**")
         with st.expander("权重配置", expanded=False):
-            w_reach = st.slider("触达权重", 0.0, 1.0, 0.35, 0.05)
-            w_ctr = st.slider("CTR权重", 0.0, 1.0, 0.35, 0.05)
-            w_gc = st.slider("GC转化率权重", 0.0, 1.0, 0.30, 0.05)
+            preset = st.selectbox(
+                "权重预设",
+                ["触达优先", "CTR优先", "GC转化率优先", "均衡模式", "自定义"]
+            )
+            if preset == "触达优先":
+                w_reach, w_ctr, w_gc = 0.50, 0.30, 0.20
+            elif preset == "CTR优先":
+                w_reach, w_ctr, w_gc = 0.25, 0.50, 0.25
+            elif preset == "GC转化率优先":
+                w_reach, w_ctr, w_gc = 0.25, 0.25, 0.50
+            elif preset == "均衡模式":
+                w_reach, w_ctr, w_gc = 0.35, 0.35, 0.30
+            else:
+                w_reach = st.slider("触达权重", 0.0, 1.0, 0.35, 0.05)
+                w_ctr = st.slider("CTR权重", 0.0, 1.0, 0.35, 0.05)
+                w_gc = st.slider("GC转化率权重", 0.0, 1.0, 0.30, 0.05)
 # ─── 排序 ────────────────────────────────────────────────
         st.markdown("**排序**")
         sort_order = st.radio("综合评分排序", ["降序", "升序"], index=0, horizontal=True, label_visibility="collapsed")
