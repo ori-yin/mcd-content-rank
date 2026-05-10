@@ -165,18 +165,16 @@ st.markdown(f"""
     border-radius: 12px !important;
     overflow: visible !important;
     max-height: none !important;
-    height: auto !important;
-  }}
-  [data-testid="stSidebar"] .stExpander > div {{
-    overflow: visible !important;
-    max-height: 280px !important;
-    height: auto !important;
   }}
   [data-testid="stSidebar"] .stExpander [data-testid="stExpanderContent"] {{
     padding: 16px !important;
     overflow: visible !important;
     max-height: none !important;
-    height: auto !important;
+  }}
+  /* Expander 容器（summary + content 的父级）*/
+  [data-testid="stSidebar"] .stExpander > div > div {{
+    overflow: visible !important;
+    max-height: none !important;
   }}
   /* Expander 内 slider 去掉多余分隔线 */
   [data-testid="stSidebar"] .stExpander hr {{
