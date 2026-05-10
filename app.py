@@ -650,28 +650,19 @@ if uploaded is not None:
         # ─── 关键词搜索 ───────────────────────────────────────
         keyword = st.text_input("搜索关键词", "")
 
-        st.markdown("---")
-        # ─── 权重调整 ─────────────────────────────────────────
-        st.markdown("**权重配置**", help="""
-综合评分 = 触达_norm×权重 + CTR_norm(渠道内)×权重 + GC率_norm(渠道内)×权重
-
-注：CTR_norm 和 GC率_norm 按渠道独立归一化，消除渠道间基准差异
-""")
-
-
-        w_reach = st.slider("触达量权重", 0.0, 1.0, 0.35, 0.05)
-        w_ctr = st.slider("CTR权重", 0.0, 1.0, 0.35, 0.05)
-        w_gc = st.slider("订单GC转化率权重", 0.0, 1.0, 0.30, 0.05)
-
-        st.markdown("**排序方式**")
-        sort_order = st.radio("综合评分排序", ["降序", "升序"], index=0, horizontal=True, label_visibility="collapsed")
+        # ─── 权重配置（折叠）─────────────────────────────────
+        with st.expander("权重配置", expanded=False):
+            st.caption("综合评分 = 触达×权重 + CTR×权重 + GC转化率×权重")
+            w_reach = st.slider("触达量权重", 0.0, 1.0, 0.35, 0.05)
+            w_ctr = st.slider("CTR权重", 0.0, 1.0, 0.35, 0.05)
+            w_gc = st.slider("订单GC转化率权重", 0.0, 1.0, 0.30, 0.05)
+            sort_order = st.radio("综合评分排序", ["降序", "升序"], index=0, horizontal=True)
 
         total_w = w_reach + w_ctr + w_gc
         if total_w == 0:
             st.warning("权重总和为 0，请调整权重")
             norm_reach, norm_ctr, norm_gc = 0, 0, 0
         else:
-            # 归一化权重（除以总和），确保相对权重比例正确
             norm_reach = w_reach / total_w
             norm_ctr = w_ctr / total_w
             norm_gc = w_gc / total_w
