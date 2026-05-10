@@ -164,6 +164,9 @@ st.markdown(f"""
     border: 1px solid rgba(0,0,0,0.08) !important;
     border-radius: 12px !important;
   }}
+  [data-testid="stSidebar"] .stExpander [data-testid="stExpanderContent"] {{
+    padding: 16px !important;
+  }}
   /* Expander 内 slider 去掉多余分隔线 */
   [data-testid="stSidebar"] .stExpander hr {{
     display: none !important;
