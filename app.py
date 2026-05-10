@@ -7,6 +7,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import json
 import re
+import numpy as np
 from datetime import datetime, timedelta
 from io import BytesIO
 
@@ -136,33 +137,23 @@ st.markdown(f"""
     background: {MCD_BG};
   }}
 
-  /* ─── 顶部指标卡（弱化样式：变小+变灰）─── */
+  /* ─── 顶部指标卡 ─── */
   div[data-testid="stMetricValue"] {{
-    font-size: 16px !important;
-    font-weight: 700 !important;
-    color: #999 !important;
+    font-size: 22px !important;
+    font-weight: 900 !important;
+    color: {MCD_RED} !important;
     font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif !important;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.02em;
   }}
   div[data-testid="stMetricLabel"] {{
-    font-size: 11px !important;
-    color: #BBB !important;
-    font-weight: 400;
+    font-size: 12px !important;
+    color: #666 !important;
+    font-weight: 500;
     letter-spacing: 0.03em;
     text-transform: uppercase;
   }}
   div[data-testid="stMetricDelta"] {{
     display: none;
-  }}
-
-  /* ─── 数据类型/上传文件标签弱化 ─── */
-  [data-testid="stSidebar"] [data-testid="stRadio"] label,
-  [data-testid="stSidebar"] .stFileUploader label,
-  [data-testid="stSidebar"] .stRadio > label:first-child,
-  [data-testid="stSidebar"] .stFileUploader > label:first-child {{
-    font-size: 11px !important;
-    color: #AAA !important;
-    font-weight: 400 !important;
   }}
 
   /* ─── Tab 栏 ─── */
@@ -346,7 +337,7 @@ st.markdown(f"""
   }}
 
   /* ─── 副文本 / 说明文字 ─── */
-  .stCaption, p {{
+  .stCaption {{
     font-size: 12px !important;
     color: #AAA !important;
   }}
@@ -579,8 +570,12 @@ with col_right:
         help="支持 UTF-8、GBK、GB2312、Latin1 编码"
     )
 
+# 只在首次上传或文件变化时触发气球
 if uploaded is not None:
-    st.balloons()
+    current_file_id = uploaded.file_id
+    if st.session_state.get("last_file_id") != current_file_id:
+        st.balloons()
+        st.session_state.last_file_id = current_file_id
 
     # ─── 读取数据 ───────────────────────────────────────────────
     if mode == "原始 CSV（含 JSON 列，需清洗）":
@@ -619,9 +614,9 @@ if uploaded is not None:
 
     # ─── 侧边筛选 ─────────────────────────────────────────────
     with st.sidebar:
+        # ─── 筛选条件 ───────────────────────────────────────────
         st.markdown("**筛选条件**")
 
-        # ─── 日期范围筛选 ───────────────────────────────────
         if date_col in df.columns and df[date_col].notna().any():
             min_dt = df[date_col].min().date()
             max_dt = df[date_col].max().date()
@@ -630,21 +625,17 @@ if uploaded is not None:
                 "日期范围",
                 value=(default_start, max_dt),
                 min_value=min_dt,
-                max_value=max_dt,
-                help="筛选发送日期范围"
+                max_value=max_dt
             )
         else:
             date_range = None
 
-        # ─── 计划类型筛选 ───────────────────────────────────
         plan_types = ["全部"] + df["计划类型"].dropna().unique().tolist()
         selected_plan = st.selectbox("计划类型", plan_types)
 
-        # ─── 渠道筛选 ─────────────────────────────────────────
         channels = ["全部"] + df["渠道"].dropna().unique().tolist()
         selected_channel = st.selectbox("渠道", channels)
 
-        # 预算 Owner 筛选
         owner_col = OWNER_COL
         if owner_col in df.columns:
             owners = ["全部"] + df[owner_col].dropna().unique().tolist()
@@ -652,23 +643,16 @@ if uploaded is not None:
             owners = ["全部"]
         selected_owner = st.selectbox("预算 Owner", owners)
 
-        # ─── 关键词搜索 ───────────────────────────────────────
         keyword = st.text_input("搜索关键词", "")
 
-        st.markdown("---")
-        # ─── 权重调整 ─────────────────────────────────────────
-        st.markdown("**权重配置**", help="""
-综合评分 = 触达_norm×权重 + CTR_norm(渠道内)×权重 + GC率_norm(渠道内)×权重
-
-注：CTR_norm 和 GC率_norm 按渠道独立归一化，消除渠道间基准差异
-""")
-
-
-        w_reach = st.slider("触达量权重", 0.0, 1.0, 0.35, 0.05)
-        w_ctr = st.slider("CTR权重", 0.0, 1.0, 0.35, 0.05)
-        w_gc = st.slider("订单GC转化率权重", 0.0, 1.0, 0.30, 0.05)
-
-        st.markdown("**排序方式**")
+                # ─── 权重配置（折叠）─────────────────────────────────────
+        st.markdown("**权重**")
+        with st.expander("权重配置", expanded=False):
+            w_reach = st.slider("触达权重", 0.0, 1.0, 0.35, 0.05)
+            w_ctr = st.slider("CTR权重", 0.0, 1.0, 0.35, 0.05)
+            w_gc = st.slider("GC转化率权重", 0.0, 1.0, 0.30, 0.05)
+# ─── 排序 ────────────────────────────────────────────────
+        st.markdown("**排序**")
         sort_order = st.radio("综合评分排序", ["降序", "升序"], index=0, horizontal=True, label_visibility="collapsed")
 
         total_w = w_reach + w_ctr + w_gc
@@ -676,7 +660,6 @@ if uploaded is not None:
             st.warning("权重总和为 0，请调整权重")
             norm_reach, norm_ctr, norm_gc = 0, 0, 0
         else:
-            # 归一化权重（除以总和），确保相对权重比例正确
             norm_reach = w_reach / total_w
             norm_ctr = w_ctr / total_w
             norm_gc = w_gc / total_w
@@ -764,19 +747,18 @@ if uploaded is not None:
     col4.metric("平均 CTR", f"{avg_ctr:.2f}%")
 
     # ─── Tab 切换 ─────────────────────────────────────────────
-    tab1, tab2, tab3 = st.tabs(["🏆 卡片排行榜", "📋 数据表格", "📈 可视化图表"])
+    tab1, tab2, tab3 = st.tabs(["卡片排行榜", "数据表格", "可视化图表"])
 
     with tab1:
         if total_rows == 0:
             st.warning("当前筛选条件下无数据，请调整筛选条件")
         else:
-            st.markdown(f"**{total_rows} 条内容 · 按综合评分排序**")
+            
             cards = list(dff.itertuples())
 
             # 动态颜色：基于该批次综合评分分布的百分位
             # Top 33% → 绿，Middle 33% → 灰，Bottom 33% → 红
             all_scores = [c.综合评分 for c in cards]
-            import numpy as np
             if len(set(all_scores)) > 2:
                 p33 = float(np.percentile(all_scores, 33))
                 p67 = float(np.percentile(all_scores, 67))
@@ -1002,7 +984,6 @@ if uploaded is not None:
             else:
                 st.info("当前数据无渠道维度")
 
-            owner_col = OWNER_COL
             if owner_col in dff.columns and dff[owner_col].notna().sum() > 0:
                 st.plotly_chart(_bar_line_chart(dff, owner_col, ""), use_container_width=True)
             else:
@@ -1010,7 +991,6 @@ if uploaded is not None:
 
             if "触达成功" in dff.columns and "订单Sales" in dff.columns and "CTR" in dff.columns:
                 title_col = "标题" if "标题" in dff.columns else "消息标题"
-                owner_col = OWNER_COL if "预算owner" in dff.columns else None
 
                 # 预格式化hover显示列（用于hover_name和customdata）
                 dff_h = dff.copy()
@@ -1064,4 +1044,3 @@ if uploaded is not None:
                     yaxis_title=""
                 )
                 st.plotly_chart(fig_scatter, use_container_width=True)
-
