@@ -363,22 +363,28 @@ st.markdown(f"""
   .card-content {{
     font-size: 12.5px;
     color: #777;
-    line-height: 1.75;
-    margin-bottom: 16px;
+    line-height: 1.65;
+    margin-bottom: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
   }}
   .card-meta {{
     display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    font-size: 11px;
+    gap: 4px;
+    flex-wrap: nowrap;
+    font-size: 10.5px;
   }}
   .card-meta span {{
     background: #F7F7F7;
-    padding: 4px 10px;
-    border-radius: 20px;
+    padding: 3px 7px;
+    border-radius: 14px;
     font-weight: 500;
     color: #888;
     border: 1px solid #F0F0F0;
+    white-space: nowrap;
   }}
   .card-score {{
     font-size: 30px;
