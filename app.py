@@ -53,16 +53,19 @@ st.markdown(f"""
   [data-testid="stSidebar"] {{
     background: linear-gradient(180deg, {MCD_GOLD} 0%, #FFD54F 100%) !important;
     border-right: none;
-    padding: 24px 16px 24px 8px !important;
+    padding: 12px 16px 24px 8px !important;
   }}
-  [data-testid="stSidebar"]::before {{
-    content: '';
-    display: block;
-    height: 4px;
-    background: {MCD_RED};
-    border-radius: 4px;
-    margin-bottom: 20px;
-    width: 48px;
+  [data-testid="stSidebar"] > div:first-child {{
+    padding-top: 0 !important;
+  }}
+  /* 去掉侧边栏顶部大段空白 */
+  [data-testid="stSidebar"] [data-testid="stSidebarNav"] {{
+    display: none !important;
+  }}
+  section[data-testid="stSidebarSidebar"] > div > div:nth-child(1) {{
+    min-height: 0 !important;
+    padding-top: 0 !important;
+    margin-top: 0 !important;
   }}
 
   /* 侧边栏分区标题 */
@@ -154,6 +157,15 @@ st.markdown(f"""
     background: rgba(255,255,255,0.35) !important;
     border: 1px solid rgba(0,0,0,0.08) !important;
     border-radius: 12px !important;
+  }}
+  /* Expander 内 slider 去掉多余分隔线 */
+  [data-testid="stSidebar"] .stExpander [data-testid="stVerticalBlock"] > div > div [data-testid="stMarkdownContainer"] {{
+    display: none !important;
+  }}
+  [data-testid="stSidebar"] .stExpander .stSlider {{
+    border-bottom: none !important;
+    padding-bottom: 4px !important;
+    margin-bottom: 4px !important;
   }}
 
   /* 下载按钮 */
@@ -441,6 +453,7 @@ st.markdown(f"""
 
   /* ─── 综合评分 Tooltip ─── */
   .score-info-wrap {{
+    position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -470,8 +483,8 @@ st.markdown(f"""
     visibility: hidden;
     opacity: 0;
     position: absolute;
-    bottom: calc(100% + 10px);
-    right: calc(100% + 8px);
+    bottom: calc(100% + 8px);
+    right: 0;
     background: rgba(25,25,25,0.96);
     color: #FFFFFF;
     border-radius: 12px;
@@ -490,10 +503,9 @@ st.markdown(f"""
     content: '';
     position: absolute;
     top: 100%;
-    right: auto;
-    left: 100%;
+    right: 12px;
     border: 6px solid transparent;
-    border-left-color: rgba(25,25,25,0.96);
+    border-top-color: rgba(25,25,25,0.96);
   }}
   .score-info-wrap:hover .score-tooltip {{
     visibility: visible;
@@ -717,7 +729,7 @@ if uploaded is not None:
         sort_order = st.radio("综合评分排序", ["降序", "升序"], index=0, horizontal=True, label_visibility="collapsed")
 
         # 权重配置
-        with st.expander("⚙ 权重配置", expanded=False):
+        with st.expander("权重配置", expanded=False):
             w_reach = st.slider("触达权重", 0.0, 1.0, 0.35, 0.05)
             w_ctr = st.slider("CTR权重", 0.0, 1.0, 0.35, 0.05)
             w_gc = st.slider("GC转化率权重", 0.0, 1.0, 0.30, 0.05)
