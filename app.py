@@ -141,7 +141,7 @@ st.markdown(f"""
 
   /* Slider */
   [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] {{
-    background: transparent !important;
+    background: rgba(0,0,0,0.06) !important;
     border-radius: 4px !important;
     height: 4px !important;
   }}
@@ -150,12 +150,11 @@ st.markdown(f"""
     border-radius: 50% !important;
     width: 16px !important;
     height: 16px !important;
-    box-shadow: 0 1px 4px rgba(228,0,4,0.25) !important;
   }}
   /* Slider 容器紧凑 */
   [data-testid="stSidebar"] .stSlider > div {{
-    padding-top: 0 !important;
-    padding-bottom: 2px !important;
+    padding-top: 2px !important;
+    padding-bottom: 6px !important;
   }}
 
   /* Expander (权重配置) */
@@ -163,18 +162,6 @@ st.markdown(f"""
     background: rgba(255,255,255,0.35) !important;
     border: 1px solid rgba(0,0,0,0.08) !important;
     border-radius: 12px !important;
-    overflow: visible !important;
-    max-height: none !important;
-  }}
-  [data-testid="stSidebar"] .stExpander [data-testid="stExpanderContent"] {{
-    padding: 16px !important;
-    overflow: visible !important;
-    max-height: none !important;
-  }}
-  /* Expander 容器（summary + content 的父级）*/
-  [data-testid="stSidebar"] .stExpander > div > div {{
-    overflow: visible !important;
-    max-height: none !important;
   }}
   /* Expander 内 slider 去掉多余分隔线 */
   [data-testid="stSidebar"] .stExpander hr {{
