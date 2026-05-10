@@ -49,148 +49,7 @@ st.markdown(f"""
   footer {{ visibility: hidden; }}
   header {{ visibility: hidden; }}
 
-  /* ─── 侧边栏：金色主题 + 精致排版 ─── */
-  [data-testid="stSidebar"] {{
-    background: linear-gradient(180deg, {MCD_GOLD} 0%, #FFD54F 100%) !important;
-    border-right: none;
-    padding: 12px 16px 24px 8px !important;
-  }}
-  [data-testid="stSidebar"] > div:first-child {{
-    padding-top: 0 !important;
-  }}
-  /* 去掉侧边栏顶部大段空白 */
-  [data-testid="stSidebar"] [data-testid="stSidebarNav"] {{
-    display: none !important;
-  }}
-  section[data-testid="stSidebarSidebar"] > div > div:nth-child(1) {{
-    min-height: 0 !important;
-    padding-top: 0 !important;
-    margin-top: 0 !important;
-  }}
-
-  /* 侧边栏分区标题 */
-  [data-testid="stSidebar"] > div > div > div > div >
-    div:first-child > [data-testid="stVerticalBlock"] > 
-    div:first-child > [data-testid="stMarkdownContainer"] {{
-    }}
-  .sidebar-section-title {{
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: rgba(0,0,0,0.45) !important;
-    margin: 20px 0 10px 4px !important;
-    padding-bottom: 6px;
-    border-bottom: 1px solid rgba(0,0,0,0.1);
-  }}
-
-  /* 侧边栏控件统一样式 */
-  [data-testid="stSidebar"] label {{
-    color: rgba(0,0,0,0.7) !important;
-    font-weight: 600 !important;
-    font-size: 12px !important;
-  }}
-  [data-testid="stSidebar"] .stSelectbox > div > div,
-  [data-testid="stSidebar"] .stTextInput > div > div,
-  [data-testid="stSidebar"] .stDateInput > div > div {{
-    background: rgba(255,255,255,0.7) !important;
-    border: 1px solid rgba(0,0,0,0.08) !important;
-    border-radius: 10px !important;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04) !important;
-  }}
-  [data-testid="stSidebar"] [data-baseweb="select"] span,
-  [data-testid="stSidebar"] [data-baseweb="input"] {{
-    color: #1a1a1a !important;
-    font-size: 13px !important;
-  }}
-
-  /* 侧边栏 Radio 水平紧凑 */
-  [data-testid="stSidebar"] [data-testid="stRadio"] > div {{
-    border: none !important;
-    background: transparent !important;
-    padding: 0 !important;
-  }}
-  [data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] {{
-    gap: 6px !important;
-  }}
-  [data-testid="stSidebar"] [data-testid="stRadio"] label {{
-    font-size: 11px !important;
-    padding: 6px 12px !important;
-    border-radius: 20px !important;
-    border: 1px solid rgba(0,0,0,0.12) !important;
-    background: rgba(255,255,255,0.5) !important;
-  }}
-  [data-testid="stSidebar"] [data-testid="stRadio"] label[data-baseweb="checked"] {{
-    background: {MCD_RED} !important;
-    color: #fff !important;
-    border-color: {MCD_RED} !important;
-  }}
-
-  /* 文件上传区 */
-  [data-testid="stSidebar"] [data-testid="stFileUploader"] > div > div {{
-    border: 2px dashed rgba(0,0,0,0.15) !important;
-    border-radius: 14px !important;
-    padding: 16px !important;
-    background: rgba(255,255,255,0.4) !important;
-    transition: all 0.2s ease;
-  }}
-  [data-testid="stSidebar"] [data-testid="stFileUploader"]:hover > div > div {{
-    border-color: {MCD_RED} !important;
-    background: rgba(255,255,255,0.65) !important;
-  }}
-
-  /* Slider */
-  [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] {{
-    background: transparent !important;
-    border-radius: 4px !important;
-    height: 4px !important;
-  }}
-  [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] [aria-valuenow] {{
-    background: {MCD_RED} !important;
-    border-radius: 50% !important;
-    width: 16px !important;
-    height: 16px !important;
-    box-shadow: 0 1px 4px rgba(228,0,4,0.25) !important;
-  }}
-  /* Slider 容器紧凑 */
-  [data-testid="stSidebar"] .stSlider > div {{
-    padding-top: 0 !important;
-    padding-bottom: 2px !important;
-  }}
-
-  /* Expander (权重配置) */
-  [data-testid="stSidebar"] .stExpander {{
-    background: rgba(255,255,255,0.35) !important;
-    border: 1px solid rgba(0,0,0,0.08) !important;
-    border-radius: 12px !important;
-    overflow: visible !important;
-    max-height: none !important;
-    height: auto !important;
-  }}
-  [data-testid="stSidebar"] .stExpander > div {{
-    overflow: visible !important;
-    max-height: 280px !important;
-    height: auto !important;
-  }}
-  [data-testid="stSidebar"] .stExpander [data-testid="stExpanderContent"] {{
-    padding: 16px !important;
-    overflow: visible !important;
-    max-height: none !important;
-    height: auto !important;
-  }}
-  /* Expander 内 slider 去掉多余分隔线 */
-  [data-testid="stSidebar"] .stExpander hr {{
-    display: none !important;
-  }}
-  [data-testid="stSidebar"] .stExpander .stSlider {{
-    padding-top: 2px !important;
-    padding-bottom: 2px !important;
-    margin-top: 2px !important;
-    margin-bottom: 2px !important;
-  }}
-
   /* 下载按钮 */
-  [data-testid="stSidebar"] .stDownloadButton > button,
   .stDownloadButton > button {{
     background: {MCD_RED} !important;
     color: #FFFFFF !important;
@@ -200,7 +59,7 @@ st.markdown(f"""
     padding: 8px 20px !important;
   }}
 
-  /* ─── 主内容区 ─── */
+    /* ─── 主内容区 ─── */
   .block-container {{
     padding-top: 1rem;
     padding-left: 2.5rem;
