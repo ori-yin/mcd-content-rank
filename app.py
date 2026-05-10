@@ -166,6 +166,16 @@ st.markdown(f"""
   }}
   [data-testid="stSidebar"] .stExpander [data-testid="stExpanderContent"] {{
     padding: 16px !important;
+    overflow: visible !important;
+  }}
+  /* Slider label 不截断 */
+  [data-testid="stSidebar"] .stExpander label {{
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: nowrap !important;
+    height: auto !important;
+    line-height: 1.4 !important;
+    min-height: 20px !important;
   }}
   /* Expander 内 slider 去掉多余分隔线 */
   [data-testid="stSidebar"] .stExpander hr {{
