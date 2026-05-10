@@ -747,7 +747,7 @@ if uploaded is not None:
     col4.metric("平均 CTR", f"{avg_ctr:.2f}%")
 
     # ─── Tab 切换 ─────────────────────────────────────────────
-    tab1, tab2, tab3 = st.tabs(["🏆 卡片排行榜", "📋 数据表格", "📈 可视化图表"])
+    tab1, tab2, tab3 = st.tabs(["卡片排行榜", "数据表格", "可视化图表"])
 
     with tab1:
         if total_rows == 0:
