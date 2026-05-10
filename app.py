@@ -603,17 +603,9 @@ if uploaded is not None:
     df["订单GC转化率"] = (df["订单GC"] / df["点击人次"] * 100).round(2)
     df["订单GC转化率"] = df["订单GC转化率"].replace([float("inf"), -float("inf")], 0).fillna(0)
 
-    # ─── Min-Max 归一化 ───────────────────────────────────────
-    def minmax(series):
-        mn, mx = series.min(), series.max()
-        if mx == mn:
-            return series * 0
-        return (series - mn) / (mx - mn) * 100
-
+    # ─── 幂次归一化（仅触达）────────────────────────────────
     df["触达_norm"] = ((df["触达成功"] / df["触达成功"].max()) ** 0.3) * 100
-    df["CTR_norm"] = minmax(df["CTR"])
-    df["Sales_norm"] = minmax(df["订单Sales"])
-    df["订单GC转化率_norm"] = minmax(df["订单GC转化率"])
+    # 注：CTR_norm 和 订单GC转化率_norm 在筛选后按渠道分层计算，此处不预先计算
 
     # ─── 侧边筛选 ─────────────────────────────────────────────
     with st.sidebar:
@@ -655,16 +647,10 @@ if uploaded is not None:
 
         st.markdown("---")
         # ─── 权重调整 ─────────────────────────────────────────
-        col_w, _ = st.columns([4, 1])
-        with col_w:
-            st.markdown("**权重配置**", help="""
-触达_norm = (触达成功 / 触达成功.max)^0.3 × 100
+        st.markdown("**权重配置**", help="""
+综合评分 = 触达_norm×权重 + CTR_norm(渠道内)×权重 + GC率_norm(渠道内)×权重
 
-CTR_norm(渠道内) = (CTR - CTR_min) / (CTR_max - CTR_min) × 100
-
-GC率_norm(渠道内) = (GC率 - GC率_min) / (GC率_max - GC率_min) × 100
-
-综合评分 = 触达_norm×权重 + CTR_norm×权重 + GC率_norm×权重
+注：CTR_norm 和 GC率_norm 按渠道独立归一化，消除渠道间基准差异
 """)
 
 
@@ -685,14 +671,8 @@ GC率_norm(渠道内) = (GC率 - GC率_min) / (GC率_max - GC率_min) × 100
             norm_ctr = w_ctr / total_w
             norm_gc = w_gc / total_w
 
-    # ─── 计算综合评分（基于归一化权重 × 100）──────────────────
-    df["综合评分"] = (
-        df["触达_norm"] * norm_reach
-        + df["CTR_norm"] * norm_ctr
-        + df["订单GC转化率_norm"] * norm_gc
-    ).round(2)
-
-    # 排名在筛选后重排，见下方筛选后处理
+    # ─── 计算综合评分（筛选后在渠道分层归一化之后计算）──────────────────
+    # 注：触达_norm 已在全局计算，CTR_norm 和 订单GC转化率_norm 需在筛选后按渠道分层计算
 
     # ─── 应用筛选 ─────────────────────────────────────────────
     dff = df.copy()
@@ -726,25 +706,34 @@ GC率_norm(渠道内) = (GC率 - GC率_min) / (GC率_max - GC率_min) × 100
 
     # ─── 渠道分层归一化（CTR + GC转化率按渠道独立计算）─────────────
     def strat_minmax(sub_df, col):
+        """渠道内 min-max 归一化，消除渠道间基准差异"""
         mn, mx = sub_df[col].min(), sub_df[col].max()
         if mx == mn or mx == 0:
+            # 所有值相同，返回中性值 50
             return sub_df[col] * 0 + 50
         return (sub_df[col] - mn) / (mx - mn) * 100
 
+    # 初始化归一化列
+    dff["CTR_norm"] = 50.0
+    dff["订单GC转化率_norm"] = 50.0
+    
     if "渠道" in dff.columns and len(dff) > 0:
-        ctr_norm_col = dff["CTR"].copy()
-        gc_rate_col = dff["订单GC转化率"].copy()
+        ctr_norm_col = dff["CTR_norm"].copy()
+        gc_rate_col = dff["订单GC转化率_norm"].copy()
         for ch, grp in dff.groupby("渠道"):
-            mask = dff["渠道"] == ch
-            ctr_norm_col.loc[mask] = strat_minmax(grp, "CTR")
-            gc_rate_col.loc[mask] = strat_minmax(grp, "订单GC转化率")
+            if len(grp) > 0:
+                mask = dff["渠道"] == ch
+                ctr_norm_col.loc[mask] = strat_minmax(grp, "CTR")
+                gc_rate_col.loc[mask] = strat_minmax(grp, "订单GC转化率")
         dff["CTR_norm"] = ctr_norm_col.values
         dff["订单GC转化率_norm"] = gc_rate_col.values
-        dff["综合评分"] = (
-            dff["触达_norm"] * norm_reach
-            + dff["CTR_norm"] * norm_ctr
-            + dff["订单GC转化率_norm"] * norm_gc
-        ).round(2)
+
+    # ─── 计算综合评分（筛选后 + 渠道分层归一化后）──────────────────
+    dff["综合评分"] = (
+        dff["触达_norm"] * norm_reach
+        + dff["CTR_norm"] * norm_ctr
+        + dff["订单GC转化率_norm"] * norm_gc
+    ).round(2)
 
     # ─── 筛选后重排排名 ────────────────────────────────────────
     if len(dff) > 0:
