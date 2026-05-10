@@ -159,13 +159,14 @@ st.markdown(f"""
     border-radius: 12px !important;
   }}
   /* Expander 内 slider 去掉多余分隔线 */
-  [data-testid="stSidebar"] .stExpander [data-testid="stVerticalBlock"] > div > div [data-testid="stMarkdownContainer"] {{
+  [data-testid="stSidebar"] .stExpander hr {{
     display: none !important;
   }}
   [data-testid="stSidebar"] .stExpander .stSlider {{
-    border-bottom: none !important;
-    padding-bottom: 4px !important;
-    margin-bottom: 4px !important;
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+    margin-top: 2px !important;
+    margin-bottom: 2px !important;
   }}
 
   /* 下载按钮 */
@@ -344,7 +345,7 @@ st.markdown(f"""
     box-shadow: 0 1px 8px rgba(0,0,0,0.04);
     transition: all 0.2s ease;
     position: relative;
-    overflow: hidden;
+    overflow: visible;
   }}
   .content-card:hover {{
     box-shadow: 0 6px 24px rgba(228,0,4,0.08);
@@ -907,13 +908,11 @@ if uploaded is not None:
                         <div class="content-card">
                           <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                             <div style="flex:1; min-width:0;">
-                              <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                              <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
                                 <span class="rank-badge {badge_class}">{rank}</span>
                                 <span style="font-size:11px;font-weight:600;color:{MCD_RED};background:rgba(228,0,4,0.06);padding:2px 10px;border-radius:12px;">{channel_short}</span>
                                 <span style="font-size:11px;color:#AAA;">{owner_short}</span>
-                              </div>
-                              <div style="font-size:11px;color:#BBB;margin-bottom:10px;">
-                                {plan_type_short} · {date_str}
+                                <span style="font-size:11px;color:#BBB;">{plan_type_short} · {date_str}</span>
                               </div>
                               <div class="card-title">{title[:80]}{'...' if len(title) > 80 else ''}</div>
                               <div class="card-content">{content[:200]}{'...' if len(content) > 200 else ''}</div>
