@@ -646,7 +646,7 @@ if uploaded is not None:
         keyword = st.text_input("搜索关键词", "")
 
                 # ─── 权重配置（折叠）─────────────────────────────────────
-        st.markdown("**权重配置**")
+        st.markdown("**公式调整**")
         with st.expander("权重配置", expanded=False):
             w_reach = st.slider("触达权重", 0.0, 1.0, 0.35, 0.05)
             w_ctr = st.slider("CTR权重", 0.0, 1.0, 0.35, 0.05)
