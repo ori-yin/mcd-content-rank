@@ -141,15 +141,20 @@ st.markdown(f"""
 
   /* Slider */
   [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] {{
-    background: rgba(0,0,0,0.08) !important;
-    border-radius: 6px !important;
-    height: 6px !important;
+    background: rgba(0,0,0,0.06) !important;
+    border-radius: 4px !important;
+    height: 4px !important;
   }}
   [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] [aria-valuenow] {{
     background: {MCD_RED} !important;
     border-radius: 50% !important;
-    width: 18px !important;
-    height: 18px !important;
+    width: 16px !important;
+    height: 16px !important;
+  }}
+  /* Slider 容器紧凑 */
+  [data-testid="stSidebar"] .stSlider > div {{
+    padding-top: 2px !important;
+    padding-bottom: 6px !important;
   }}
 
   /* Expander (权重配置) */
