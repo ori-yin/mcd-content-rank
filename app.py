@@ -7,6 +7,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import json
 import re
+import numpy as np
 from datetime import datetime, timedelta
 from io import BytesIO
 
@@ -336,10 +337,10 @@ st.markdown(f"""
   }}
 
   /* ─── 副文本 / 说明文字 ─── */
-  .stCaption, p {{
+  .stCaption {
     font-size: 12px !important;
     color: #AAA !important;
-  }}
+  }
 
   /* ─── 数字高亮 ─── */
   .stAlert {{
@@ -766,7 +767,6 @@ if uploaded is not None:
             # 动态颜色：基于该批次综合评分分布的百分位
             # Top 33% → 绿，Middle 33% → 灰，Bottom 33% → 红
             all_scores = [c.综合评分 for c in cards]
-            import numpy as np
             if len(set(all_scores)) > 2:
                 p33 = float(np.percentile(all_scores, 33))
                 p67 = float(np.percentile(all_scores, 67))
@@ -992,7 +992,6 @@ if uploaded is not None:
             else:
                 st.info("当前数据无渠道维度")
 
-            owner_col = OWNER_COL
             if owner_col in dff.columns and dff[owner_col].notna().sum() > 0:
                 st.plotly_chart(_bar_line_chart(dff, owner_col, ""), use_container_width=True)
             else:
@@ -1000,7 +999,6 @@ if uploaded is not None:
 
             if "触达成功" in dff.columns and "订单Sales" in dff.columns and "CTR" in dff.columns:
                 title_col = "标题" if "标题" in dff.columns else "消息标题"
-                owner_col = OWNER_COL if "预算owner" in dff.columns else None
 
                 # 预格式化hover显示列（用于hover_name和customdata）
                 dff_h = dff.copy()
