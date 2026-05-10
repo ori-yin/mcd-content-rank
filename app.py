@@ -141,7 +141,7 @@ st.markdown(f"""
 
   /* Slider */
   [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] {{
-    background: rgba(0,0,0,0.06) !important;
+    background: transparent !important;
     border-radius: 4px !important;
     height: 4px !important;
   }}
@@ -150,11 +150,12 @@ st.markdown(f"""
     border-radius: 50% !important;
     width: 16px !important;
     height: 16px !important;
+    box-shadow: 0 1px 4px rgba(228,0,4,0.25) !important;
   }}
   /* Slider 容器紧凑 */
   [data-testid="stSidebar"] .stSlider > div {{
-    padding-top: 2px !important;
-    padding-bottom: 6px !important;
+    padding-top: 0 !important;
+    padding-bottom: 2px !important;
   }}
 
   /* Expander (权重配置) */
