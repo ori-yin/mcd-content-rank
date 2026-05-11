@@ -707,7 +707,26 @@ if uploaded is not None:
             dff[content_col].str.lower().str.contains(kw, na=False)
         ]
 
-    # ─── 渠道分层归一化（CTR + GC转化率按渠道独立计算）─────────────
+    # ─── 置信度权重系数（基于原始触达量分段）───────────────────
+    def conf_coef_from_reach(reach_raw):
+        """根据原始触达量返回置信度系数，触达量越小折扣越大"""
+        if reach_raw < 100:
+            return 0.1
+        elif reach_raw < 500:
+            return 0.3
+        elif reach_raw < 1000:
+            return 0.5
+        else:
+            return 1.0
+
+    reach_raw_col = dff["触达成功"].fillna(0)
+    conf_coef_vec = reach_raw_col.apply(conf_coef_from_reach)
+
+    # ─── 加权：低触达的好CTR/GC在归一化前被压低 ─────────────────
+    weighted_ctr = dff["CTR"].fillna(0) * conf_coef_vec
+    weighted_gc   = dff["订单GC转化率"].fillna(0) * conf_coef_vec
+
+    # ─── 渠道分层归一化（CTR + GC转化率按渠道独立计算，使用加权值）───
     def strat_minmax_wtd(sub_df, col, wtd_vals):
         """渠道内 min-max 归一化（基于加权后的原始值），消除渠道间基准差异"""
         w = wtd_vals.loc[sub_df.index].values
@@ -730,25 +749,6 @@ if uploaded is not None:
                 gc_rate_col.loc[mask] = strat_minmax_wtd(grp, "订单GC转化率", weighted_gc)
         dff["CTR_norm"] = ctr_norm_col.values
         dff["订单GC转化率_norm"] = gc_rate_col.values
-
-    # ─── 置信度权重系数（基于原始触达量分段）───────────────────
-    def conf_coef_from_reach(reach_raw):
-        """根据原始触达量返回置信度系数，触达量越小折扣越大"""
-        if reach_raw < 100:
-            return 0.1
-        elif reach_raw < 500:
-            return 0.3
-        elif reach_raw < 1000:
-            return 0.5
-        else:
-            return 1.0
-
-    reach_raw_col = dff["触达成功"].fillna(0)
-    conf_coef_vec = reach_raw_col.apply(conf_coef_from_reach)
-
-    # ─── 加权：低触达的好CTR/GC在归一化前被压低 ─────────────────
-    weighted_ctr = dff["CTR"].fillna(0) * conf_coef_vec
-    weighted_gc   = dff["订单GC转化率"].fillna(0) * conf_coef_vec
 
     # ─── 计算综合评分 ─────────────────────────────────────────
     dff["综合评分"] = (
