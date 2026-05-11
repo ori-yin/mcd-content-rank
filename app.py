@@ -922,7 +922,7 @@ if uploaded is not None:
                               <div class="card-score-label">综合评分</div>
                             </div>
                           </div>
-                          <div class="card-title">【标题】{title[:80]}{'...' if len(title) > 80 else ''}</div>
+                          <div class="card-title">{title[:80]}{'...' if len(title) > 80 else ''}</div>
                           <div class="card-content">{content[:200]}{'...' if len(content) > 200 else ''}</div>
                           <div class="card-meta">
                             <span>触达 {reach:,}</span>
