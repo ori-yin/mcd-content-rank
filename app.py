@@ -736,7 +736,7 @@ if uploaded is not None:
         dff["触达_norm"] * norm_reach
         + dff["CTR_norm"] * norm_ctr
         + dff["订单GC转化率_norm"] * norm_gc
-    ).round(2)
+    ).round(2) * 1.3  # 拉伸系数
 
     # ─── 筛选后重排排名 ────────────────────────────────────────
     if len(dff) > 0:
