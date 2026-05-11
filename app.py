@@ -820,9 +820,9 @@ if uploaded is not None:
                         impact_parts.append("GC转化率偏高({:.1f})".format(gc_norm))
                     impact = " / ".join(impact_parts) if impact_parts else "无异常"
                     formula = (
-                        "{rN:.1f}×{wR:.2f} + {cN:.1f}×{wC:.2f} + {gN:.1f}×{wG:.2f} = {sc:.2f} (×1.3)"
+                        ({rN:.1f}×{wR:.2f} + {cN:.1f}×{wC:.2f} + {gN:.1f}×{wG:.2f}) × 1.3 = {sc:.2f}
                     ).format(rN=reach_norm, cN=ctr_norm, gN=gc_norm,
-                             sc=score * 1.3, wR=w_reach, wC=w_ctr, wG=w_gc)
+                             sc=score, wR=w_reach, wC=w_ctr, wG=w_gc)
                     tooltip_text = "{}\n{}".format(impact, formula)
                     # --------------------------------------------
 
