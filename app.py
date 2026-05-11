@@ -926,11 +926,11 @@ if uploaded is not None:
                           <div class="card-content">{content[:200]}{'...' if len(content) > 200 else ''}</div>
                           <div class="card-meta">
                             <span>触达 {reach:,}</span>
-                            <span>点击人次 {clicks_val:,}</span>
+                            <span>点击 {clicks_val:,}</span>
                             <span>CTR {ctr_val:.2f}%</span>
-                            <span>订单GC {gc_val:,}</span>
-                            <span>订单Sales {int(sales_val):,}</span>
-                            <span>订单GC转化率 {gc_rate_val:.2f}%</span>
+                            <span>GC {gc_val:,}</span>
+                            <span>Sales {int(sales_val):,}</span>
+                            <span>GC转化率 {gc_rate_val:.2f}%</span>
                           </div>
                         </div>
                         """, unsafe_allow_html=True)
