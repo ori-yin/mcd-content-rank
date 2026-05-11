@@ -754,6 +754,11 @@ if uploaded is not None:
         + dff["订单GC转化率_norm"] * conf_coef_vec * norm_gc
     ).round(2)
 
+    # ─── 综合评分归一化（top1=100分）───────────────────────────
+    max_score = dff["综合评分"].max()
+    if max_score > 0:
+        dff["综合评分"] = (dff["综合评分"] / max_score * 100).round(2)
+
     # ─── 筛选后重排排名 ────────────────────────────────────────
     if len(dff) > 0:
         asc = (sort_order == "升序")
