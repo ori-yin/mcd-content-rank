@@ -708,13 +708,13 @@ if uploaded is not None:
         ]
 
     # ─── 渠道分层归一化（CTR + GC转化率按渠道独立计算）─────────────
-    def strat_minmax(sub_df, col):
-        """渠道内 min-max 归一化，消除渠道间基准差异"""
-        mn, mx = sub_df[col].min(), sub_df[col].max()
+    def strat_minmax_wtd(sub_df, col, wtd_vals):
+        """渠道内 min-max 归一化（基于加权后的原始值），消除渠道间基准差异"""
+        w = wtd_vals.loc[sub_df.index].values
+        mn, mx = w.min(), w.max()
         if mx == mn or mx == 0:
-            # 所有值相同，返回中性值 50
             return sub_df[col] * 0 + 50
-        return (sub_df[col] - mn) / (mx - mn) * 100
+        return (w - mn) / (mx - mn) * 100
 
     # 初始化归一化列
     dff["CTR_norm"] = 50.0
@@ -726,13 +726,13 @@ if uploaded is not None:
         for ch, grp in dff.groupby("渠道"):
             if len(grp) > 0:
                 mask = dff["渠道"] == ch
-                ctr_norm_col.loc[mask] = strat_minmax(grp, "CTR")
-                gc_rate_col.loc[mask] = strat_minmax(grp, "订单GC转化率")
+                ctr_norm_col.loc[mask] = strat_minmax_wtd(grp, "CTR", weighted_ctr)
+                gc_rate_col.loc[mask] = strat_minmax_wtd(grp, "订单GC转化率", weighted_gc)
         dff["CTR_norm"] = ctr_norm_col.values
         dff["订单GC转化率_norm"] = gc_rate_col.values
 
     # ─── 置信度权重系数（基于原始触达量分段）───────────────────
-    def get_confidence_coef(reach_raw):
+    def conf_coef_from_reach(reach_raw):
         """根据原始触达量返回置信度系数，触达量越小折扣越大"""
         if reach_raw < 100:
             return 0.1
@@ -743,15 +743,18 @@ if uploaded is not None:
         else:
             return 1.0
 
-    # ─── 计算综合评分（筛选后 + 渠道分层归一化后）──────────────────
-    # 触达_norm 保持不变；CTR_norm 和 GC转化率_norm 乘以置信度系数
     reach_raw_col = dff["触达成功"].fillna(0)
-    conf_coef_vec = reach_raw_col.apply(get_confidence_coef)
+    conf_coef_vec = reach_raw_col.apply(conf_coef_from_reach)
 
+    # ─── 加权：低触达的好CTR/GC在归一化前被压低 ─────────────────
+    weighted_ctr = dff["CTR"].fillna(0) * conf_coef_vec
+    weighted_gc   = dff["订单GC转化率"].fillna(0) * conf_coef_vec
+
+    # ─── 计算综合评分 ─────────────────────────────────────────
     dff["综合评分"] = (
         dff["触达_norm"] * norm_reach
-        + dff["CTR_norm"] * conf_coef_vec * norm_ctr
-        + dff["订单GC转化率_norm"] * conf_coef_vec * norm_gc
+        + dff["CTR_norm"] * norm_ctr
+        + dff["订单GC转化率_norm"] * norm_gc
     ).round(2)
 
     # ─── 筛选后重排排名 ────────────────────────────────────────
