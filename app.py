@@ -736,7 +736,7 @@ if uploaded is not None:
         dff["触达_norm"] * norm_reach
         + dff["CTR_norm"] * norm_ctr
         + dff["订单GC转化率_norm"] * norm_gc
-    ).round(2) * 1.3  # 拉伸系数
+    ).round(2)
 
     # ─── 筛选后重排排名 ────────────────────────────────────────
     if len(dff) > 0:
@@ -820,7 +820,7 @@ if uploaded is not None:
                         impact_parts.append("GC转化率偏高({:.1f})".format(gc_norm))
                     impact = " / ".join(impact_parts) if impact_parts else "无异常"
                     formula = (
-                        ({rN:.1f}×{wR:.2f} + {cN:.1f}×{wC:.2f} + {gN:.1f}×{wG:.2f}) × 1.3 = {sc:.2f}
+                        "{rN:.1f}×{wR:.2f} + {cN:.1f}×{wC:.2f} + {gN:.1f}×{wG:.2f} = {sc:.2f}"
                     ).format(rN=reach_norm, cN=ctr_norm, gN=gc_norm,
                              sc=score, wR=w_reach, wC=w_ctr, wG=w_gc)
                     tooltip_text = "{}\n{}".format(impact, formula)
