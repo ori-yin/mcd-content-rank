@@ -731,11 +731,27 @@ if uploaded is not None:
         dff["CTR_norm"] = ctr_norm_col.values
         dff["订单GC转化率_norm"] = gc_rate_col.values
 
+    # ─── 置信度权重系数（基于原始触达量分段）───────────────────
+    def get_confidence_coef(reach_raw):
+        """根据原始触达量返回置信度系数，触达量越小折扣越大"""
+        if reach_raw < 100:
+            return 0.1
+        elif reach_raw < 500:
+            return 0.3
+        elif reach_raw < 1000:
+            return 0.5
+        else:
+            return 1.0
+
     # ─── 计算综合评分（筛选后 + 渠道分层归一化后）──────────────────
+    # 触达_norm 保持不变；CTR_norm 和 GC转化率_norm 乘以置信度系数
+    reach_raw_col = dff["触达成功"].fillna(0)
+    conf_coef_vec = reach_raw_col.apply(get_confidence_coef)
+
     dff["综合评分"] = (
         dff["触达_norm"] * norm_reach
-        + dff["CTR_norm"] * norm_ctr
-        + dff["订单GC转化率_norm"] * norm_gc
+        + dff["CTR_norm"] * conf_coef_vec * norm_ctr
+        + dff["订单GC转化率_norm"] * conf_coef_vec * norm_gc
     ).round(2)
 
     # ─── 筛选后重排排名 ────────────────────────────────────────
@@ -800,29 +816,45 @@ if uploaded is not None:
                     else:
                         score_color = "#DA291C"
 
-                    # ---- tooltip：综合评分公式 + 因子诊断 ----
+                    # ---- tooltip：综合评分公式 + 因子诊断 + 置信度 ----
+                    reach_raw_t = int(getattr(row, '触达成功', 0))
+                    if reach_raw_t < 100:
+                        conf_coef_t = 0.1
+                        conf_label = "低信(×0.1)"
+                    elif reach_raw_t < 500:
+                        conf_coef_t = 0.3
+                        conf_label = "中低信(×0.3)"
+                    elif reach_raw_t < 1000:
+                        conf_coef_t = 0.5
+                        conf_label = "中信(×0.5)"
+                    else:
+                        conf_coef_t = 1.0
+                        conf_label = "高信(×1.0)"
+
                     reach_norm = getattr(row, '触达_norm', 0)
                     ctr_norm   = getattr(row, 'CTR_norm', 0)
-                    gc_norm = getattr(row, '订单GC转化率_norm', 0)
+                    gc_norm    = getattr(row, '订单GC转化率_norm', 0)
+                    ctr_adj = ctr_norm * conf_coef_t
+                    gc_adj  = gc_norm  * conf_coef_t
 
                     impact_parts = []
                     if reach_norm < 33:
                         impact_parts.append("触达偏低({:.1f})".format(reach_norm))
                     elif reach_norm > 67:
                         impact_parts.append("触达偏高({:.1f})".format(reach_norm))
-                    if ctr_norm < 33:
-                        impact_parts.append("CTR偏低({:.1f})".format(ctr_norm))
-                    elif ctr_norm > 67:
-                        impact_parts.append("CTR偏高({:.1f})".format(ctr_norm))
-                    if gc_norm < 33:
-                        impact_parts.append("GC转化率偏低({:.1f})".format(gc_norm))
-                    elif gc_norm > 67:
-                        impact_parts.append("GC转化率偏高({:.1f})".format(gc_norm))
+                    if ctr_adj < 33:
+                        impact_parts.append("CTR偏低({:.1f})".format(ctr_adj))
+                    elif ctr_adj > 67:
+                        impact_parts.append("CTR偏高({:.1f})".format(ctr_adj))
+                    if gc_adj < 33:
+                        impact_parts.append("GC转化率偏低({:.1f})".format(gc_adj))
+                    elif gc_adj > 67:
+                        impact_parts.append("GC转化率偏高({:.1f})".format(gc_adj))
                     impact = " / ".join(impact_parts) if impact_parts else "无异常"
                     formula = (
-                        "{rN:.1f}×{wR:.2f} + {cN:.1f}×{wC:.2f} + {gN:.1f}×{wG:.2f} = {sc:.2f}"
-                    ).format(rN=reach_norm, cN=ctr_norm, gN=gc_norm,
-                             sc=score, wR=w_reach, wC=w_ctr, wG=w_gc)
+                        "{rN:.1f}×{wR:.2f} + {cA:.1f}×{wC:.2f} + {gA:.1f}×{wG:.2f} = {sc:.2f}  [{lbl}]"
+                    ).format(rN=reach_norm, cA=ctr_adj, gA=gc_adj,
+                             sc=score, wR=w_reach, wC=w_ctr, wG=w_gc, lbl=conf_label)
                     tooltip_text = "{}\n{}".format(impact, formula)
                     # --------------------------------------------
 
