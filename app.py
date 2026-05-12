@@ -565,20 +565,21 @@ def clean_raw_csv(uploaded_file) -> pd.DataFrame:
 # ═══════════════════════════════════════════════════════════════
 
 # ─── 文件上传 + 清洗模式选择 ────────────────────────────────────
-col_left, col_right = st.columns([1, 1])
-with col_left:
-    mode = st.radio(
-        "数据类型",
-        ["原始 CSV（含 JSON 列，需清洗）", "已清洗 CSV（直接使用）"],
-        horizontal=True,
-        help="原始 CSV：上传运行清洗脚本之前的文件；已清洗 CSV：运行完脚本后的文件"
-    )
-with col_right:
-    uploaded = st.file_uploader(
-        "上传 CSV 文件",
-        type=["csv"],
-        help="支持 UTF-8、GBK、GB2312、Latin1 编码"
-    )
+with st.expander("数据源", expanded=False):
+    col_left, col_right = st.columns([1, 1])
+    with col_left:
+        mode = st.radio(
+            "数据类型",
+            ["原始 CSV（含 JSON 列，需清洗）", "已清洗 CSV（直接使用）"],
+            horizontal=True,
+            help="原始 CSV：上传运行清洗脚本之前的文件；已清洗 CSV：运行完脚本后的文件"
+        )
+    with col_right:
+        uploaded = st.file_uploader(
+            "上传 CSV 文件",
+            type=["csv"],
+            help="支持 UTF-8、GBK、GB2312、Latin1 编码"
+        )
 
 # 只在首次上传或文件变化时触发气球
 if uploaded is not None:
