@@ -732,7 +732,7 @@ if uploaded is not None:
         w = wtd_vals.loc[sub_df.index].values
         mn, mx = w.min(), w.max()
         if mx == mn or mx == 0:
-            return sub_df[col] * 0 + 50
+            return sub_df[col] * 0 + 0
         return (w - mn) / (mx - mn) * 100
 
     # 初始化归一化列
@@ -750,11 +750,11 @@ if uploaded is not None:
         dff["CTR_norm"] = ctr_norm_col.values
         dff["订单GC转化率_norm"] = gc_rate_col.values
 
-    # ─── 计算综合评分 ─────────────────────────────────────────
+    # ─── 计算综合评分（CTR_norm/GC_norm 乘以置信度系数）──────────
     dff["综合评分"] = (
         dff["触达_norm"] * norm_reach
-        + dff["CTR_norm"] * norm_ctr
-        + dff["订单GC转化率_norm"] * norm_gc
+        + dff["CTR_norm"] * conf_coef_vec * norm_ctr
+        + dff["订单GC转化率_norm"] * conf_coef_vec * norm_gc
     ).round(2)
 
     # ─── 筛选后重排排名 ────────────────────────────────────────
