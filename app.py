@@ -750,11 +750,11 @@ if uploaded is not None:
         dff["CTR_norm"] = ctr_norm_col.values
         dff["订单GC转化率_norm"] = gc_rate_col.values
 
-    # ─── 计算综合评分（CTR_norm/GC_norm 乘以置信度系数）──────────
+    # ─── 计算综合评分（置信度已在归一化前的加权阶段应用，此处不再重复乘）──────────
     dff["综合评分"] = (
         dff["触达_norm"] * norm_reach
-        + dff["CTR_norm"] * conf_coef_vec * norm_ctr
-        + dff["订单GC转化率_norm"] * conf_coef_vec * norm_gc
+        + dff["CTR_norm"] * norm_ctr
+        + dff["订单GC转化率_norm"] * norm_gc
     ).round(2)
 
     # ─── 筛选后重排排名 ────────────────────────────────────────
@@ -837,26 +837,23 @@ if uploaded is not None:
                     reach_norm = getattr(row, '触达_norm', 0)
                     ctr_norm   = getattr(row, 'CTR_norm', 0)
                     gc_norm    = getattr(row, '订单GC转化率_norm', 0)
-                    ctr_adj = ctr_norm * conf_coef_t
-                    gc_adj  = gc_norm  * conf_coef_t
-
                     impact_parts = []
                     if reach_norm < 33:
                         impact_parts.append("触达偏低({:.1f})".format(reach_norm))
                     elif reach_norm > 67:
                         impact_parts.append("触达偏高({:.1f})".format(reach_norm))
-                    if ctr_adj < 33:
-                        impact_parts.append("CTR偏低({:.1f})".format(ctr_adj))
-                    elif ctr_adj > 67:
-                        impact_parts.append("CTR偏高({:.1f})".format(ctr_adj))
-                    if gc_adj < 33:
-                        impact_parts.append("GC转化率偏低({:.1f})".format(gc_adj))
-                    elif gc_adj > 67:
-                        impact_parts.append("GC转化率偏高({:.1f})".format(gc_adj))
+                    if ctr_norm < 33:
+                        impact_parts.append("CTR偏低({:.1f})".format(ctr_norm))
+                    elif ctr_norm > 67:
+                        impact_parts.append("CTR偏高({:.1f})".format(ctr_norm))
+                    if gc_norm < 33:
+                        impact_parts.append("GC转化率偏低({:.1f})".format(gc_norm))
+                    elif gc_norm > 67:
+                        impact_parts.append("GC转化率偏高({:.1f})".format(gc_norm))
                     impact = " / ".join(impact_parts) if impact_parts else "无异常"
                     formula = (
-                        "{rN:.1f}×{wR:.2f} + {cA:.1f}×{wC:.2f} + {gA:.1f}×{wG:.2f} = {sc:.2f}  [{lbl}]"
-                    ).format(rN=reach_norm, cA=ctr_adj, gA=gc_adj,
+                        "{rN:.1f}×{wR:.2f} + {cN:.1f}×{wC:.2f} + {gN:.1f}×{wG:.2f} = {sc:.2f}  [{lbl}]"
+                    ).format(rN=reach_norm, cN=ctr_norm, gN=gc_norm,
                              sc=score, wR=w_reach, wC=w_ctr, wG=w_gc, lbl=conf_label)
                     tooltip_text = "{}\n{}".format(impact, formula)
                     # --------------------------------------------
