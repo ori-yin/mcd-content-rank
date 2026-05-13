@@ -751,12 +751,27 @@ if uploaded is not None:
         dff["CTR_norm"] = ctr_norm_col.values
         dff["订单GC转化率_norm"] = gc_rate_col.values
 
-    # ─── 计算综合评分（置信度已在归一化前的加权阶段应用，此处不再重复乘）──────────
-    dff["综合评分"] = (
+    # ─── 触达分段惩戒系数（基于原始触达量，归一化后应用）──────────
+    def penalty_coef_from_reach(reach_raw):
+        """触达量不足的降权：触达量越小折扣越大（归一化后应用）"""
+        if reach_raw < 100:
+            return 0.1
+        elif reach_raw < 500:
+            return 0.3
+        elif reach_raw < 1000:
+            return 0.5
+        else:
+            return 1.0
+
+    # ─── 计算综合评分（归一化后应用触达分段惩戒）──────────────────
+    base_score = (
         dff["触达_norm"] * norm_reach
         + dff["CTR_norm"] * norm_ctr
         + dff["订单GC转化率_norm"] * norm_gc
     ).round(2)
+    reach_raw_for_penalty = dff["触达成功"].fillna(0)
+    penalty_vec = reach_raw_for_penalty.apply(penalty_coef_from_reach)
+    dff["综合评分"] = base_score * penalty_vec
 
     # ─── 筛选后重排排名 ────────────────────────────────────────
     if len(dff) > 0:
@@ -820,20 +835,20 @@ if uploaded is not None:
                     else:
                         score_color = "#DA291C"
 
-                    # ---- tooltip：综合评分公式 + 因子诊断 + 置信度 ----
+                    # ---- tooltip：综合评分公式 + 因子诊断 + 触达分段惩戒 ----
                     reach_raw_t = int(getattr(row, '触达成功', 0))
                     if reach_raw_t < 100:
-                        conf_coef_t = 0.1
-                        conf_label = "低信(×0.1)"
+                        penalty_coef_t = 0.1
+                        penalty_label = "低触达×0.1"
                     elif reach_raw_t < 500:
-                        conf_coef_t = 0.3
-                        conf_label = "中低信(×0.3)"
+                        penalty_coef_t = 0.3
+                        penalty_label = "低触达×0.3"
                     elif reach_raw_t < 1000:
-                        conf_coef_t = 0.5
-                        conf_label = "中信(×0.5)"
+                        penalty_coef_t = 0.5
+                        penalty_label = "低触达×0.5"
                     else:
-                        conf_coef_t = 1.0
-                        conf_label = "高信(×1.0)"
+                        penalty_coef_t = 1.0
+                        penalty_label = "触达充足×1.0"
 
                     reach_norm = getattr(row, '触达_norm', 0)
                     ctr_norm   = getattr(row, 'CTR_norm', 0)
@@ -852,10 +867,14 @@ if uploaded is not None:
                     elif gc_norm > 67:
                         impact_parts.append("GC转化率偏高({:.1f})".format(gc_norm))
                     impact = " / ".join(impact_parts) if impact_parts else "无异常"
+                    base_score_t = reach_norm * w_reach + ctr_norm * w_ctr + gc_norm * w_gc
                     formula = (
-                        "{rN:.1f}×{wR:.2f} + {cN:.1f}×{wC:.2f} + {gN:.1f}×{wG:.2f} = {sc:.2f}  [{lbl}]"
+                        "({rN:.1f}×{wR:.2f} + {cN:.1f}×{wC:.2f} + {gN:.1f}×{wG:.2f}) × {pc:.1f}"
+                        "\n= {bs:.2f} × {pc:.1f} = {sc:.2f}  [{lbl}]"
                     ).format(rN=reach_norm, cN=ctr_norm, gN=gc_norm,
-                             sc=score, wR=w_reach, wC=w_ctr, wG=w_gc, lbl=conf_label)
+                             wR=w_reach, wC=w_ctr, wG=w_gc,
+                             pc=penalty_coef_t, bs=base_score_t,
+                             sc=score, lbl=penalty_label)
                     tooltip_text = "{}\n{}".format(impact, formula)
                     # --------------------------------------------
 
