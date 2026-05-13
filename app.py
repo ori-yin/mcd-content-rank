@@ -839,16 +839,16 @@ if uploaded is not None:
                     reach_raw_t = int(getattr(row, '触达成功', 0))
                     if reach_raw_t < 100:
                         penalty_coef_t = 0.1
-                        penalty_label = "低触达×0.1"
+                        penalty_label = "置信度低(×0.1)"
                     elif reach_raw_t < 500:
                         penalty_coef_t = 0.3
-                        penalty_label = "低触达×0.3"
+                        penalty_label = "置信度低(×0.3)"
                     elif reach_raw_t < 1000:
                         penalty_coef_t = 0.5
-                        penalty_label = "低触达×0.5"
+                        penalty_label = "置信度中(×0.5)"
                     else:
                         penalty_coef_t = 1.0
-                        penalty_label = "触达充足×1.0"
+                        penalty_label = "置信度高(×1.0)"
 
                     reach_norm = getattr(row, '触达_norm', 0)
                     ctr_norm   = getattr(row, 'CTR_norm', 0)
