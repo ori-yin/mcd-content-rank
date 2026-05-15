@@ -891,7 +891,7 @@ if uploaded is not None:
                     formula = (
                         "({rN:.1f}×{wR:.2f} + {cN:.1f}×{wC:.2f} + {gN:.1f}×{wG:.2f}) × {pc:.1f}"
                         "\n= {bs:.2f} × {pc:.1f} = {sc:.2f}  [{lbl}]"
-                    ).format(rN=reach_norm, cN=ctr_norm, gN=gc_norm,
+                    ).format(rN=reach_norm, cN=ctr_score_t, gN=gc_score_t,
                              wR=w_reach, wC=w_ctr, wG=w_gc,
                              pc=penalty_coef_t, bs=base_score_t,
                              sc=score, lbl=penalty_label)
