@@ -621,7 +621,19 @@ if uploaded is not None:
 
     # ─── 幂次归一化（仅触达）────────────────────────────────
     df["触达_norm"] = ((df["触达成功"] / df["触达成功"].max()) ** 0.3) * 100
-    # 注：CTR_norm 和 订单GC转化率_norm 在筛选后按渠道分层计算，此处不预先计算
+    # 注：触达_norm 基于全量数据 max，筛选后不重算，分数固定
+
+    # ─── 方案A：全量数据锚点（CTR / GC转化率归一化的固定锚点）──────
+    _full_df_for_anchors = df[df["触达成功"] > 0].copy()
+    channel_anchors = {}
+    if "渠道" in _full_df_for_anchors.columns and len(_full_df_for_anchors) > 0:
+        for ch, grp in _full_df_for_anchors.groupby("渠道"):
+            channel_anchors[ch] = {
+                "ctr_min": grp["CTR"].min(),
+                "ctr_max": grp["CTR"].max(),
+                "gc_min": grp["订单GC转化率"].min(),
+                "gc_max": grp["订单GC转化率"].max(),
+            }
 
     # ─── 侧边筛选 ─────────────────────────────────────────────
     with st.sidebar:
@@ -727,27 +739,32 @@ if uploaded is not None:
     weighted_ctr = dff["CTR"].fillna(0) * conf_coef_vec
     weighted_gc   = dff["订单GC转化率"].fillna(0) * conf_coef_vec
 
-    # ─── 渠道分层归一化（CTR + GC转化率按渠道独立计算，使用加权值）───
-    def strat_minmax_wtd(sub_df, col, wtd_vals):
-        """渠道内 min-max 归一化（基于加权后的原始值），消除渠道间基准差异"""
-        w = wtd_vals.loc[sub_df.index].values
-        mn, mx = w.min(), w.max()
+    # ─── 方案A归一化：基于全量数据锚点的渠道内 min-max ───────────
+    def anchor_minmax_norm(sub_df, col, wtd_vals, anchors):
+        ch = sub_df["渠道"].iloc[0] if "渠道" in sub_df.columns else None
+        anchor = anchors.get(ch, None)
+        if anchor is None:
+            return sub_df[col] * 0 + 0
+        if col == "CTR":
+            mn, mx = anchor["ctr_min"], anchor["ctr_max"]
+        else:
+            mn, mx = anchor["gc_min"], anchor["gc_max"]
         if mx == mn or mx == 0:
             return sub_df[col] * 0 + 0
+        w = wtd_vals.loc[sub_df.index].values
         return (w - mn) / (mx - mn) * 100
 
-    # 初始化归一化列
     dff["CTR_norm"] = 50.0
     dff["订单GC转化率_norm"] = 50.0
-    
-    if "渠道" in dff.columns and len(dff) > 0:
+
+    if "渠道" in dff.columns and len(dff) > 0 and channel_anchors:
         ctr_norm_col = dff["CTR_norm"].copy()
         gc_rate_col = dff["订单GC转化率_norm"].copy()
         for ch, grp in dff.groupby("渠道"):
             if len(grp) > 0:
                 mask = dff["渠道"] == ch
-                ctr_norm_col.loc[mask] = strat_minmax_wtd(grp, "CTR", weighted_ctr)
-                gc_rate_col.loc[mask] = strat_minmax_wtd(grp, "订单GC转化率", weighted_gc)
+                ctr_norm_col.loc[mask] = anchor_minmax_norm(grp, "CTR", weighted_ctr, channel_anchors)
+                gc_rate_col.loc[mask] = anchor_minmax_norm(grp, "订单GC转化率", weighted_gc, channel_anchors)
         dff["CTR_norm"] = ctr_norm_col.values
         dff["订单GC转化率_norm"] = gc_rate_col.values
 
