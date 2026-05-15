@@ -18,6 +18,49 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# ═══════════════════════════════════════════════════════════════
+# Section 0: CTR/GC 分段函数阈值配置
+#   - Q3 阈值 = 75th percentile，来自全量数据统计
+#   - amp 校准：使 Q3 得分 = 100
+#   - 公式: G < C → score = amp × 100 × (G/C)^0.2; G >= C → score = amp × 100
+# ═══════════════════════════════════════════════════════════════
+
+# CTR 阈值配置 (单位: 小数，如 0.0031 = 0.31%)
+CTR_THRESHOLDS = {
+    "APP Push": 0.0031,
+    "企微1v1": 0.0262,
+    "微信小程序订阅消息": 0.0401,
+    "短信": 0.0053,
+}
+# GC 阈值配置 (单位: 小数，如 0.695 = 69.5%)
+GC_THRESHOLDS = {
+    "APP Push": 0.695,
+    "企微1v1": 0.185,
+    "微信小程序订阅消息": 0.410,
+    "短信": 0.267,
+}
+# 未知渠道 fallback Q3 (来自全量 CTR/GC 统计)
+CTR_UNKNOWN_THRESHOLD = 0.0285   # 2.85%
+GC_UNKNOWN_THRESHOLD = 0.348474  # 34.8474%
+
+EXP = 1.5  # 幂次（E越大，阈值内区分度越大，Q1越低）
+
+def get_amp(threshold):
+    """方案A: amp=1, Q3 score = 100 × (C/C)^0.2 = 100 × 1 = 100"""
+    return 1.0
+
+# 预计算 amp
+CTR_AMPS = {ch: get_amp(t) for ch, t in CTR_THRESHOLDS.items()}
+GC_AMPS = {ch: get_amp(t) for ch, t in GC_THRESHOLDS.items()}
+CTR_AMP_UNKNOWN = get_amp(CTR_UNKNOWN_THRESHOLD)
+GC_AMP_UNKNOWN = get_amp(GC_UNKNOWN_THRESHOLD)
+
+def piecewise_score(G, threshold, amp):
+    """分段函数: G < C → amp×100×(G/C)^0.2; G >= C → 100 (饱和)"""
+    if G < threshold:
+        return amp * 100 * ((G / threshold) ** EXP)
+    return 100.0
+
 # ─── 品牌色 ─────────────────────────────────────────────────────
 MCD_RED = "#E40004"
 MCD_GOLD = "#FFC000"
@@ -708,50 +751,28 @@ if uploaded is not None:
             dff[content_col].str.lower().str.contains(kw, na=False)
         ]
 
-    # ─── 置信度权重系数（基于原始触达量分段）───────────────────
-    def conf_coef_from_reach(reach_raw):
-        """根据原始触达量返回置信度系数，触达量越小折扣越大"""
-        if reach_raw < 100:
-            return 0.1
-        elif reach_raw < 500:
-            return 0.3
-        elif reach_raw < 1000:
-            return 0.5
+    # ─── 分段评分（CTR/GC 按渠道 Q3 阈值 + amp 校准）───────────────────
+    # CTR_score 和 GC_score 范围: 0 ~ 100+，饱和在 amp×100（各渠道 Q3 = 100）
+    def get_channel_score(G_raw, channel, threshold_map, amp_map, amp_unknown, threshold_unknown):
+        """CTR/GC 分段评分: G < C → amp×100×(G/C)^0.2; G >= C → amp×100"""
+        ch = str(channel) if channel is not None else "未知渠道"
+        if ch in threshold_map:
+            threshold = threshold_map[ch]
+            amp = amp_map[ch]
         else:
-            return 1.0
+            threshold = threshold_unknown
+            amp = amp_unknown
+        return piecewise_score(G_raw, threshold, amp)
 
-    reach_raw_col = dff["触达成功"].fillna(0)
-    conf_coef_vec = reach_raw_col.apply(conf_coef_from_reach)
-
-    # ─── 加权：低触达的好CTR/GC在归一化前被压低 ─────────────────
-    weighted_ctr = dff["CTR"].fillna(0) * conf_coef_vec
-    weighted_gc   = dff["订单GC转化率"].fillna(0) * conf_coef_vec
-
-    # ─── 渠道分层归一化（CTR + GC转化率按渠道独立计算，使用加权值）───
-    def strat_minmax_wtd(sub_df, col, wtd_vals):
-        """渠道内 min-max 归一化（基于加权后的原始值），消除渠道间基准差异"""
-        w = wtd_vals.loc[sub_df.index].values
-        mn, mx = w.min(), w.max()
-        if mx == mn or mx == 0:
-            return sub_df[col] * 0 + 0
-        return (w - mn) / (mx - mn) * 100
-
-    # 初始化归一化列
-    dff["CTR_norm"] = 50.0
-    dff["订单GC转化率_norm"] = 50.0
-    
-    if "渠道" in dff.columns and len(dff) > 0:
-        ctr_norm_col = dff["CTR_norm"].copy()
-        gc_rate_col = dff["订单GC转化率_norm"].copy()
-        for ch, grp in dff.groupby("渠道"):
-            if len(grp) > 0:
-                mask = dff["渠道"] == ch
-                ctr_norm_col.loc[mask] = strat_minmax_wtd(grp, "CTR", weighted_ctr)
-                gc_rate_col.loc[mask] = strat_minmax_wtd(grp, "订单GC转化率", weighted_gc)
-        dff["CTR_norm"] = ctr_norm_col.values
-        dff["订单GC转化率_norm"] = gc_rate_col.values
-
-    # ─── 触达分段惩戒系数（基于原始触达量，归一化后应用）──────────
+    dff["CTR_score"] = dff.apply(
+        lambda r: get_channel_score(r["CTR"], r.get("渠道"), CTR_THRESHOLDS, CTR_AMPS, CTR_AMP_UNKNOWN, CTR_UNKNOWN_THRESHOLD),
+        axis=1
+    )
+    dff["GC_score"] = dff.apply(
+        lambda r: get_channel_score(r["订单GC转化率"], r.get("渠道"), GC_THRESHOLDS, GC_AMPS, GC_AMP_UNKNOWN, GC_UNKNOWN_THRESHOLD),
+        axis=1
+    )
+    # 触达分段惩戒系数（触达量越小折扣越大，归一化后应用）
     def penalty_coef_from_reach(reach_raw):
         """触达量不足的降权：触达量越小折扣越大（归一化后应用）"""
         if reach_raw < 100:
@@ -762,12 +783,11 @@ if uploaded is not None:
             return 0.5
         else:
             return 1.0
-
-    # ─── 计算综合评分（归一化后应用触达分段惩戒）──────────────────
+    # ─── 计算综合评分（CTR_score/GC_score 替代原 CTR_norm/GC转化率_norm）───
     base_score = (
         dff["触达_norm"] * norm_reach
-        + dff["CTR_norm"] * norm_ctr
-        + dff["订单GC转化率_norm"] * norm_gc
+        + dff["CTR_score"] * norm_ctr
+        + dff["GC_score"] * norm_gc
     ).round(2)
     reach_raw_for_penalty = dff["触达成功"].fillna(0)
     penalty_vec = reach_raw_for_penalty.apply(penalty_coef_from_reach)
@@ -851,23 +871,23 @@ if uploaded is not None:
                         penalty_label = "置信度高(×1.0)"
 
                     reach_norm = getattr(row, '触达_norm', 0)
-                    ctr_norm   = getattr(row, 'CTR_norm', 0)
-                    gc_norm    = getattr(row, '订单GC转化率_norm', 0)
+                    ctr_score_t   = getattr(row, 'CTR_score', 0)
+                    gc_score_t   = getattr(row, 'GC_score', 0)
                     impact_parts = []
                     if reach_norm < 33:
                         impact_parts.append("触达偏低({:.1f})".format(reach_norm))
                     elif reach_norm > 67:
                         impact_parts.append("触达偏高({:.1f})".format(reach_norm))
-                    if ctr_norm < 33:
-                        impact_parts.append("CTR偏低({:.1f})".format(ctr_norm))
-                    elif ctr_norm > 67:
-                        impact_parts.append("CTR偏高({:.1f})".format(ctr_norm))
-                    if gc_norm < 33:
-                        impact_parts.append("GC转化率偏低({:.1f})".format(gc_norm))
-                    elif gc_norm > 67:
-                        impact_parts.append("GC转化率偏高({:.1f})".format(gc_norm))
+                    if ctr_score_t < 33:
+                        impact_parts.append("CTR偏低({:.1f})".format(ctr_score_t))
+                    elif ctr_score_t > 67:
+                        impact_parts.append("CTR偏高({:.1f})".format(ctr_score_t))
+                    if gc_score_t < 33:
+                        impact_parts.append("GC转化率偏低({:.1f})".format(gc_score_t))
+                    elif gc_score_t > 67:
+                        impact_parts.append("GC转化率偏高({:.1f})".format(gc_score_t))
                     impact = " / ".join(impact_parts) if impact_parts else "无异常"
-                    base_score_t = reach_norm * w_reach + ctr_norm * w_ctr + gc_norm * w_gc
+                    base_score_t = reach_norm * w_reach + ctr_score_t * w_ctr + gc_score_t * w_gc
                     formula = (
                         "({rN:.1f}×{wR:.2f} + {cN:.1f}×{wC:.2f} + {gN:.1f}×{wG:.2f}) × {pc:.1f}"
                         "\n= {bs:.2f} × {pc:.1f} = {sc:.2f}  [{lbl}]"
