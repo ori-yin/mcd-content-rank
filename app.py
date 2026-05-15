@@ -22,10 +22,10 @@ st.set_page_config(
 # Section 0: CTR/GC 分段函数阈值配置
 #   - Q3 阈值 = 75th percentile，来自全量数据统计
 #   - amp 校准：使 Q3 得分 = 100
-#   - 公式: G < C → score = amp × 100 × (G/C)^0.2; G >= C → score = amp × 100
+#   - 公式: G < C → score = amp × 100 × (G/C)^EXP; G >= C → score = amp × 100 (EXP=1.5)
 # ═══════════════════════════════════════════════════════════════
 
-# CTR 阈值配置 (单位: 小数，如 0.0031 = 0.31%)
+# CTR 阈值配置 (单位: 百分比%，如 0.31 = 0.31% CTR)
 CTR_THRESHOLDS = {
     "APP Push": 0.31,
     "企微1v1": 2.62,
@@ -43,10 +43,10 @@ GC_THRESHOLDS = {
 CTR_UNKNOWN_THRESHOLD = 2.85   # 2.85%
 GC_UNKNOWN_THRESHOLD = 34.8  # 34.8%
 
-EXP = 1.5  # 幂次（E越大，阈值内区分度越大，Q1越低）
+EXP = 1.5  # 幂次：E越大区分度越大（G/threshold^EXP，若 G/threshold=0.5→得分=100×0.5^1.5≈35）
 
 def get_amp(threshold):
-    """方案A: amp=1, Q3 score = 100 × (C/C)^0.2 = 100 × 1 = 100"""
+    """amp=1（饱和时 Q3 得分 = 100 × 1 = 100）"""
     return 1.0
 
 # 预计算 amp
@@ -56,13 +56,13 @@ CTR_AMP_UNKNOWN = get_amp(CTR_UNKNOWN_THRESHOLD)
 GC_AMP_UNKNOWN = get_amp(GC_UNKNOWN_THRESHOLD)
 
 def piecewise_score(G, threshold, amp):
-    """分段函数: G < C → amp×100×(G/C)^0.2; G >= C → 100 (饱和)"""
+    """分段函数: G < threshold → amp×100×(G/threshold)^EXP; G >= threshold → 100 (饱和, EXP=1.5)"""
     if G < threshold:
         return amp * 100 * ((G / threshold) ** EXP)
     return 100.0
 
 # ─── 品牌色 ─────────────────────────────────────────────────────
-MCD_RED = "#E40004"
+MCD_RED = "#DA291C"  # 麦当劳品牌红
 MCD_GOLD = "#FFC000"
 MCD_GREEN = "#00A04A"
 MCD_BG = "#FAFAFA"
@@ -152,7 +152,7 @@ st.markdown(f"""
   }}
 
   [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] [aria-valuenow] {{
-    background: #DB0003 !important;
+    background: {MCD_RED} !important;
     border-radius: 6px !important;
 
   }}
@@ -234,7 +234,7 @@ st.markdown(f"""
 
   /* ─── 主标题卡片 ─── */
   .mcd-header {{
-    background: #DB0003;
+    background: {MCD_RED};
     border-radius: 16px;
     padding: 28px 36px;
     color: #FFFFFF;
@@ -636,8 +636,6 @@ if uploaded is not None:
         with st.spinner("正在运行数据清洗脚本..."):
             try:
                 df = clean_raw_csv(uploaded)
-                col_count_before = df.shape[1] + 1  # +1 因为去掉了 JSON 列，加了 2 个新列
-                # 清洗在 clean_raw_csv() 中静默完成
             except ValueError as e:
                 st.error(str(e))
                 st.stop()
@@ -744,17 +742,20 @@ if uploaded is not None:
 
     if keyword:
         kw = keyword.lower()
-        title_col = "标题" if "标题" in dff.columns else "消息标题"
-        content_col = "内容"
-        dff = dff[
-            dff[title_col].str.lower().str.contains(kw, na=False) |
-            dff[content_col].str.lower().str.contains(kw, na=False)
-        ]
+        mask = pd.Series(False, index=dff.index)
+        # 搜索标题列
+        title_candidates = [c for c in ["标题", "消息标题"] if c in dff.columns]
+        if title_candidates:
+            mask |= dff[title_candidates[0]].astype(str).str.lower().str.contains(kw, na=False)
+        # 搜索内容列
+        if "内容" in dff.columns:
+            mask |= dff["内容"].astype(str).str.lower().str.contains(kw, na=False)
+        dff = dff[mask]
 
     # ─── 分段评分（CTR/GC 按渠道 Q3 阈值 + amp 校准）───────────────────
     # CTR_score 和 GC_score 范围: 0 ~ 100+，饱和在 amp×100（各渠道 Q3 = 100）
     def get_channel_score(G_raw, channel, threshold_map, amp_map, amp_unknown, threshold_unknown):
-        """CTR/GC 分段评分: G < C → amp×100×(G/C)^0.2; G >= C → amp×100"""
+        """CTR/GC 分段评分: G < threshold → amp×100×(G/threshold)^EXP; G >= threshold → amp×100 (EXP=1.5)"""
         ch = str(channel) if channel is not None else "未知渠道"
         if ch in threshold_map:
             threshold = threshold_map[ch]
@@ -895,7 +896,11 @@ if uploaded is not None:
                              wR=w_reach, wC=w_ctr, wG=w_gc,
                              pc=penalty_coef_t, bs=base_score_t,
                              sc=score, lbl=penalty_label)
-                    tooltip_text = "{}\n{}".format(impact, formula)
+                    # HTML 转义（防止标题含特殊字符破坏渲染）
+                    import html as _html
+                    tooltip_text = _html.escape(
+                        "{}\n{}".format(impact, formula)
+                    )
                     # --------------------------------------------
 
                     with col:
@@ -1013,7 +1018,7 @@ if uploaded is not None:
             else:
                 return f"{x:.2f}"
 
-        def _bar_line_chart(df_grp, dim_name, dim_label):
+        def _bar_line_chart(df_grp, dim_name, dim_label, num_days):
             agg = df_grp.groupby(dim_name).agg(
                 触达量=("触达成功", "sum"),
                 点击人次=("点击人次", "sum")
@@ -1062,12 +1067,12 @@ if uploaded is not None:
                 num_days = 1
 
             if "渠道" in dff.columns and dff["渠道"].notna().sum() > 0:
-                st.plotly_chart(_bar_line_chart(dff, "渠道", ""), use_container_width=True)
+                st.plotly_chart(_bar_line_chart(dff, "渠道", "", num_days), use_container_width=True)
             else:
                 st.info("当前数据无渠道维度")
 
             if owner_col in dff.columns and dff[owner_col].notna().sum() > 0:
-                st.plotly_chart(_bar_line_chart(dff, owner_col, ""), use_container_width=True)
+                st.plotly_chart(_bar_line_chart(dff, owner_col, "", num_days), use_container_width=True)
             else:
                 st.info("当前数据无预算Owner维度")
 
@@ -1116,7 +1121,7 @@ if uploaded is not None:
                 )
                 fig_scatter.update_traces(
                     hovertemplate=h_template,
-                    marker=dict(size=14, color="#DB0003", opacity=0.75, line=dict(width=0))
+                    marker=dict(size=14, color=MCD_RED, opacity=0.75, line=dict(width=0))
                 )
                 fig_scatter.update_layout(
                     template="plotly_white",
