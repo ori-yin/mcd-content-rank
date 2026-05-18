@@ -662,6 +662,47 @@ if uploaded is not None:
 
     # ─── 幂次归一化（仅触达）────────────────────────────────
     df["触达_norm"] = ((df["触达成功"] / df["触达成功"].max()) ** 0.3) * 100
+
+    # --- 计算全量数据的综合评分（用于渠道均值，不受筛选影响）----------------------
+    def _penalty_coef(reach):
+        if reach < 100:
+            return 0.1
+        elif reach < 500:
+            return 0.3
+        elif reach < 1000:
+            return 0.5
+        else:
+            return 1.0
+
+    df["CTR_score_full"] = df.apply(
+        lambda r: piecewise_score(
+            r["CTR"],
+            CTR_THRESHOLDS.get(str(r.get("渠道", "")), CTR_UNKNOWN_THRESHOLD),
+            CTR_AMPS.get(str(r.get("渠道", "")), CTR_AMP_UNKNOWN)
+        ),
+        axis=1
+    )
+    df["GC_score_full"] = df.apply(
+        lambda r: piecewise_score(
+            r["订单GC转化率"],
+            GC_THRESHOLDS.get(str(r.get("渠道", "")), GC_UNKNOWN_THRESHOLD),
+            GC_AMPS.get(str(r.get("渠道", "")), GC_AMP_UNKNOWN)
+        ),
+        axis=1
+    )
+    df["综合评分_full"] = (
+        df["触达_norm"] * 0.2 + df["CTR_score_full"] * 0.45 + df["GC_score_full"] * 0.35
+    ) * df["触达成功"].fillna(0).apply(_penalty_coef)
+
+    # --- 计算分渠道平均综合评分（基于全量数据，不受筛选影响）----------------------
+    channel_avg_score = {}
+    if "渠道" in df.columns:
+        for ch in df["渠道"].dropna().unique():
+            ch_df = df[df["渠道"] == ch]
+            if len(ch_df) > 0:
+                channel_avg_score[ch] = ch_df["综合评分_full"].mean()
+            else:
+                channel_avg_score[ch] = 0.0
     # 注：CTR_norm 和 订单GC转化率_norm 在筛选后按渠道分层计算，此处不预先计算
 
     # ─── 侧边筛选 ─────────────────────────────────────────────
