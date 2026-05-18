@@ -800,6 +800,16 @@ if uploaded is not None:
         dff = dff.sort_values("综合评分", ascending=asc).reset_index(drop=True)
     dff["排名"] = dff.index + 1
 
+    # ─── 计算分渠道平均综合评分（用于卡片对比）────────────────
+    channel_avg_score = {}
+    if "渠道" in dff.columns:
+        for ch in dff["渠道"].dropna().unique():
+            ch_df = dff[dff["渠道"] == ch]
+            if len(ch_df) > 0:
+                channel_avg_score[ch] = ch_df["综合评分"].mean()
+            else:
+                channel_avg_score[ch] = 0.0
+
     # ─── 顶部指标卡 ───────────────────────────────────────────
     total_rows = len(dff)
     total_score = dff["综合评分"].mean() if total_rows > 0 else 0
@@ -943,6 +953,9 @@ if uploaded is not None:
                         except (ValueError, TypeError):
                             gc_rate_val = 0.0
 
+                        # 获取渠道平均评分
+                        channel_avg = channel_avg_score.get(channel_short, 0) if channel_short in channel_avg_score else 0
+
                         st.markdown(f"""
                         <div class="content-card">
                           <div style="display:flex; justify-content:space-between; align-items:flex-start;">
@@ -962,6 +975,7 @@ if uploaded is not None:
                                 </div>
                               </div>
                               <div class="card-score-label">综合评分</div>
+                              <div style="font-size:11px;color:#AAA;text-align:right;margin-top:2px;">均值 {channel_avg:.2f}</div>
                             </div>
                           </div>
                           <div class="card-title">{title[:80]}{'...' if len(title) > 80 else ''}</div>
