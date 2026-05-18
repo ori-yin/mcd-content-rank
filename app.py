@@ -1,4 +1,4 @@
-"""
+﻿"""
 app.py - 麦当劳内容排行榜
 """
 import streamlit as st
@@ -799,16 +799,6 @@ if uploaded is not None:
         asc = (sort_order == "升序")
         dff = dff.sort_values("综合评分", ascending=asc).reset_index(drop=True)
     dff["排名"] = dff.index + 1
-
-    # ─── 计算分渠道平均综合评分（用于卡片对比）────────────────
-    channel_avg_score = {}
-    if "渠道" in dff.columns:
-        for ch in dff["渠道"].dropna().unique():
-            ch_df = dff[dff["渠道"] == ch]
-            if len(ch_df) > 0:
-                channel_avg_score[ch] = ch_df["综合评分"].mean()
-            else:
-                channel_avg_score[ch] = 0.0
 
     # ─── 顶部指标卡 ───────────────────────────────────────────
     total_rows = len(dff)
