@@ -1179,47 +1179,122 @@ if uploaded is not None:
 
     with tab4:
         st.markdown('<div class="section-title">综合评分算法说明</div>', unsafe_allow_html=True)
-        stmd.st_mermaid("""
+        st.components.v1.html("""
+<!DOCTYPE html>
+<html>
+<head>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  body { margin: 0; background: #FAFAFA; font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+  #wrap {
+    position: relative;
+    background: #fff;
+    border: 1px solid #EFEFEF;
+    border-radius: 14px;
+    padding: 20px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+  }
+  #wrap:fullscreen, #wrap:-webkit-full-screen {
+    background: #fff;
+    border-radius: 0;
+    padding: 40px;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+  }
+  #wrap:fullscreen #diagram, #wrap:-webkit-full-screen #diagram {
+    width: 100%;
+    max-width: 1200px;
+  }
+  #btn-fs {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: #DA291C;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 5px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    z-index: 10;
+    letter-spacing: 0.03em;
+    transition: background 0.15s;
+  }
+  #btn-fs:hover { background: #b5200f; }
+  #diagram svg { width: 100% !important; height: auto !important; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <button id="btn-fs" onclick="toggleFS()">⛶ 全屏</button>
+  <div id="diagram" class="mermaid">
 flowchart TD
     A[原始数据] --> B[计算衍生指标]
     B --> C["CTR = 点击人次 / 触达成功 × 100"]
     B --> D["GC转化率 = 订单GC / 点击人次 × 100"]
-
-    C --> E["CTR分 CTR_score"]
-    D --> F["GC分 GC_score"]
-    A --> G["触达分 触达_norm = 触达/最大触达 ^ 0.3 × 100"]
-
+    C --> E["CTR分"]
+    D --> F["GC分"]
+    A --> G["触达分 = 触达/最大触达 ^ 0.3 × 100"]
     E --> E1{"CTR < 渠道Q3阈值?"}
     E1 --> |是| E2["100 × CTR/Q3 ^ 1.5"]
     E1 --> |否| E3["100 饱和"]
-
     F --> F1{"GC率 < 渠道Q3阈值?"}
     F1 --> |是| F2["100 × GC率/Q3 ^ 1.5"]
     F1 --> |否| F3["100 饱和"]
-
     G --> H["加权求和"]
     E2 --> H
     E3 --> H
     F2 --> H
     F3 --> H
     H --> I["base = 触达×0.2 + CTR×0.5 + GC×0.3"]
-
     I --> J["置信度惩戒"]
     J --> J1{"触达量"}
     J1 --> |小于100| J2["× 0.1"]
     J1 --> |100到499| J3["× 0.3"]
     J1 --> |500到999| J4["× 0.5"]
     J1 --> |1000以上| J5["× 1.0"]
-
     J2 --> K["综合评分"]
     J3 --> K
     J4 --> K
     J5 --> K
-
     style K fill:#DA291C,color:#fff,font-weight:bold
     style I fill:#FFC000,color:#000
     style H fill:#FFC000,color:#000
-""", height=700)
+  </div>
+</div>
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'default', flowchart: { useMaxWidth: true } });
+
+  function toggleFS() {
+    var wrap = document.getElementById('wrap');
+    var btn = document.getElementById('btn-fs');
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+      var req = wrap.requestFullscreen || wrap.webkitRequestFullscreen;
+      if (req) req.call(wrap);
+    } else {
+      var ex = document.exitFullscreen || document.webkitExitFullscreen;
+      if (ex) ex.call(document);
+    }
+  }
+
+  document.addEventListener('fullscreenchange', updateBtn);
+  document.addEventListener('webkitfullscreenchange', updateBtn);
+  function updateBtn() {
+    var btn = document.getElementById('btn-fs');
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      btn.textContent = '✕ 退出全屏';
+    } else {
+      btn.textContent = '⛶ 全屏';
+    }
+  }
+</script>
+</body>
+</html>
+""", height=750, scrolling=True)
 
         with st.expander("阈值与惩戒系数参考", expanded=False):
             st.markdown("""
