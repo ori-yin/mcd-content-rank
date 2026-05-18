@@ -800,13 +800,13 @@ if uploaded is not None:
         dff = dff.sort_values("综合评分", ascending=asc).reset_index(drop=True)
     dff["排名"] = dff.index + 1
 
-    # ─── 计算分渠道平均综合评分（用于卡片对比）────────────────
+    # ─── 计算分渠道平均综合评分（基于全量数据，不受筛选影响）────────────────
     channel_avg_score = {}
-    if "渠道" in dff.columns:
-        for ch in dff["渠道"].dropna().unique():
-            ch_df = dff[dff["渠道"] == ch]
-            if len(ch_df) > 0:
-                channel_avg_score[ch] = ch_df["综合评分"].mean()
+    if "渠道" in df.columns:
+        for ch in df["渠道"].dropna().unique():
+            ch_df_full = df[df["渠道"] == ch]
+            if len(ch_df_full) > 0:
+                channel_avg_score[ch] = ch_df_full["综合评分"].mean()
             else:
                 channel_avg_score[ch] = 0.0
 
