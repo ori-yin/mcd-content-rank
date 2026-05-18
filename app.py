@@ -745,49 +745,6 @@ if uploaded is not None:
             w_reach = st.slider("触达权重", 0.0, 1.0, 0.20, 0.05)
             w_ctr = st.slider("CTR权重", 0.0, 1.0, 0.50, 0.05)
             w_gc = st.slider("GC转化率权重", 0.0, 1.0, 0.30, 0.05)
-# ─── 评分说明 ────────────────────────────────────────────
-        with st.expander("评分说明", expanded=False):
-            stmd.st_mermaid("""
-flowchart TD
-    A[原始数据] --> B[计算衍生指标]
-    B --> C["CTR = 点击人次 / 触达成功 × 100"]
-    B --> D["GC转化率 = 订单GC / 点击人次 × 100"]
-
-    C --> E["CTR分 CTR_score"]
-    D --> F["GC分 GC_score"]
-    A --> G["触达分 触达_norm = (触达/最大触达)^0.3 × 100"]
-
-    E --> |分段函数| E1{"CTR < 渠道Q3阈值?"}
-    E1 --> |是| E2["100 × (CTR/Q3)^1.5"]
-    E1 --> |否| E3["100 饱和"]
-
-    F --> |分段函数| F1{"GC率 < 渠道Q3阈值?"}
-    F1 --> |是| F2["100 × (GC率/Q3)^1.5"]
-    F1 --> |否| F3["100 饱和"]
-
-    G --> H["加权求和"]
-    E2 --> H
-    E3 --> H
-    F2 --> H
-    F3 --> H
-    H --> I["base = 触达×0.2 + CTR×0.5 + GC×0.3"]
-
-    I --> J["置信度惩戒"]
-    J --> J1{"触达量"}
-    J1 --> |"< 100"| J2["× 0.1"]
-    J1 --> |"100~499"| J3["× 0.3"]
-    J1 --> |"500~999"| J4["× 0.5"]
-    J1 --> |"≥ 1000"| J5["× 1.0"]
-
-    J2 --> K["综合评分"]
-    J3 --> K
-    J4 --> K
-    J5 --> K
-
-    style K fill:#DA291C,color:#fff,font-weight:bold
-    style I fill:#FFC000,color:#000
-""", height=600)
-
         # ─── 排序 ────────────────────────────────────────────────
         st.markdown("**排序**")
         sort_order = st.radio("综合评分排序", ["降序", "升序"], index=0, horizontal=True, label_visibility="collapsed")
@@ -898,7 +855,7 @@ flowchart TD
     col4.metric("平均 CTR", f"{avg_ctr:.2f}%")
 
     # ─── Tab 切换 ─────────────────────────────────────────────
-    tab1, tab2, tab3 = st.tabs(["卡片排行榜", "数据表格", "可视化图表"])
+    tab1, tab2, tab3, tab4 = st.tabs(["卡片排行榜", "数据表格", "可视化图表", "算法说明"])
 
     with tab1:
         if total_rows == 0:
@@ -1219,3 +1176,79 @@ flowchart TD
                     yaxis_title=""
                 )
                 st.plotly_chart(fig_scatter, use_container_width=True)
+
+    with tab4:
+        st.markdown('<div class="section-title">综合评分算法说明</div>', unsafe_allow_html=True)
+        stmd.st_mermaid("""
+flowchart TD
+    A[原始数据] --> B[计算衍生指标]
+    B --> C["CTR = 点击人次 / 触达成功 × 100"]
+    B --> D["GC转化率 = 订单GC / 点击人次 × 100"]
+
+    C --> E["CTR分 CTR_score"]
+    D --> F["GC分 GC_score"]
+    A --> G["触达分 触达_norm = 触达/最大触达 ^ 0.3 × 100"]
+
+    E --> E1{"CTR < 渠道Q3阈值?"}
+    E1 --> |是| E2["100 × CTR/Q3 ^ 1.5"]
+    E1 --> |否| E3["100 饱和"]
+
+    F --> F1{"GC率 < 渠道Q3阈值?"}
+    F1 --> |是| F2["100 × GC率/Q3 ^ 1.5"]
+    F1 --> |否| F3["100 饱和"]
+
+    G --> H["加权求和"]
+    E2 --> H
+    E3 --> H
+    F2 --> H
+    F3 --> H
+    H --> I["base = 触达×0.2 + CTR×0.5 + GC×0.3"]
+
+    I --> J["置信度惩戒"]
+    J --> J1{"触达量"}
+    J1 --> |小于100| J2["× 0.1"]
+    J1 --> |100到499| J3["× 0.3"]
+    J1 --> |500到999| J4["× 0.5"]
+    J1 --> |1000以上| J5["× 1.0"]
+
+    J2 --> K["综合评分"]
+    J3 --> K
+    J4 --> K
+    J5 --> K
+
+    style K fill:#DA291C,color:#fff,font-weight:bold
+    style I fill:#FFC000,color:#000
+    style H fill:#FFC000,color:#000
+""", height=700)
+
+        col_a, col_b, col_c = st.columns(3)
+        with col_a:
+            st.markdown("**渠道 CTR Q3 阈值**")
+            st.markdown("""
+| 渠道 | Q3 阈值 |
+|------|---------|
+| APP Push | 0.31% |
+| 企微1v1 | 2.62% |
+| 小程序订阅消息 | 4.01% |
+| 短信 | 0.53% |
+""")
+        with col_b:
+            st.markdown("**渠道 GC转化率 Q3 阈值**")
+            st.markdown("""
+| 渠道 | Q3 阈值 |
+|------|---------|
+| APP Push | 69.5% |
+| 企微1v1 | 18.5% |
+| 小程序订阅消息 | 41.0% |
+| 短信 | 26.7% |
+""")
+        with col_c:
+            st.markdown("**置信度惩戒系数**")
+            st.markdown("""
+| 触达量 | 系数 |
+|--------|------|
+| < 100 | 0.1 |
+| 100 ~ 499 | 0.3 |
+| 500 ~ 999 | 0.5 |
+| ≥ 1000 | 1.0 |
+""")
