@@ -974,7 +974,8 @@ if uploaded is not None:
                                   <div class="score-tooltip">{tooltip_text}</div>
                                 </div>
                               </div>
-                              <div class="card-score-label">均值</div>
+                              <div class="card-score-label">综合评分</div>
+                              <div style="font-size:11px;color:#AAA;text-align:right;margin-top:2px;">均值 {channel_avg:.2f}</div>
                             </div>
                           </div>
                           <div class="card-title">{title[:80]}{'...' if len(title) > 80 else ''}</div>
