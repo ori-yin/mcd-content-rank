@@ -658,6 +658,18 @@ if uploaded is not None:
 
     # --- 计算全量数据的综合评分（用于渠道均值，不受筛选影响）----------------------
 
+    # 触达分段惩戒系数（触达量越小折扣越大，归一化后应用）
+    def penalty_coef_from_reach(reach_raw):
+        """触达量不足的降权：触达量越小折扣越大（归一化后应用）"""
+        if reach_raw < 100:
+            return 0.1
+        elif reach_raw < 500:
+            return 0.3
+        elif reach_raw < 1000:
+            return 0.5
+        else:
+            return 1.0
+
     df["CTR_score_full"] = df.apply(
         lambda r: piecewise_score(
             r["CTR"],
@@ -790,17 +802,6 @@ if uploaded is not None:
         lambda r: get_channel_score(r["订单GC转化率"], r.get("渠道"), GC_THRESHOLDS, GC_UNKNOWN_THRESHOLD),
         axis=1
     )
-    # 触达分段惩戒系数（触达量越小折扣越大，归一化后应用）
-    def penalty_coef_from_reach(reach_raw):
-        """触达量不足的降权：触达量越小折扣越大（归一化后应用）"""
-        if reach_raw < 100:
-            return 0.1
-        elif reach_raw < 500:
-            return 0.3
-        elif reach_raw < 1000:
-            return 0.5
-        else:
-            return 1.0
     # ─── 计算综合评分（CTR_score/GC_score 替代原 CTR_norm/GC转化率_norm）───
     base_score = (
         dff["触达_norm"] * norm_reach
