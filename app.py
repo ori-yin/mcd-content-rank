@@ -863,7 +863,7 @@ if uploaded is not None:
                     if score >= 75:
                         score_color = "#00A04A"
                     elif score >= 40:
-                        score_color = "#888888"
+                        score_color = "#FFC000"
                     else:
                         score_color = "#DA291C"
 
