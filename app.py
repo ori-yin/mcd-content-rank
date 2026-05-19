@@ -1147,67 +1147,167 @@ if uploaded is not None:
 
     with tab4:
         st.markdown('<div class="section-title">综合评分算法说明</div>', unsafe_allow_html=True)
-        st.markdown("""
-**综合评分 = base_score x 置信度系数**
+        st.components.v1.html("""
+<!DOCTYPE html>
+<html>
+<head>
 
-base_score = 触达分 x 权重 + CTR分 x 权重 + GC转化率分 x 权重
-""")
-        col_a, col_b, col_c = st.columns(3)
-        with col_a:
-            st.markdown("#### 1 触达分")
+<style>
+  body { margin: 0; background: #FAFAFA; font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+  #wrap {
+    position: relative;
+    background: #fff;
+    border: 1px solid #EFEFEF;
+    border-radius: 14px;
+    padding: 20px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+  }
+  #wrap:fullscreen, #wrap:-webkit-full-screen {
+    background: #fff;
+    border-radius: 0;
+    padding: 40px;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+  }
+  #wrap:fullscreen #diagram, #wrap:-webkit-full-screen #diagram {
+    width: 100%;
+    max-width: 1200px;
+  }
+  #btn-fs {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: #DA291C;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 5px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    z-index: 10;
+    letter-spacing: 0.03em;
+    transition: background 0.15s;
+  }
+  #btn-fs:hover { background: #b5200f; }
+  #diagram svg { width: 100% !important; height: auto !important; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <button id="btn-fs" onclick="toggleFS()">⛶ 全屏</button>
+  <div id="diagram" class="mermaid">
+flowchart TD
+    A[原始数据] --> B[计算衍生指标]
+    B --> C[CTR = 点击人次除以触达成功]
+    B --> D[GC转化率 = 订单GC除以点击人次]
+    C --> E[CTR分]
+    D --> F[GC分]
+    A --> G[触达分 = 幂次归一化]
+    E --> E1{CTR低于渠道Q3阈值}
+    E1 --> |是| E2[100乘以CTR/Q3的1.5次方]
+    E1 --> |否| E3[100分 饱和]
+    F --> F1{GC率低于渠道Q3阈值}
+    F1 --> |是| F2[100乘以GC率/Q3的1.5次方]
+    F1 --> |否| F3[100分 饱和]
+    G --> H[加权求和]
+    E2 --> H
+    E3 --> H
+    F2 --> H
+    F3 --> H
+    H --> I[base = 触达0.2 + CTR0.5 + GC0.3]
+    I --> J[置信度惩戒]
+    J --> J1{触达量}
+    J1 --> |触达小于100| J2[系数0.1]
+    J1 --> |100到499| J3[系数0.3]
+    J1 --> |500到999| J4[系数0.5]
+    J1 --> |1000到4999| J5[系数0.8]
+    J1 --> |5000以上| J6[系数1.0]
+    J2 --> K[综合评分]
+    J3 --> K
+    J4 --> K
+    J5 --> K
+    J6 --> K
+    style K fill:#DA291C,color:#fff,font-weight:bold
+    style I fill:#FFC000,color:#000
+    style H fill:#FFC000,color:#000
+  </div>
+</div>
+<script>
+  function renderMermaid() {
+    if (typeof mermaid !== 'undefined') {
+      mermaid.initialize({ startOnLoad: false, theme: 'default', flowchart: { useMaxWidth: true } });
+      mermaid.run({ nodes: document.querySelectorAll('.mermaid') });
+    } else {
+      setTimeout(renderMermaid, 100);
+    }
+  }
+  var _s = document.createElement('script');
+  _s.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
+  _s.onload = renderMermaid;
+  _s.onerror = function() { setTimeout(renderMermaid, 300); };
+  document.head.appendChild(_s);
+
+  function toggleFS() {
+    var wrap = document.getElementById('wrap');
+    var btn = document.getElementById('btn-fs');
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+      var req = wrap.requestFullscreen || wrap.webkitRequestFullscreen;
+      if (req) req.call(wrap);
+    } else {
+      var ex = document.exitFullscreen || document.webkitExitFullscreen;
+      if (ex) ex.call(document);
+    }
+  }
+
+  document.addEventListener('fullscreenchange', updateBtn);
+  document.addEventListener('webkitfullscreenchange', updateBtn);
+  function updateBtn() {
+    var btn = document.getElementById('btn-fs');
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      btn.textContent = '✕ 退出全屏';
+    } else {
+      btn.textContent = '⛶ 全屏';
+    }
+  }
+</script>
+</body>
+</html>
+""", height=1200, scrolling=False)
+
+        with st.expander("阈值与惩戒系数参考", expanded=False):
             st.markdown("""
-- 公式：(触达成功 / 全量最大触达) ^ 0.3 x 100
-- 幂次压缩，避免大触达量碾压小渠道
-- 范围：0 ~ 100
-""")
-        with col_b:
-            st.markdown("#### 2 CTR 分")
-            st.markdown("""
-- 以各渠道 CTR Q3 为基准
-- CTR >= Q3 则 100分（饱和）
-- CTR < Q3 则 100 x (CTR/Q3)^1.5
-- 范围：0 ~ 100
-""")
-        with col_c:
-            st.markdown("#### 3 GC转化率分")
-            st.markdown("""
-- 以各渠道 GC转化率 Q3 为基准
-- GC率 >= Q3 则 100分（饱和）
-- GC率 < Q3 则 100 x (GC率/Q3)^1.5
-- 范围：0 ~ 100
-""")
-        st.divider()
-        col_d, col_e = st.columns(2)
-        with col_d:
-            st.markdown("#### 渠道 Q3 阈值")
-            st.dataframe(
-                pd.DataFrame({
-                    "渠道": ["APP Push", "企微1v1", "微信小程序订阅消息", "短信"],
-                    "CTR Q3": ["0.31%", "2.62%", "4.01%", "0.53%"],
-                    "GC转化率 Q3": ["69.5%", "18.5%", "41.0%", "26.7%"],
-                }),
-                hide_index=True,
-                use_container_width=True,
-            )
-        with col_e:
-            st.markdown("#### 置信度惩戒系数")
-            st.dataframe(
-                pd.DataFrame({
-                    "触达量": ["< 100", "100 ~ 499", "500 ~ 999", "1000 ~ 4999", ">= 5000"],
-                    "系数": ["x 0.1", "x 0.3", "x 0.5", "x 0.8", "x 1.0"],
-                    "说明": ["极低置信度", "低置信度", "中置信度", "较高置信度", "高置信度"],
-                }),
-                hide_index=True,
-                use_container_width=True,
-            )
-        st.divider()
-        st.markdown("#### 默认权重")
-        st.dataframe(
-            pd.DataFrame({
-                "分项": ["触达分", "CTR 分", "GC转化率分"],
-                "默认权重": ["20%", "50%", "30%"],
-            }),
-            hide_index=True,
-            use_container_width=True,
-        )
-        st.caption("权重可在左侧边栏「权重配置」中调整，调整后自动归一化。")
+<div style="display:flex; gap:16px; flex-wrap:wrap; margin-top:8px;">
+  <div style="flex:1; min-width:180px; background:#fff; border:1px solid #EFEFEF; border-radius:12px; padding:16px 20px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+    <div style="font-size:12px; font-weight:700; color:#DA291C; letter-spacing:0.04em; text-transform:uppercase; margin-bottom:10px;">渠道 CTR Q3 阈值</div>
+    <table style="width:100%; border-collapse:collapse; font-size:13px;">
+      <tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:6px 4px; color:#888;">APP Push</td><td style="padding:6px 4px; text-align:right; font-weight:600;">0.31%</td></tr>
+      <tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:6px 4px; color:#888;">企微1v1</td><td style="padding:6px 4px; text-align:right; font-weight:600;">2.62%</td></tr>
+      <tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:6px 4px; color:#888;">小程序订阅消息</td><td style="padding:6px 4px; text-align:right; font-weight:600;">4.01%</td></tr>
+      <tr><td style="padding:6px 4px; color:#888;">短信</td><td style="padding:6px 4px; text-align:right; font-weight:600;">0.53%</td></tr>
+    </table>
+  </div>
+  <div style="flex:1; min-width:180px; background:#fff; border:1px solid #EFEFEF; border-radius:12px; padding:16px 20px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+    <div style="font-size:12px; font-weight:700; color:#DA291C; letter-spacing:0.04em; text-transform:uppercase; margin-bottom:10px;">渠道 GC转化率 Q3 阈值</div>
+    <table style="width:100%; border-collapse:collapse; font-size:13px;">
+      <tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:6px 4px; color:#888;">APP Push</td><td style="padding:6px 4px; text-align:right; font-weight:600;">69.5%</td></tr>
+      <tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:6px 4px; color:#888;">企微1v1</td><td style="padding:6px 4px; text-align:right; font-weight:600;">18.5%</td></tr>
+      <tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:6px 4px; color:#888;">小程序订阅消息</td><td style="padding:6px 4px; text-align:right; font-weight:600;">41.0%</td></tr>
+      <tr><td style="padding:6px 4px; color:#888;">短信</td><td style="padding:6px 4px; text-align:right; font-weight:600;">26.7%</td></tr>
+    </table>
+  </div>
+  <div style="flex:1; min-width:180px; background:#fff; border:1px solid #EFEFEF; border-radius:12px; padding:16px 20px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+    <div style="font-size:12px; font-weight:700; color:#DA291C; letter-spacing:0.04em; text-transform:uppercase; margin-bottom:10px;">置信度惩戒系数</div>
+    <table style="width:100%; border-collapse:collapse; font-size:13px;">
+      <tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:6px 4px; color:#888;">&lt; 100</td><td style="padding:6px 4px; text-align:right; font-weight:600; color:#DA291C;">× 0.1</td></tr>
+      <tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:6px 4px; color:#888;">100 ~ 499</td><td style="padding:6px 4px; text-align:right; font-weight:600; color:#DA291C;">× 0.3</td></tr>
+      <tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:6px 4px; color:#888;">500 ~ 999</td><td style="padding:6px 4px; text-align:right; font-weight:600; color:#FFC000;">× 0.5</td></tr>
+      <tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:6px 4px; color:#888;">1000 ~ 4999</td><td style="padding:6px 4px; text-align:right; font-weight:600; color:#FFC000;">× 0.8</td></tr>
+      <tr><td style="padding:6px 4px; color:#888;">≥ 5000</td><td style="padding:6px 4px; text-align:right; font-weight:600; color:#00A04A;">× 1.0</td></tr>
+    </table>
+  </div>
+</div>
+""", unsafe_allow_html=True)
