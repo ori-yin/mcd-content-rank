@@ -1,6 +1,7 @@
-﻿"""
+"""
 app.py - 麦当劳内容排行榜
 """
+import html as _html
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -46,20 +47,11 @@ GC_UNKNOWN_THRESHOLD = 34.8  # 34.8%
 
 EXP = 1.5  # 幂次：E越大区分度越大（G/threshold^EXP，若 G/threshold=0.5→得分=100×0.5^1.5≈35）
 
-def get_amp(threshold):
-    """amp=1（饱和时 Q3 得分 = 100 × 1 = 100）"""
-    return 1.0
 
-# 预计算 amp
-CTR_AMPS = {ch: get_amp(t) for ch, t in CTR_THRESHOLDS.items()}
-GC_AMPS = {ch: get_amp(t) for ch, t in GC_THRESHOLDS.items()}
-CTR_AMP_UNKNOWN = get_amp(CTR_UNKNOWN_THRESHOLD)
-GC_AMP_UNKNOWN = get_amp(GC_UNKNOWN_THRESHOLD)
 
-def piecewise_score(G, threshold, amp):
-    """分段函数: G < threshold → amp×100×(G/threshold)^EXP; G >= threshold → 100 (饱和, EXP=1.5)"""
+def piecewise_score(G, threshold):
     if G < threshold:
-        return amp * 100 * ((G / threshold) ** EXP)
+        return 100.0 * ((G / threshold) ** EXP)
     return 100.0
 
 # ─── 品牌色 ─────────────────────────────────────────────────────
@@ -665,35 +657,24 @@ if uploaded is not None:
     df["触达_norm"] = ((df["触达成功"] / df["触达成功"].max()) ** 0.3) * 100
 
     # --- 计算全量数据的综合评分（用于渠道均值，不受筛选影响）----------------------
-    def _penalty_coef(reach):
-        if reach < 100:
-            return 0.1
-        elif reach < 500:
-            return 0.3
-        elif reach < 1000:
-            return 0.5
-        else:
-            return 1.0
 
     df["CTR_score_full"] = df.apply(
         lambda r: piecewise_score(
             r["CTR"],
-            CTR_THRESHOLDS.get(str(r.get("渠道", "")), CTR_UNKNOWN_THRESHOLD),
-            CTR_AMPS.get(str(r.get("渠道", "")), CTR_AMP_UNKNOWN)
+            CTR_THRESHOLDS.get(str(r.get("渠道", "")), CTR_UNKNOWN_THRESHOLD)
         ),
         axis=1
     )
     df["GC_score_full"] = df.apply(
         lambda r: piecewise_score(
             r["订单GC转化率"],
-            GC_THRESHOLDS.get(str(r.get("渠道", "")), GC_UNKNOWN_THRESHOLD),
-            GC_AMPS.get(str(r.get("渠道", "")), GC_AMP_UNKNOWN)
+            GC_THRESHOLDS.get(str(r.get("渠道", "")), GC_UNKNOWN_THRESHOLD)
         ),
         axis=1
     )
     df["综合评分_full"] = (
-        df["触达_norm"] * 0.2 + df["CTR_score_full"] * 0.45 + df["GC_score_full"] * 0.35
-    ) * df["触达成功"].fillna(0).apply(_penalty_coef)
+        df["触达_norm"] * 0.2 + df["CTR_score_full"] * 0.50 + df["GC_score_full"] * 0.30
+    ) * df["触达成功"].fillna(0).apply(penalty_coef_from_reach)
 
     # --- 计算分渠道平均综合评分（基于全量数据，不受筛选影响）----------------------
     channel_avg_score = {}
@@ -796,23 +777,17 @@ if uploaded is not None:
 
     # ─── 分段评分（CTR/GC 按渠道 Q3 阈值 + amp 校准）───────────────────
     # CTR_score 和 GC_score 范围: 0 ~ 100+，饱和在 amp×100（各渠道 Q3 = 100）
-    def get_channel_score(G_raw, channel, threshold_map, amp_map, amp_unknown, threshold_unknown):
-        """CTR/GC 分段评分: G < threshold → amp×100×(G/threshold)^EXP; G >= threshold → amp×100 (EXP=1.5)"""
+    def get_channel_score(G_raw, channel, threshold_map, threshold_unknown):
         ch = str(channel) if channel is not None else "未知渠道"
-        if ch in threshold_map:
-            threshold = threshold_map[ch]
-            amp = amp_map[ch]
-        else:
-            threshold = threshold_unknown
-            amp = amp_unknown
-        return piecewise_score(G_raw, threshold, amp)
+        threshold = threshold_map.get(ch, threshold_unknown)
+        return piecewise_score(G_raw, threshold)
 
     dff["CTR_score"] = dff.apply(
-        lambda r: get_channel_score(r["CTR"], r.get("渠道"), CTR_THRESHOLDS, CTR_AMPS, CTR_AMP_UNKNOWN, CTR_UNKNOWN_THRESHOLD),
+        lambda r: get_channel_score(r["CTR"], r.get("渠道"), CTR_THRESHOLDS, CTR_UNKNOWN_THRESHOLD),
         axis=1
     )
     dff["GC_score"] = dff.apply(
-        lambda r: get_channel_score(r["订单GC转化率"], r.get("渠道"), GC_THRESHOLDS, GC_AMPS, GC_AMP_UNKNOWN, GC_UNKNOWN_THRESHOLD),
+        lambda r: get_channel_score(r["订单GC转化率"], r.get("渠道"), GC_THRESHOLDS, GC_UNKNOWN_THRESHOLD),
         axis=1
     )
     # 触达分段惩戒系数（触达量越小折扣越大，归一化后应用）
@@ -938,8 +913,7 @@ if uploaded is not None:
                              wR=w_reach, wC=w_ctr, wG=w_gc,
                              pc=penalty_coef_t, bs=base_score_t,
                              sc=score, lbl=penalty_label)
-                    # HTML 转义（防止标题含特殊字符破坏渲染）
-                    import html as _html
+
                     tooltip_text = _html.escape(
                         "{}\n{}".format(impact, formula)
                     )
@@ -986,7 +960,7 @@ if uploaded is not None:
                             gc_rate_val = 0.0
 
                         # 获取渠道平均评分
-                        channel_avg = channel_avg_score.get(channel_short, 0) if channel_short in channel_avg_score else 0
+                        channel_avg = channel_avg_score.get(channel_short, 0)
 
                         st.markdown(f"""
                         <div class="content-card">
@@ -1149,20 +1123,18 @@ if uploaded is not None:
 
                 h_template = "<br>".join(h_parts) + "<extra></extra>"
 
+                hover_data_dict = {
+                    "触达成功": False, "订单Sales": False, "CTR": False,
+                    "_触达_h": False, "_Sales_h": False, "_CTR_h": False,
+                }
+                if "_BU_h" in dff_h.columns:
+                    hover_data_dict["_BU_h"] = False
                 fig_scatter = px.scatter(
                     dff_h,
                     x="触达成功", y="订单Sales",
                     custom_data=cd,
                     hover_name=title_col,
-                    hover_data={
-                        "触达成功": False,
-                        "订单Sales": False,
-                        "CTR": False,
-                        "_触达_h": False,
-                        "_Sales_h": False,
-                        "_CTR_h": False,
-                        "_BU_h": False,
-                    }
+                    hover_data=hover_data_dict
                 )
                 fig_scatter.update_traces(
                     hovertemplate=h_template,
