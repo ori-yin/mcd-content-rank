@@ -832,7 +832,7 @@ if uploaded is not None:
     col4.metric("平均 CTR", f"{avg_ctr:.2f}%")
 
     # ─── Tab 切换 ─────────────────────────────────────────────
-    tab1, tab2, tab3, tab4 = st.tabs(["卡片排行榜", "算法说明", "数据表格", "可视化图表"])
+    tab1, tab2, tab3 = st.tabs(["卡片排行榜", "算法说明", "数据表格"])
 
     with tab1:
         if total_rows == 0:
@@ -968,17 +968,19 @@ if uploaded is not None:
             grid_html = '<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">' + "".join(html_parts) + '</div>'
             st.html(grid_html)
             # ─── 底部翻页 ─────────────────────────────────────────
-            pcol1, pcol2, pcol3 = st.columns([1, 2, 1])
+            pcol1, pcol2, pcol3 = st.columns([1, 3, 1])
             with pcol1:
-                if st.button("⬅ 上一页", disabled=(page <= 1)):
-                    st.session_state.card_page = page - 1
-                    st.rerun()
+                if page > 1:
+                    if st.button("⬅ 上一页", use_container_width=True):
+                        st.session_state.card_page = page - 1
+                        st.rerun()
             with pcol2:
-                st.markdown(f"<div style='text-align:center; color:#888; font-size:13px; padding-top:8px;'>第 {page}/{total_pages} 页，共 {len(cards)} 条</div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='text-align:center; color:#888; font-size:13px; padding-top:6px;'>第 {page} / {total_pages} 页，共 {len(cards)} 条</div>", unsafe_allow_html=True)
             with pcol3:
-                if st.button("下一页 ➡", disabled=(page >= total_pages)):
-                    st.session_state.card_page = page + 1
-                    st.rerun()
+                if page < total_pages:
+                    if st.button("下一页 ➡", use_container_width=True):
+                        st.session_state.card_page = page + 1
+                        st.rerun()
 
     with tab2:
         st.markdown('<div class="section-title">综合评分算法说明</div>', unsafe_allow_html=True)
@@ -1176,72 +1178,3 @@ flowchart TD
         )
 
     # ─── Tab 3: 可视化图表 ───────────────────────────────────
-    with tab4:
-        # 图表辅助函数
-        def _fmt_num(x):
-            if abs(x) >= 1_000_000:
-                return f"{x/1_000_000:.1f}M"
-            elif abs(x) >= 1000:
-                return f"{x/1000:.1f}k"
-            else:
-                return f"{x:.2f}"
-
-        def _bar_line_chart(df_grp, dim_name, dim_label, num_days):
-            agg = df_grp.groupby(dim_name).agg(
-                触达量=("触达成功", "sum"),
-                点击人次=("点击人次", "sum")
-            ).reset_index()
-            agg["日均触达量"] = (agg["触达量"] / num_days).round(2)
-            agg["CTR"] = (agg["点击人次"] / agg["触达量"] * 100).round(2)
-            agg["CTR"] = agg["CTR"].fillna(0).replace([float("inf"), -float("inf")], 0)
-            agg = agg.sort_values("触达量", ascending=False)
-            from plotly.subplots import make_subplots
-            fig = make_subplots(specs=[[{"secondary_y": True}]])
-            fig.add_trace(go.Bar(
-                x=agg[dim_name], y=agg["日均触达量"],
-                name="日均触达量", marker_color=MCD_RED, opacity=0.85,
-                text=agg["日均触达量"].apply(_fmt_num), textposition="outside"
-            ), secondary_y=False)
-            fig.add_trace(go.Scatter(
-                x=agg[dim_name], y=agg["CTR"],
-                name="CTR (%)", mode="lines+markers+text",
-                line=dict(color="#FFC000", width=3),
-                marker=dict(size=10, color="#FFC000"),
-                text=agg["CTR"].apply(lambda x: f"{x:.2f}%"),
-                textposition="top center",
-                textfont=dict(color="#FFC000", size=12, family="PingFang SC, Microsoft YaHei, sans-serif")
-            ), secondary_y=True)
-            ctr_max = agg["CTR"].max() * 1.5
-            fig.update_layout(
-                template="plotly_white", height=400,
-                showlegend=True,
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                margin=dict(t=60, b=20),
-                xaxis_title=""
-            )
-            fig.update_yaxes(title_text="日均触达量", secondary_y=False, showgrid=False)
-            fig.update_yaxes(title_text="CTR (%)", secondary_y=True, range=[0, max(ctr_max, 1)], showgrid=False)
-            fig.update_xaxes(showgrid=False)
-            fig.update_xaxes(title_text=dim_label, tickangle=-20)
-            return fig
-
-        if total_rows == 0:
-            st.warning("当前筛选条件下无数据")
-        else:
-            if date_range and isinstance(date_range, (list, tuple)) and len(date_range) == 2:
-                start_dt, end_dt = date_range
-                num_days = max((end_dt - start_dt).days, 1)
-            else:
-                num_days = 1
-
-            if "渠道" in dff.columns and dff["渠道"].notna().sum() > 0:
-                st.plotly_chart(_bar_line_chart(dff, "渠道", "", num_days), use_container_width=True)
-            else:
-                st.info("当前数据无渠道维度")
-
-            if owner_col in dff.columns and dff[owner_col].notna().sum() > 0:
-                st.plotly_chart(_bar_line_chart(dff, owner_col, "", num_days), use_container_width=True)
-            else:
-                st.info("当前数据无预算Owner维度")
-
-
