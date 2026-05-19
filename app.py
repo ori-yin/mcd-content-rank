@@ -887,12 +887,26 @@ if uploaded is not None:
                 ctr_score_t = getattr(row, 'CTR_score', 0)
                 gc_score_t = getattr(row, 'GC_score', 0)
                 base_score_t = reach_norm * w_reach + ctr_score_t * w_ctr + gc_score_t * w_gc
-                tooltip_text = _html.escape(
-                    "({:.1f}x{:.2f} + {:.1f}x{:.2f} + {:.1f}x{:.2f}) x {:.1f} = {:.2f}  [{}]".format(
-                        reach_norm, w_reach, ctr_score_t, w_ctr, gc_score_t, w_gc,
-                        penalty_coef_t, score, penalty_label
-                    )
+                impact_parts = []
+                if reach_norm < 33:
+                    impact_parts.append("触达偏低({:.1f})".format(reach_norm))
+                elif reach_norm > 67:
+                    impact_parts.append("触达偏高({:.1f})".format(reach_norm))
+                if ctr_score_t < 33:
+                    impact_parts.append("CTR偏低({:.1f})".format(ctr_score_t))
+                elif ctr_score_t > 67:
+                    impact_parts.append("CTR偏高({:.1f})".format(ctr_score_t))
+                if gc_score_t < 33:
+                    impact_parts.append("GC转化率偏低({:.1f})".format(gc_score_t))
+                elif gc_score_t > 67:
+                    impact_parts.append("GC转化率偏高({:.1f})".format(gc_score_t))
+                impact = " / ".join(impact_parts) if impact_parts else "各项均衡"
+                formula = "({:.1f}x{:.2f} + {:.1f}x{:.2f} + {:.1f}x{:.2f}) x {:.1f} = {:.2f}  [{}]".format(
+                    reach_norm, w_reach, ctr_score_t, w_ctr, gc_score_t, w_gc,
+                    penalty_coef_t, score, penalty_label
                 )
+                tooltip_text = _html.escape(impact + chr(10) + formula)
+
 
                 date_val = getattr(row, '发送日期', None)
                 date_str = str(date_val)[:10] if date_val is not None and not (isinstance(date_val, float) and date_val != date_val) else ""
