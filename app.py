@@ -952,7 +952,7 @@ if uploaded is not None:
                 """)
 
             grid_html = '<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">' + "".join(html_parts) + '</div>'
-            st.markdown(grid_html, unsafe_allow_html=True)
+            st.html(grid_html)
             # ─── 底部翻页 ─────────────────────────────────────────
             pcol1, pcol2, pcol3 = st.columns([1, 2, 1])
             with pcol1:
