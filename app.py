@@ -840,14 +840,7 @@ if uploaded is not None:
             
             cards = list(dff.itertuples())
 
-            # 动态颜色：基于该批次综合评分分布的百分位
-            # Top 33% → 绿，Middle 33% → 灰，Bottom 33% → 红
-            all_scores = [c.综合评分 for c in cards]
-            if len(set(all_scores)) > 2:
-                p33 = float(np.percentile(all_scores, 33))
-                p67 = float(np.percentile(all_scores, 67))
-            else:
-                p33 = p67 = all_scores[0] if all_scores else 0
+            # 固定阈值颜色：>=75 绿，40-75 灰，<40 红
 
             for i in range(0, len(cards), 2):
                 cols = st.columns([1, 1], gap="medium")
@@ -867,9 +860,9 @@ if uploaded is not None:
                         badge_class = "rank-other"
 
                     score = row.综合评分
-                    if score >= p67:
+                    if score >= 75:
                         score_color = "#00A04A"
-                    elif score >= p33:
+                    elif score >= 40:
                         score_color = "#888888"
                     else:
                         score_color = "#DA291C"
