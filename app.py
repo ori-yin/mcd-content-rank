@@ -1224,11 +1224,13 @@ flowchart TD
     J1 --> |触达小于100| J2[系数0.1]
     J1 --> |100到499| J3[系数0.3]
     J1 --> |500到999| J4[系数0.5]
-    J1 --> |1000以上| J5[系数1.0]
+    J1 --> |1000到4999| J5[系数0.8]
+    J1 --> |5000以上| J6[系数1.0]
     J2 --> K[综合评分]
     J3 --> K
     J4 --> K
     J5 --> K
+    J6 --> K
     style K fill:#DA291C,color:#fff,font-weight:bold
     style I fill:#FFC000,color:#000
     style H fill:#FFC000,color:#000
@@ -1274,7 +1276,7 @@ flowchart TD
 </script>
 </body>
 </html>
-""", height=750, scrolling=True)
+""", height=1200, scrolling=False)
 
         with st.expander("阈值与惩戒系数参考", expanded=False):
             st.markdown("""
@@ -1303,7 +1305,8 @@ flowchart TD
       <tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:6px 4px; color:#888;">&lt; 100</td><td style="padding:6px 4px; text-align:right; font-weight:600; color:#DA291C;">× 0.1</td></tr>
       <tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:6px 4px; color:#888;">100 ~ 499</td><td style="padding:6px 4px; text-align:right; font-weight:600; color:#DA291C;">× 0.3</td></tr>
       <tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:6px 4px; color:#888;">500 ~ 999</td><td style="padding:6px 4px; text-align:right; font-weight:600; color:#FFC000;">× 0.5</td></tr>
-      <tr><td style="padding:6px 4px; color:#888;">≥ 1000</td><td style="padding:6px 4px; text-align:right; font-weight:600; color:#00A04A;">× 1.0</td></tr>
+      <tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:6px 4px; color:#888;">1000 ~ 4999</td><td style="padding:6px 4px; text-align:right; font-weight:600; color:#FFC000;">× 0.8</td></tr>
+      <tr><td style="padding:6px 4px; color:#888;">≥ 5000</td><td style="padding:6px 4px; text-align:right; font-weight:600; color:#00A04A;">× 1.0</td></tr>
     </table>
   </div>
 </div>
