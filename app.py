@@ -844,8 +844,9 @@ if uploaded is not None:
             # ─── 分页 ─────────────────────────────────────────────
             PAGE_SIZE = 50
             total_pages = max(1, (len(cards) + PAGE_SIZE - 1) // PAGE_SIZE)
-            page = st.number_input("页码", min_value=1, max_value=total_pages, value=1, step=1,
-                                   help=f"共 {len(cards)} 条，{total_pages} 页")
+            if "card_page" not in st.session_state:
+                st.session_state.card_page = 1
+            page = st.session_state.card_page
             page_cards = cards[(page-1)*PAGE_SIZE : page*PAGE_SIZE]
 
             # ─── 合并渲染：拼成一个 HTML 字符串 ──────────────────────
@@ -950,8 +951,20 @@ if uploaded is not None:
                 </div>
                 """)
 
-            st.markdown("".join(html_parts), unsafe_allow_html=True)
-            st.caption(f"第 {page}/{total_pages} 页，共 {len(cards)} 条")
+            grid_html = '<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">' + "".join(html_parts) + '</div>'
+            st.markdown(grid_html, unsafe_allow_html=True)
+            # ─── 底部翻页 ─────────────────────────────────────────
+            pcol1, pcol2, pcol3 = st.columns([1, 2, 1])
+            with pcol1:
+                if st.button("⬅ 上一页", disabled=(page <= 1)):
+                    st.session_state.card_page = page - 1
+                    st.rerun()
+            with pcol2:
+                st.markdown(f"<div style='text-align:center; color:#888; font-size:13px; padding-top:8px;'>第 {page}/{total_pages} 页，共 {len(cards)} 条</div>", unsafe_allow_html=True)
+            with pcol3:
+                if st.button("下一页 ➡", disabled=(page >= total_pages)):
+                    st.session_state.card_page = page + 1
+                    st.rerun()
 
     with tab2:
         st.markdown('<div class="section-title">综合评分算法说明</div>', unsafe_allow_html=True)
