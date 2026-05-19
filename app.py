@@ -1156,7 +1156,7 @@ if uploaded is not None:
 <!DOCTYPE html>
 <html>
 <head>
-<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+
 <style>
   body { margin: 0; background: #FAFAFA; font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; }
   #wrap {
@@ -1240,7 +1240,16 @@ flowchart TD
   </div>
 </div>
 <script>
-  mermaid.initialize({ startOnLoad: true, theme: 'default', flowchart: { useMaxWidth: true } });
+  function loadMermaid() {
+    var s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
+    s.onload = function() {
+      mermaid.initialize({ startOnLoad: false, theme: 'default', flowchart: { useMaxWidth: true } });
+      mermaid.run({ nodes: document.querySelectorAll('.mermaid') });
+    };
+    document.head.appendChild(s);
+  }
+  loadMermaid();
 
   function toggleFS() {
     var wrap = document.getElementById('wrap');
