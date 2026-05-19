@@ -841,157 +841,118 @@ if uploaded is not None:
             
             cards = list(dff.itertuples())
 
-            # 固定阈值颜色：>=75 绿，40-75 灰，<40 红
+            # ─── 分页 ─────────────────────────────────────────────
+            PAGE_SIZE = 50
+            total_pages = max(1, (len(cards) + PAGE_SIZE - 1) // PAGE_SIZE)
+            page = st.number_input("页码", min_value=1, max_value=total_pages, value=1, step=1,
+                                   help=f"共 {len(cards)} 条，{total_pages} 页")
+            page_cards = cards[(page-1)*PAGE_SIZE : page*PAGE_SIZE]
 
-            for i in range(0, len(cards), 2):
-                cols = st.columns([1, 1], gap="medium")
-                for j, col in enumerate(cols):
-                    idx = i + j
-                    if idx >= len(cards):
-                        break
-                    row = cards[idx]
-                    rank = row.排名
-                    if rank == 1:
-                        badge_class = "rank-1"
-                    elif rank == 2:
-                        badge_class = "rank-2"
-                    elif rank == 3:
-                        badge_class = "rank-3"
-                    else:
-                        badge_class = "rank-other"
+            # ─── 合并渲染：拼成一个 HTML 字符串 ──────────────────────
+            html_parts = []
+            for row in page_cards:
+                rank = row.排名
+                if rank == 1:
+                    badge_class = "rank-1"
+                elif rank == 2:
+                    badge_class = "rank-2"
+                elif rank == 3:
+                    badge_class = "rank-3"
+                else:
+                    badge_class = "rank-other"
 
-                    score = row.综合评分
-                    if score >= 75:
-                        score_color = "#00A04A"
-                    elif score >= 40:
-                        score_color = "#FFC000"
-                    else:
-                        score_color = "#DA291C"
+                score = row.综合评分
+                if score >= 75:
+                    score_color = "#00A04A"
+                elif score >= 40:
+                    score_color = "#FFC000"
+                else:
+                    score_color = "#DA291C"
 
-                    # ---- tooltip：综合评分公式 + 因子诊断 + 触达分段惩戒 ----
-                    reach_raw_t = int(getattr(row, '触达成功', 0))
-                    if reach_raw_t < 100:
-                        penalty_coef_t = 0.1
-                        penalty_label = "置信度低(×0.1)"
-                    elif reach_raw_t < 500:
-                        penalty_coef_t = 0.3
-                        penalty_label = "置信度低(×0.3)"
-                    elif reach_raw_t < 1000:
-                        penalty_coef_t = 0.5
-                        penalty_label = "置信度中(×0.5)"
-                    else:
-                        penalty_coef_t = 1.0
-                        penalty_label = "置信度高(×1.0)"
+                # tooltip
+                reach_raw_t = int(getattr(row, '触达成功', 0) or 0)
+                if reach_raw_t < 100:
+                    penalty_coef_t, penalty_label = 0.1, "置信度低(x0.1)"
+                elif reach_raw_t < 500:
+                    penalty_coef_t, penalty_label = 0.3, "置信度低(x0.3)"
+                elif reach_raw_t < 1000:
+                    penalty_coef_t, penalty_label = 0.5, "置信度中(x0.5)"
+                elif reach_raw_t < 5000:
+                    penalty_coef_t, penalty_label = 0.8, "置信度较高(x0.8)"
+                else:
+                    penalty_coef_t, penalty_label = 1.0, "置信度高(x1.0)"
 
-                    reach_norm = getattr(row, '触达_norm', 0)
-                    ctr_score_t   = getattr(row, 'CTR_score', 0)
-                    gc_score_t   = getattr(row, 'GC_score', 0)
-                    impact_parts = []
-                    if reach_norm < 33:
-                        impact_parts.append("触达偏低({:.1f})".format(reach_norm))
-                    elif reach_norm > 67:
-                        impact_parts.append("触达偏高({:.1f})".format(reach_norm))
-                    if ctr_score_t < 33:
-                        impact_parts.append("CTR偏低({:.1f})".format(ctr_score_t))
-                    elif ctr_score_t > 67:
-                        impact_parts.append("CTR偏高({:.1f})".format(ctr_score_t))
-                    if gc_score_t < 33:
-                        impact_parts.append("GC转化率偏低({:.1f})".format(gc_score_t))
-                    elif gc_score_t > 67:
-                        impact_parts.append("GC转化率偏高({:.1f})".format(gc_score_t))
-                    impact = " / ".join(impact_parts) if impact_parts else "无异常"
-                    base_score_t = reach_norm * w_reach + ctr_score_t * w_ctr + gc_score_t * w_gc
-                    formula = (
-                        "({rN:.1f}×{wR:.2f} + {cN:.1f}×{wC:.2f} + {gN:.1f}×{wG:.2f}) × {pc:.1f}"
-                        "\n= {bs:.2f} × {pc:.1f} = {sc:.2f}  [{lbl}]"
-                    ).format(rN=reach_norm, cN=ctr_score_t, gN=gc_score_t,
-                             wR=w_reach, wC=w_ctr, wG=w_gc,
-                             pc=penalty_coef_t, bs=base_score_t,
-                             sc=score, lbl=penalty_label)
-
-                    tooltip_text = _html.escape(
-                        "{}\n{}".format(impact, formula)
+                reach_norm = getattr(row, '触达_norm', 0)
+                ctr_score_t = getattr(row, 'CTR_score', 0)
+                gc_score_t = getattr(row, 'GC_score', 0)
+                base_score_t = reach_norm * w_reach + ctr_score_t * w_ctr + gc_score_t * w_gc
+                tooltip_text = _html.escape(
+                    "({:.1f}x{:.2f} + {:.1f}x{:.2f} + {:.1f}x{:.2f}) x {:.1f} = {:.2f}  [{}]".format(
+                        reach_norm, w_reach, ctr_score_t, w_ctr, gc_score_t, w_gc,
+                        penalty_coef_t, score, penalty_label
                     )
-                    # --------------------------------------------
+                )
 
-                    with col:
-                        date_val = getattr(row, '发送日期', None)
-                        date_str = str(date_val)[:10] if date_val is not None and pd.notna(date_val) else ""
-                        plan_type_val = getattr(row, '计划类型', None)
-                        plan_type_short = str(plan_type_val) if plan_type_val is not None and pd.notna(plan_type_val) else ""
-                        channel_val = getattr(row, '渠道', None)
-                        channel_short = str(channel_val) if channel_val is not None and pd.notna(channel_val) else ""
-                        owner_short = str(getattr(row, '预算owner', '')) if hasattr(row, '预算owner') else ''
-                        title = str(getattr(row, '标题', '')) if getattr(row, '标题', '') else ''
-                        content = str(getattr(row, '内容', '')) if getattr(row, '内容', '') else ''
+                date_val = getattr(row, '发送日期', None)
+                date_str = str(date_val)[:10] if date_val is not None and not (isinstance(date_val, float) and date_val != date_val) else ""
+                channel_short = str(getattr(row, '渠道', '') or '')
+                owner_short = str(getattr(row, '预算owner', '') or '') if hasattr(row, '预算owner') else ''
+                plan_type_short = str(getattr(row, '计划类型', '') or '')
+                title = str(getattr(row, '标题', '') or '')
+                if not title:
+                    title = str(getattr(row, '消息标题', '') or '')
+                content = str(getattr(row, '内容', '') or '')
 
-                        if not title:
-                            title = str(getattr(row, '消息标题', '')) if getattr(row, '消息标题', '') else ''
+                try: reach = int(getattr(row, '触达成功', 0))
+                except: reach = 0
+                try: clicks_val = int(getattr(row, '点击人次', 0))
+                except: clicks_val = 0
+                try: ctr_val = float(getattr(row, 'CTR', 0))
+                except: ctr_val = 0.0
+                try: gc_val = int(getattr(row, '订单GC', 0))
+                except: gc_val = 0
+                try: sales_val = float(getattr(row, '订单Sales', 0))
+                except: sales_val = 0.0
+                try: gc_rate_val = float(getattr(row, '订单GC转化率', 0))
+                except: gc_rate_val = 0.0
 
-                        # 直接用列名从 namedtuple 取值（安全方式）
-                        try:
-                            reach = int(getattr(row, '触达成功', 0))
-                        except (ValueError, TypeError):
-                            reach = 0
-                        try:
-                            clicks_val = int(getattr(row, '点击人次', 0))
-                        except (ValueError, TypeError):
-                            clicks_val = 0
-                        try:
-                            ctr_val = float(getattr(row, 'CTR', 0))
-                        except (ValueError, TypeError):
-                            ctr_val = 0.0
-                        try:
-                            gc_val = int(getattr(row, '订单GC', 0))
-                        except (ValueError, TypeError):
-                            gc_val = 0
-                        try:
-                            sales_val = float(getattr(row, '订单Sales', 0))
-                        except (ValueError, TypeError):
-                            sales_val = 0.0
-                        try:
-                            gc_rate_val = float(getattr(row, '订单GC转化率', 0))
-                        except (ValueError, TypeError):
-                            gc_rate_val = 0.0
+                channel_avg = channel_avg_score.get(channel_short, 0)
 
-                        # 获取渠道平均评分
-                        channel_avg = channel_avg_score.get(channel_short, 0)
-
-                        st.markdown(f"""
-                        <div class="content-card">
-                          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                            <div style="flex:1;">
-                              <span class="rank-badge {badge_class}">{rank}</span>
-                              <span style="font-size:12px; color:#888; background:#F5F5F5; padding:2px 8px; border-radius:12px;">
-                                {channel_short}
-                              </span>
-                              <span style="font-size:12px; color:#AAA;"> · {owner_short} · {plan_type_short} · {date_str}</span>
-                            </div>
-                            <div>
-                              <div style="display:flex;align-items:flex-start;justify-content:flex-end;gap:0;">
-                                <div class="card-score" style="color:{score_color};">{score:.2f}</div>
-                                <div class="score-info-wrap">
-                                  <span class="info-icon">i</span>
-                                  <div class="score-tooltip">{tooltip_text}</div>
-                                </div>
-                              </div>
-                              <div class="card-score-label">均值 {channel_avg:.2f}</div>
-                            </div>
-                          </div>
-                          <div class="card-title">{title[:80]}{'...' if len(title) > 80 else ''}</div>
-                          <div class="card-content">{content[:200]}{'...' if len(content) > 200 else ''}</div>
-                          <div class="card-meta">
-                            <span>触达 {reach:,}</span>
-                            <span>点击 {clicks_val:,}</span>
-                            <span>CTR {ctr_val:.2f}%</span>
-                            <span>GC {gc_val:,}</span>
-                            <span>Sales {int(sales_val):,}</span>
-                            <span>GC转化率 {gc_rate_val:.2f}%</span>
-                          </div>
+                html_parts.append(f"""
+                <div class="content-card">
+                  <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <div style="flex:1;">
+                      <span class="rank-badge {badge_class}">{rank}</span>
+                      <span style="font-size:12px; color:#888; background:#F5F5F5; padding:2px 8px; border-radius:12px;">{channel_short}</span>
+                      <span style="font-size:12px; color:#AAA;"> · {owner_short} · {plan_type_short} · {date_str}</span>
+                    </div>
+                    <div>
+                      <div style="display:flex;align-items:flex-start;justify-content:flex-end;gap:0;">
+                        <div class="card-score" style="color:{score_color};">{score:.2f}</div>
+                        <div class="score-info-wrap">
+                          <span class="info-icon">i</span>
+                          <div class="score-tooltip">{tooltip_text}</div>
                         </div>
-                        """, unsafe_allow_html=True)
+                      </div>
+                      <div class="card-score-label">均值 {channel_avg:.2f}</div>
+                    </div>
+                  </div>
+                  <div class="card-title">{title[:80]}{'...' if len(title) > 80 else ''}</div>
+                  <div class="card-content">{content[:200]}{'...' if len(content) > 200 else ''}</div>
+                  <div class="card-meta">
+                    <span>触达 {reach:,}</span>
+                    <span>点击 {clicks_val:,}</span>
+                    <span>CTR {ctr_val:.2f}%</span>
+                    <span>GC {gc_val:,}</span>
+                    <span>Sales {int(sales_val):,}</span>
+                    <span>GC转化率 {gc_rate_val:.2f}%</span>
+                  </div>
+                </div>
+                """)
 
-    # ─── Tab 2: 数据表格 ──────────────────────────────────────
+            st.markdown("".join(html_parts), unsafe_allow_html=True)
+            st.caption(f"第 {page}/{total_pages} 页，共 {len(cards)} 条")
+
     with tab2:
         st.markdown('<div class="section-title">综合评分算法说明</div>', unsafe_allow_html=True)
         st.components.v1.html("""
@@ -1256,57 +1217,4 @@ flowchart TD
             else:
                 st.info("当前数据无预算Owner维度")
 
-            if "触达成功" in dff.columns and "订单Sales" in dff.columns and "CTR" in dff.columns:
-                title_col = "标题" if "标题" in dff.columns else "消息标题"
-
-                # 预格式化hover显示列（用于hover_name和customdata）
-                dff_h = dff.copy()
-                dff_h["_触达_h"] = dff_h["触达成功"].apply(
-                    lambda v: f"{v/1000:.1f}k" if abs(v) >= 1000 else f"{v:.1f}"
-                )
-                dff_h["_Sales_h"] = dff_h["订单Sales"].apply(
-                    lambda v: f"{v/1000:.1f}k" if abs(v) >= 1000 else f"{v:.1f}"
-                )
-                dff_h["_CTR_h"] = dff_h["CTR"].apply(lambda v: f"{v:.2f}%")
-
-                # customdata顺序: 0=触达, 1=Sales, 2=CTR, 3=BU(可选)
-                cd = ["_触达_h", "_Sales_h", "_CTR_h"]
-                h_parts = [
-                    "<b>%{hovertext}</b>",
-                    "%{customdata[0]} 触达",
-                    "%{customdata[1]} 订单",
-                    "%{customdata[2]} CTR"
-                ]
-                if owner_col and owner_col in dff_h.columns:
-                    dff_h["_BU_h"] = dff_h[owner_col].fillna("").astype(str)
-                    cd.append("_BU_h")
-                    h_parts.append("%{customdata[3]}")
-
-                h_template = "<br>".join(h_parts) + "<extra></extra>"
-
-                hover_data_dict = {
-                    "触达成功": False, "订单Sales": False, "CTR": False,
-                    "_触达_h": False, "_Sales_h": False, "_CTR_h": False,
-                }
-                if "_BU_h" in dff_h.columns:
-                    hover_data_dict["_BU_h"] = False
-                fig_scatter = px.scatter(
-                    dff_h,
-                    x="触达成功", y="订单Sales",
-                    custom_data=cd,
-                    hover_name=title_col,
-                    hover_data=hover_data_dict
-                )
-                fig_scatter.update_traces(
-                    hovertemplate=h_template,
-                    marker=dict(size=14, color=MCD_RED, opacity=0.75, line=dict(width=0))
-                )
-                fig_scatter.update_layout(
-                    template="plotly_white",
-                    height=450,
-                    showlegend=False,
-                    xaxis_title="",
-                    yaxis_title=""
-                )
-                st.plotly_chart(fig_scatter, use_container_width=True)
 
