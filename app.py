@@ -667,6 +667,8 @@ if uploaded is not None:
             return 0.3
         elif reach_raw < 1000:
             return 0.5
+        elif reach_raw < 5000:
+            return 0.8
         else:
             return 1.0
 
@@ -1233,16 +1235,19 @@ flowchart TD
   </div>
 </div>
 <script>
-  function loadMermaid() {
-    var s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
-    s.onload = function() {
+  function renderMermaid() {
+    if (typeof mermaid !== 'undefined') {
       mermaid.initialize({ startOnLoad: false, theme: 'default', flowchart: { useMaxWidth: true } });
       mermaid.run({ nodes: document.querySelectorAll('.mermaid') });
-    };
-    document.head.appendChild(s);
+    } else {
+      setTimeout(renderMermaid, 100);
+    }
   }
-  loadMermaid();
+  var _s = document.createElement('script');
+  _s.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
+  _s.onload = renderMermaid;
+  _s.onerror = function() { setTimeout(renderMermaid, 300); };
+  document.head.appendChild(_s);
 
   function toggleFS() {
     var wrap = document.getElementById('wrap');
