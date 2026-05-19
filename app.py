@@ -833,7 +833,7 @@ if uploaded is not None:
     col4.metric("平均 CTR", f"{avg_ctr:.2f}%")
 
     # ─── Tab 切换 ─────────────────────────────────────────────
-    tab1, tab2, tab3, tab4 = st.tabs(["卡片排行榜", "数据表格", "可视化图表", "算法说明"])
+    tab1, tab2, tab3, tab4 = st.tabs(["卡片排行榜", "算法说明", "数据表格", "可视化图表"])
 
     with tab1:
         if total_rows == 0:
@@ -994,158 +994,6 @@ if uploaded is not None:
 
     # ─── Tab 2: 数据表格 ──────────────────────────────────────
     with tab2:
-        title_col = "标题" if "标题" in dff.columns else "消息标题"
-        owner_c = owner_col if owner_col in dff.columns else None
-        display_cols = ["排名", title_col, "内容", "计划类型", "渠道",
-                         date_col, owner_c,
-                         "触达成功", "点击人次", "CTR", "订单GC", "订单Sales", "订单GC转化率", "综合评分"]
-        display_cols = [c for c in display_cols if c is not None]
-        available = [c for c in display_cols if c in dff.columns]
-        # 格式化副本：CTR加%号、订单Sales变整数
-        disp_df = dff[available].copy()
-        if 'CTR' in disp_df.columns:
-            disp_df['CTR'] = disp_df['CTR'].apply(lambda x: f"{x:.2f}%")
-        if '订单Sales' in disp_df.columns:
-            disp_df['订单Sales'] = disp_df['订单Sales'].apply(lambda x: int(x) if pd.notna(x) else '')
-        st.dataframe(
-            disp_df,
-            use_container_width=True,
-            hide_index=True,
-            height=600
-        )
-        csv_out = disp_df.to_csv(index=False, encoding="utf-8-sig")
-        st.download_button(
-            "📥 下载排行榜 CSV",
-            csv_out,
-            "麦当劳内容排行榜.csv",
-            "text/csv",
-            use_container_width=True
-        )
-
-    # ─── Tab 3: 可视化图表 ───────────────────────────────────
-    with tab3:
-        # 图表辅助函数
-        def _fmt_num(x):
-            if abs(x) >= 1_000_000:
-                return f"{x/1_000_000:.1f}M"
-            elif abs(x) >= 1000:
-                return f"{x/1000:.1f}k"
-            else:
-                return f"{x:.2f}"
-
-        def _bar_line_chart(df_grp, dim_name, dim_label, num_days):
-            agg = df_grp.groupby(dim_name).agg(
-                触达量=("触达成功", "sum"),
-                点击人次=("点击人次", "sum")
-            ).reset_index()
-            agg["日均触达量"] = (agg["触达量"] / num_days).round(2)
-            agg["CTR"] = (agg["点击人次"] / agg["触达量"] * 100).round(2)
-            agg["CTR"] = agg["CTR"].fillna(0).replace([float("inf"), -float("inf")], 0)
-            agg = agg.sort_values("触达量", ascending=False)
-            from plotly.subplots import make_subplots
-            fig = make_subplots(specs=[[{"secondary_y": True}]])
-            fig.add_trace(go.Bar(
-                x=agg[dim_name], y=agg["日均触达量"],
-                name="日均触达量", marker_color=MCD_RED, opacity=0.85,
-                text=agg["日均触达量"].apply(_fmt_num), textposition="outside"
-            ), secondary_y=False)
-            fig.add_trace(go.Scatter(
-                x=agg[dim_name], y=agg["CTR"],
-                name="CTR (%)", mode="lines+markers+text",
-                line=dict(color="#FFC000", width=3),
-                marker=dict(size=10, color="#FFC000"),
-                text=agg["CTR"].apply(lambda x: f"{x:.2f}%"),
-                textposition="top center",
-                textfont=dict(color="#FFC000", size=12, family="PingFang SC, Microsoft YaHei, sans-serif")
-            ), secondary_y=True)
-            ctr_max = agg["CTR"].max() * 1.5
-            fig.update_layout(
-                template="plotly_white", height=400,
-                showlegend=True,
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                margin=dict(t=60, b=20),
-                xaxis_title=""
-            )
-            fig.update_yaxes(title_text="日均触达量", secondary_y=False, showgrid=False)
-            fig.update_yaxes(title_text="CTR (%)", secondary_y=True, range=[0, max(ctr_max, 1)], showgrid=False)
-            fig.update_xaxes(showgrid=False)
-            fig.update_xaxes(title_text=dim_label, tickangle=-20)
-            return fig
-
-        if total_rows == 0:
-            st.warning("当前筛选条件下无数据")
-        else:
-            if date_range and isinstance(date_range, (list, tuple)) and len(date_range) == 2:
-                start_dt, end_dt = date_range
-                num_days = max((end_dt - start_dt).days, 1)
-            else:
-                num_days = 1
-
-            if "渠道" in dff.columns and dff["渠道"].notna().sum() > 0:
-                st.plotly_chart(_bar_line_chart(dff, "渠道", "", num_days), use_container_width=True)
-            else:
-                st.info("当前数据无渠道维度")
-
-            if owner_col in dff.columns and dff[owner_col].notna().sum() > 0:
-                st.plotly_chart(_bar_line_chart(dff, owner_col, "", num_days), use_container_width=True)
-            else:
-                st.info("当前数据无预算Owner维度")
-
-            if "触达成功" in dff.columns and "订单Sales" in dff.columns and "CTR" in dff.columns:
-                title_col = "标题" if "标题" in dff.columns else "消息标题"
-
-                # 预格式化hover显示列（用于hover_name和customdata）
-                dff_h = dff.copy()
-                dff_h["_触达_h"] = dff_h["触达成功"].apply(
-                    lambda v: f"{v/1000:.1f}k" if abs(v) >= 1000 else f"{v:.1f}"
-                )
-                dff_h["_Sales_h"] = dff_h["订单Sales"].apply(
-                    lambda v: f"{v/1000:.1f}k" if abs(v) >= 1000 else f"{v:.1f}"
-                )
-                dff_h["_CTR_h"] = dff_h["CTR"].apply(lambda v: f"{v:.2f}%")
-
-                # customdata顺序: 0=触达, 1=Sales, 2=CTR, 3=BU(可选)
-                cd = ["_触达_h", "_Sales_h", "_CTR_h"]
-                h_parts = [
-                    "<b>%{hovertext}</b>",
-                    "%{customdata[0]} 触达",
-                    "%{customdata[1]} 订单",
-                    "%{customdata[2]} CTR"
-                ]
-                if owner_col and owner_col in dff_h.columns:
-                    dff_h["_BU_h"] = dff_h[owner_col].fillna("").astype(str)
-                    cd.append("_BU_h")
-                    h_parts.append("%{customdata[3]}")
-
-                h_template = "<br>".join(h_parts) + "<extra></extra>"
-
-                hover_data_dict = {
-                    "触达成功": False, "订单Sales": False, "CTR": False,
-                    "_触达_h": False, "_Sales_h": False, "_CTR_h": False,
-                }
-                if "_BU_h" in dff_h.columns:
-                    hover_data_dict["_BU_h"] = False
-                fig_scatter = px.scatter(
-                    dff_h,
-                    x="触达成功", y="订单Sales",
-                    custom_data=cd,
-                    hover_name=title_col,
-                    hover_data=hover_data_dict
-                )
-                fig_scatter.update_traces(
-                    hovertemplate=h_template,
-                    marker=dict(size=14, color=MCD_RED, opacity=0.75, line=dict(width=0))
-                )
-                fig_scatter.update_layout(
-                    template="plotly_white",
-                    height=450,
-                    showlegend=False,
-                    xaxis_title="",
-                    yaxis_title=""
-                )
-                st.plotly_chart(fig_scatter, use_container_width=True)
-
-    with tab4:
         st.markdown('<div class="section-title">综合评分算法说明</div>', unsafe_allow_html=True)
         st.components.v1.html("""
 <!DOCTYPE html>
@@ -1311,3 +1159,155 @@ flowchart TD
   </div>
 </div>
 """, unsafe_allow_html=True)
+    with tab3:
+        title_col = "标题" if "标题" in dff.columns else "消息标题"
+        owner_c = owner_col if owner_col in dff.columns else None
+        display_cols = ["排名", title_col, "内容", "计划类型", "渠道",
+                         date_col, owner_c,
+                         "触达成功", "点击人次", "CTR", "订单GC", "订单Sales", "订单GC转化率", "综合评分"]
+        display_cols = [c for c in display_cols if c is not None]
+        available = [c for c in display_cols if c in dff.columns]
+        # 格式化副本：CTR加%号、订单Sales变整数
+        disp_df = dff[available].copy()
+        if 'CTR' in disp_df.columns:
+            disp_df['CTR'] = disp_df['CTR'].apply(lambda x: f"{x:.2f}%")
+        if '订单Sales' in disp_df.columns:
+            disp_df['订单Sales'] = disp_df['订单Sales'].apply(lambda x: int(x) if pd.notna(x) else '')
+        st.dataframe(
+            disp_df,
+            use_container_width=True,
+            hide_index=True,
+            height=600
+        )
+        csv_out = disp_df.to_csv(index=False, encoding="utf-8-sig")
+        st.download_button(
+            "📥 下载排行榜 CSV",
+            csv_out,
+            "麦当劳内容排行榜.csv",
+            "text/csv",
+            use_container_width=True
+        )
+
+    # ─── Tab 3: 可视化图表 ───────────────────────────────────
+    with tab4:
+        # 图表辅助函数
+        def _fmt_num(x):
+            if abs(x) >= 1_000_000:
+                return f"{x/1_000_000:.1f}M"
+            elif abs(x) >= 1000:
+                return f"{x/1000:.1f}k"
+            else:
+                return f"{x:.2f}"
+
+        def _bar_line_chart(df_grp, dim_name, dim_label, num_days):
+            agg = df_grp.groupby(dim_name).agg(
+                触达量=("触达成功", "sum"),
+                点击人次=("点击人次", "sum")
+            ).reset_index()
+            agg["日均触达量"] = (agg["触达量"] / num_days).round(2)
+            agg["CTR"] = (agg["点击人次"] / agg["触达量"] * 100).round(2)
+            agg["CTR"] = agg["CTR"].fillna(0).replace([float("inf"), -float("inf")], 0)
+            agg = agg.sort_values("触达量", ascending=False)
+            from plotly.subplots import make_subplots
+            fig = make_subplots(specs=[[{"secondary_y": True}]])
+            fig.add_trace(go.Bar(
+                x=agg[dim_name], y=agg["日均触达量"],
+                name="日均触达量", marker_color=MCD_RED, opacity=0.85,
+                text=agg["日均触达量"].apply(_fmt_num), textposition="outside"
+            ), secondary_y=False)
+            fig.add_trace(go.Scatter(
+                x=agg[dim_name], y=agg["CTR"],
+                name="CTR (%)", mode="lines+markers+text",
+                line=dict(color="#FFC000", width=3),
+                marker=dict(size=10, color="#FFC000"),
+                text=agg["CTR"].apply(lambda x: f"{x:.2f}%"),
+                textposition="top center",
+                textfont=dict(color="#FFC000", size=12, family="PingFang SC, Microsoft YaHei, sans-serif")
+            ), secondary_y=True)
+            ctr_max = agg["CTR"].max() * 1.5
+            fig.update_layout(
+                template="plotly_white", height=400,
+                showlegend=True,
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                margin=dict(t=60, b=20),
+                xaxis_title=""
+            )
+            fig.update_yaxes(title_text="日均触达量", secondary_y=False, showgrid=False)
+            fig.update_yaxes(title_text="CTR (%)", secondary_y=True, range=[0, max(ctr_max, 1)], showgrid=False)
+            fig.update_xaxes(showgrid=False)
+            fig.update_xaxes(title_text=dim_label, tickangle=-20)
+            return fig
+
+        if total_rows == 0:
+            st.warning("当前筛选条件下无数据")
+        else:
+            if date_range and isinstance(date_range, (list, tuple)) and len(date_range) == 2:
+                start_dt, end_dt = date_range
+                num_days = max((end_dt - start_dt).days, 1)
+            else:
+                num_days = 1
+
+            if "渠道" in dff.columns and dff["渠道"].notna().sum() > 0:
+                st.plotly_chart(_bar_line_chart(dff, "渠道", "", num_days), use_container_width=True)
+            else:
+                st.info("当前数据无渠道维度")
+
+            if owner_col in dff.columns and dff[owner_col].notna().sum() > 0:
+                st.plotly_chart(_bar_line_chart(dff, owner_col, "", num_days), use_container_width=True)
+            else:
+                st.info("当前数据无预算Owner维度")
+
+            if "触达成功" in dff.columns and "订单Sales" in dff.columns and "CTR" in dff.columns:
+                title_col = "标题" if "标题" in dff.columns else "消息标题"
+
+                # 预格式化hover显示列（用于hover_name和customdata）
+                dff_h = dff.copy()
+                dff_h["_触达_h"] = dff_h["触达成功"].apply(
+                    lambda v: f"{v/1000:.1f}k" if abs(v) >= 1000 else f"{v:.1f}"
+                )
+                dff_h["_Sales_h"] = dff_h["订单Sales"].apply(
+                    lambda v: f"{v/1000:.1f}k" if abs(v) >= 1000 else f"{v:.1f}"
+                )
+                dff_h["_CTR_h"] = dff_h["CTR"].apply(lambda v: f"{v:.2f}%")
+
+                # customdata顺序: 0=触达, 1=Sales, 2=CTR, 3=BU(可选)
+                cd = ["_触达_h", "_Sales_h", "_CTR_h"]
+                h_parts = [
+                    "<b>%{hovertext}</b>",
+                    "%{customdata[0]} 触达",
+                    "%{customdata[1]} 订单",
+                    "%{customdata[2]} CTR"
+                ]
+                if owner_col and owner_col in dff_h.columns:
+                    dff_h["_BU_h"] = dff_h[owner_col].fillna("").astype(str)
+                    cd.append("_BU_h")
+                    h_parts.append("%{customdata[3]}")
+
+                h_template = "<br>".join(h_parts) + "<extra></extra>"
+
+                hover_data_dict = {
+                    "触达成功": False, "订单Sales": False, "CTR": False,
+                    "_触达_h": False, "_Sales_h": False, "_CTR_h": False,
+                }
+                if "_BU_h" in dff_h.columns:
+                    hover_data_dict["_BU_h"] = False
+                fig_scatter = px.scatter(
+                    dff_h,
+                    x="触达成功", y="订单Sales",
+                    custom_data=cd,
+                    hover_name=title_col,
+                    hover_data=hover_data_dict
+                )
+                fig_scatter.update_traces(
+                    hovertemplate=h_template,
+                    marker=dict(size=14, color=MCD_RED, opacity=0.75, line=dict(width=0))
+                )
+                fig_scatter.update_layout(
+                    template="plotly_white",
+                    height=450,
+                    showlegend=False,
+                    xaxis_title="",
+                    yaxis_title=""
+                )
+                st.plotly_chart(fig_scatter, use_container_width=True)
+
