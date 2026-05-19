@@ -7,3 +7,6 @@ env/
 *.egg-info/
 dist/
 build/
+*.csv
+.DS_Store
+fix_*.py
