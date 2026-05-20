@@ -606,7 +606,7 @@ def clean_raw_csv(uploaded_file) -> pd.DataFrame:
 # ═══════════════════════════════════════════════════════════════
 
 # ─── 文件上传 + 清洗模式选择 ────────────────────────────────────
-with st.expander("数据源", expanded=False):
+with st.expander("数据源", expanded=(st.session_state.get("last_file_id") is None)):
     col_left, col_right = st.columns([1, 1])
     with col_left:
         mode = st.radio(
