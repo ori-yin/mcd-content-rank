@@ -5,8 +5,6 @@ import html as _html
 import streamlit_mermaid as stmd
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
 import json
 import re
 import numpy as np
@@ -23,8 +21,8 @@ st.set_page_config(
 # ═══════════════════════════════════════════════════════════════
 # Section 0: CTR/GC 分段函数阈值配置
 #   - Q3 阈值 = 75th percentile，来自全量数据统计
-#   - amp 校准：使 Q3 得分 = 100
-#   - 公式: G < C → score = amp × 100 × (G/C)^EXP; G >= C → score = amp × 100 (EXP=1.5)
+#   - 校准：使 Q3 得分 = 100
+#   - 公式: G < C → score = × 100 × (G/C)^EXP; G >= C → score = × 100 (EXP=1.5)
 # ═══════════════════════════════════════════════════════════════
 
 # CTR 阈值配置 (单位: 百分比%，如 0.31 = 0.31% CTR)
@@ -756,7 +754,7 @@ if uploaded is not None:
     # 注：触达_norm 已在全局计算，CTR_norm 和 订单GC转化率_norm 需在筛选后按渠道分层计算
 
     # ─── 应用筛选 ─────────────────────────────────────────────
-    dff = df.copy()
+    dff = df
 
     if date_range is not None:
         if isinstance(date_range, (list, tuple)) and len(date_range) == 2:
@@ -788,8 +786,8 @@ if uploaded is not None:
             mask |= dff["内容"].astype(str).str.lower().str.contains(kw, na=False)
         dff = dff[mask]
 
-    # ─── 分段评分（CTR/GC 按渠道 Q3 阈值 + amp 校准）───────────────────
-    # CTR_score 和 GC_score 范围: 0 ~ 100+，饱和在 amp×100（各渠道 Q3 = 100）
+    # ─── 分段评分（CTR/GC 按渠道 Q3 阈值 + 校准）───────────────────
+    # CTR_score 和 GC_score 范围: 0 ~ 100+，饱和在 100（各渠道 Q3 = 100）
     def get_channel_score(G_raw, channel, threshold_map, threshold_unknown):
         ch = str(channel) if channel is not None else "未知渠道"
         threshold = threshold_map.get(ch, threshold_unknown)
