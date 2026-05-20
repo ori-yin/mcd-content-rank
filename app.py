@@ -675,14 +675,7 @@ if uploaded is not None:
     ).astype(float)
 
     # --- 计算分渠道平均综合评分（基于全量数据，不受筛选影响）----------------------
-    channel_avg_score = {}
-    if "渠道" in df.columns:
-        for ch in df["渠道"].dropna().unique():
-            ch_df = df[df["渠道"] == ch]
-            if len(ch_df) > 0:
-                channel_avg_score[ch] = ch_df["综合评分_full"].mean()
-            else:
-                channel_avg_score[ch] = 0.0
+    channel_avg_score = df.groupby("渠道")["综合评分_full"].mean().to_dict() if "渠道" in df.columns else {}
     # 注：CTR_norm 和 订单GC转化率_norm 在筛选后按渠道分层计算，此处不预先计算
 
     # ─── 侧边筛选 ─────────────────────────────────────────────
