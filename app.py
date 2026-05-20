@@ -661,19 +661,6 @@ if uploaded is not None:
 
     # --- 计算全量数据的综合评分（用于渠道均值，不受筛选影响）----------------------
 
-    # 触达分段惩戒系数（触达量越小折扣越大，归一化后应用）
-    def penalty_coef_from_reach(reach_raw):
-        """触达量不足的降权：触达量越小折扣越大（归一化后应用）"""
-        if reach_raw < 100:
-            return 0.1
-        elif reach_raw < 500:
-            return 0.3
-        elif reach_raw < 1000:
-            return 0.5
-        elif reach_raw < 5000:
-            return 0.8
-        else:
-            return 1.0
 
     _ctr_thresh = df["渠道"].astype(str).map(CTR_THRESHOLDS).fillna(CTR_UNKNOWN_THRESHOLD)
     df["CTR_score_full"] = piecewise_score_vec(df["CTR"], _ctr_thresh)
@@ -731,7 +718,7 @@ if uploaded is not None:
 
         keyword = st.text_input("搜索关键词", "")
 
-                # ─── 权重配置（折叠）─────────────────────────────────────
+        # ─── 权重配置（折叠）─────────────────────────────────────
         st.markdown("**权重**")
         with st.expander("权重配置", expanded=False):
             w_reach = st.slider("触达权重", 0.0, 1.0, 0.20, 0.05)
@@ -788,10 +775,6 @@ if uploaded is not None:
 
     # ─── 分段评分（CTR/GC 按渠道 Q3 阈值 + 校准）───────────────────
     # CTR_score 和 GC_score 范围: 0 ~ 100+，饱和在 100（各渠道 Q3 = 100）
-    def get_channel_score(G_raw, channel, threshold_map, threshold_unknown):
-        ch = str(channel) if channel is not None else "未知渠道"
-        threshold = threshold_map.get(ch, threshold_unknown)
-        return piecewise_score(G_raw, threshold)
 
     _dff_ctr_thresh = dff["渠道"].astype(str).map(CTR_THRESHOLDS).fillna(CTR_UNKNOWN_THRESHOLD)
     dff["CTR_score"] = piecewise_score_vec(dff["CTR"], _dff_ctr_thresh)
