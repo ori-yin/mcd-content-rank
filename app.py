@@ -1037,36 +1037,16 @@ if uploaded is not None:
   <button id="btn-fs" onclick="toggleFS()">⛶ 全屏</button>
   <div id="diagram" class="mermaid">
 flowchart TD
-    A["原始数据"] --> B["计算衍生指标"]
-    B --> C["CTR: 点击人次 / 触达成功"]
-    B --> D["GC转化率: 订单GC / 点击人次"]
-    C --> E["CTR分"]
-    D --> F["GC分"]
-    A --> G["触达分: 幂次归一化"]
-    E --> E1{"CTR 低于渠道Q3?"}
-    E1 -->|是| E2["100 x CTR/Q3 ^ 1.5"]
-    E1 -->|否| E3["100分 饱和"]
-    F --> F1{"GC率 低于渠道Q3?"}
-    F1 -->|是| F2["100 x GC率/Q3 ^ 1.5"]
-    F1 -->|否| F3["100分 饱和"]
-    G --> H["加权求和"]
-    E2 --> H
-    E3 --> H
-    F2 --> H
-    F3 --> H
-    H --> I["base: 触达x0.2 + CTRx0.5 + GCx0.3"]
-    I --> J["置信度惩戒"]
-    J --> J1{"触达量?"}
-    J1 -->|小于100| J2["x 0.1"]
-    J1 -->|100-499| J3["x 0.3"]
-    J1 -->|500-999| J4["x 0.5"]
-    J1 -->|1000-4999| J5["x 0.8"]
-    J1 -->|5000以上| J6["x 1.0"]
-    J2 --> K["综合评分"]
-    J3 --> K
-    J4 --> K
-    J5 --> K
-    J6 --> K
+    A[原始数据] --> B[计算衍生指标]
+    B --> C[CTR分]
+    B --> D[GC转化率分]
+    A --> G[触达分]
+    C --> H[加权求和]
+    D --> H
+    G --> H
+    H --> I[基础分]
+    I --> J[置信度惩戒]
+    J --> K[综合评分]
     style K fill:#DA291C,color:#fff,font-weight:bold
     style I fill:#FFC000,color:#000
     style H fill:#FFC000,color:#000
