@@ -11,7 +11,6 @@ import re
 import numpy as np
 from datetime import datetime, timedelta
 from io import BytesIO
-import streamlit_mermaid as stmd
 
 st.set_page_config(
     page_title="麦当劳内容排行榜",
