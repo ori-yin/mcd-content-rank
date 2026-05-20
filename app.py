@@ -2,6 +2,7 @@
 app.py - 麦当劳内容排行榜
 """
 import html as _html
+import streamlit_mermaid as stmd
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -983,94 +984,74 @@ if uploaded is not None:
 
     with tab2:
         st.markdown('<div class="section-title">综合评分算法说明</div>', unsafe_allow_html=True)
+        stmd.st_mermaid("""
+flowchart TD
+    A[原始数据] --> B[计算衍生指标]
+    B --> C["CTR分 CTR_score"]
+    B --> D["GC分 GC_score"]
+    A --> G["触达分 = (触达/最大触达)^0.3 x 100"]
+    C --> E1{"CTR < 渠道Q3?"}
+    E1 -->|是| E2["100 x (CTR/Q3)^1.5"]
+    E1 -->|否| E3["100 饱和"]
+    D --> F1{"GC率 < 渠道Q3?"}
+    F1 -->|是| F2["100 x (GC率/Q3)^1.5"]
+    F1 -->|否| F3["100 饱和"]
+    G --> H["加权求和"]
+    E2 --> H
+    E3 --> H
+    F2 --> H
+    F3 --> H
+    H --> I["base = 触达 x0.2 + CTR x0.5 + GC x0.3"]
+    I --> J["置信度惩戒"]
+    J --> J1{"触达量"}
+    J1 -->|"< 100"| J2["x 0.1"]
+    J1 -->|"100~499"| J3["x 0.3"]
+    J1 -->|"500~999"| J4["x 0.5"]
+    J1 -->|"1000~4999"| J5["x 0.8"]
+    J1 -->|">=5000"| J6["x 1.0"]
+    J2 --> K["综合评分"]
+    J3 --> K
+    J4 --> K
+    J5 --> K
+    J6 --> K
+    style K fill:#DA291C,color:#fff,font-weight:bold
+    style I fill:#FFC000,color:#000
+    style H fill:#FFC000,color:#000
+""", height=650)
 
-        st.html("""
-<style>
-  .algo-wrap { font-family: 'PingFang SC','Microsoft YaHei',sans-serif; padding: 20px; }
-  .algo-flow { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:8px; margin:20px 0; }
-  .algo-node { background:#fff; border:2px solid #EFEFEF; border-radius:12px; padding:12px 18px; font-size:13px; font-weight:600; color:#333; box-shadow:0 2px 8px rgba(0,0,0,0.04); text-align:center; min-width:80px; }
-  .algo-node-red { background:#DA291C; color:#fff; border-color:#DA291C; }
-  .algo-node-gold { background:#FFC000; color:#000; border-color:#FFC000; }
-  .algo-arrow { font-size:20px; color:#CCC; }
-  .algo-section { margin:24px 0 12px 0; font-size:14px; font-weight:700; color:#DA291C; border-bottom:2px solid #DA291C; padding-bottom:6px; }
-  .algo-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin:16px 0; }
-  .algo-card { background:#fff; border:1px solid #EFEFEF; border-radius:12px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,0.04); }
-  .algo-card h4 { margin:0 0 8px 0; font-size:13px; color:#DA291C; }
-  .algo-card p { margin:4px 0; font-size:12px; color:#555; line-height:1.6; }
-  .algo-card code { background:#F5F5F5; padding:2px 6px; border-radius:4px; font-size:11px; }
-  .algo-table { width:100%; border-collapse:collapse; font-size:12px; margin-top:8px; }
-  .algo-table th { background:#DA291C; color:#fff; padding:8px 12px; text-align:left; font-weight:600; }
-  .algo-table td { padding:8px 12px; border-bottom:1px solid #F0F0F0; color:#333; }
-  .algo-table tr:hover { background:#FFF8F0; }
-</style>
-<div class="algo-wrap">
-  <div class="algo-flow">
-    <div class="algo-node">原始数据</div>
-    <div class="algo-arrow">→</div>
-    <div class="algo-node">触达分</div>
-    <div class="algo-arrow">+</div>
-    <div class="algo-node">CTR分</div>
-    <div class="algo-arrow">+</div>
-    <div class="algo-node">GC转化率分</div>
-    <div class="algo-arrow">→</div>
-    <div class="algo-node algo-node-gold">加权求和</div>
-    <div class="algo-arrow">×</div>
-    <div class="algo-node">置信度系数</div>
-    <div class="algo-arrow">→</div>
-    <div class="algo-node algo-node-red">综合评分</div>
+        with st.expander("阈值与惩戒系数参考", expanded=False):
+            st.markdown("""
+<div style="display:flex; gap:16px; flex-wrap:wrap; margin-top:8px;">
+  <div style="flex:1; min-width:180px; background:#fff; border:1px solid #EFEFEF; border-radius:12px; padding:16px 20px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+    <div style="font-size:12px; font-weight:700; color:#DA291C; letter-spacing:0.04em; text-transform:uppercase; margin-bottom:10px;">渠道 CTR Q3 阈值</div>
+    <table style="width:100%; border-collapse:collapse; font-size:13px;">
+      <tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:6px 4px; color:#888;">APP Push</td><td style="padding:6px 4px; text-align:right; font-weight:600;">0.31%</td></tr>
+      <tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:6px 4px; color:#888;">企微1v1</td><td style="padding:6px 4px; text-align:right; font-weight:600;">2.62%</td></tr>
+      <tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:6px 4px; color:#888;">小程序订阅消息</td><td style="padding:6px 4px; text-align:right; font-weight:600;">4.01%</td></tr>
+      <tr><td style="padding:6px 4px; color:#888;">短信</td><td style="padding:6px 4px; text-align:right; font-weight:600;">0.53%</td></tr>
+    </table>
   </div>
-
-  <div class="algo-section">三项分数计算</div>
-  <div class="algo-grid">
-    <div class="algo-card">
-      <h4>触达分</h4>
-      <p>幂次压缩归一化</p>
-      <p><code>(触达成功 / 全量最大触达)^0.3 × 100</code></p>
-      <p>范围：0 ~ 100</p>
-    </div>
-    <div class="algo-card">
-      <h4>CTR 分</h4>
-      <p>以各渠道 Q3 为基准</p>
-      <p>CTR ≥ Q3 → <code>100分</code></p>
-      <p>CTR &lt; Q3 → <code>100 × (CTR/Q3)^1.5</code></p>
-    </div>
-    <div class="algo-card">
-      <h4>GC转化率分</h4>
-      <p>以各渠道 Q3 为基准</p>
-      <p>GC率 ≥ Q3 → <code>100分</code></p>
-      <p>GC率 &lt; Q3 → <code>100 × (GC率/Q3)^1.5</code></p>
-    </div>
+  <div style="flex:1; min-width:180px; background:#fff; border:1px solid #EFEFEF; border-radius:12px; padding:16px 20px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+    <div style="font-size:12px; font-weight:700; color:#DA291C; letter-spacing:0.04em; text-transform:uppercase; margin-bottom:10px;">渠道 GC转化率 Q3 阈值</div>
+    <table style="width:100%; border-collapse:collapse; font-size:13px;">
+      <tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:6px 4px; color:#888;">APP Push</td><td style="padding:6px 4px; text-align:right; font-weight:600;">69.5%</td></tr>
+      <tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:6px 4px; color:#888;">企微1v1</td><td style="padding:6px 4px; text-align:right; font-weight:600;">18.5%</td></tr>
+      <tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:6px 4px; color:#888;">小程序订阅消息</td><td style="padding:6px 4px; text-align:right; font-weight:600;">41.0%</td></tr>
+      <tr><td style="padding:6px 4px; color:#888;">短信</td><td style="padding:6px 4px; text-align:right; font-weight:600;">26.7%</td></tr>
+    </table>
   </div>
-
-  <div class="algo-section">渠道 Q3 阈值</div>
-  <table class="algo-table">
-    <tr><th>渠道</th><th>CTR Q3</th><th>GC转化率 Q3</th></tr>
-    <tr><td>APP Push</td><td>0.31%</td><td>69.5%</td></tr>
-    <tr><td>企微1v1</td><td>2.62%</td><td>18.5%</td></tr>
-    <tr><td>微信小程序订阅消息</td><td>4.01%</td><td>41.0%</td></tr>
-    <tr><td>短信</td><td>0.53%</td><td>26.7%</td></tr>
-  </table>
-
-  <div class="algo-section">置信度惩戒系数</div>
-  <table class="algo-table">
-    <tr><th>触达量</th><th>系数</th><th>说明</th></tr>
-    <tr><td>&lt; 100</td><td>× 0.1</td><td>极低置信度</td></tr>
-    <tr><td>100 ~ 499</td><td>× 0.3</td><td>低置信度</td></tr>
-    <tr><td>500 ~ 999</td><td>× 0.5</td><td>中置信度</td></tr>
-    <tr><td>1000 ~ 4999</td><td>× 0.8</td><td>较高置信度</td></tr>
-    <tr><td>≥ 5000</td><td>× 1.0</td><td>高置信度</td></tr>
-  </table>
-
-  <div class="algo-section">默认权重</div>
-  <table class="algo-table">
-    <tr><th>分项</th><th>权重</th></tr>
-    <tr><td>触达分</td><td>20%</td></tr>
-    <tr><td>CTR 分</td><td>50%</td></tr>
-    <tr><td>GC转化率分</td><td>30%</td></tr>
-  </table>
-  <p style="font-size:11px; color:#999; margin-top:12px;">权重可在侧边栏「权重配置」中调整，调整后自动归一化。</p>
+  <div style="flex:1; min-width:180px; background:#fff; border:1px solid #EFEFEF; border-radius:12px; padding:16px 20px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+    <div style="font-size:12px; font-weight:700; color:#DA291C; letter-spacing:0.04em; text-transform:uppercase; margin-bottom:10px;">置信度惩戒系数</div>
+    <table style="width:100%; border-collapse:collapse; font-size:13px;">
+      <tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:6px 4px; color:#888;">&lt; 100</td><td style="padding:6px 4px; text-align:right; font-weight:600; color:#DA291C;">× 0.1</td></tr>
+      <tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:6px 4px; color:#888;">100 ~ 499</td><td style="padding:6px 4px; text-align:right; font-weight:600; color:#DA291C;">× 0.3</td></tr>
+      <tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:6px 4px; color:#888;">500 ~ 999</td><td style="padding:6px 4px; text-align:right; font-weight:600; color:#FFC000;">× 0.5</td></tr>
+      <tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:6px 4px; color:#888;">1000 ~ 4999</td><td style="padding:6px 4px; text-align:right; font-weight:600; color:#FFC000;">× 0.8</td></tr>
+      <tr><td style="padding:6px 4px; color:#888;">≥ 5000</td><td style="padding:6px 4px; text-align:right; font-weight:600; color:#00A04A;">× 1.0</td></tr>
+    </table>
+  </div>
 </div>
-""")
+""", unsafe_allow_html=True)
 
     with tab3:
         title_col = "标题" if "标题" in dff.columns else "消息标题"
