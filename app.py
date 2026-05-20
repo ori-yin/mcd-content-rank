@@ -842,6 +842,10 @@ if uploaded is not None:
             cards = list(dff.itertuples())
 
             # ─── 分页 ─────────────────────────────────────────────
+            # 筛选变化时重置页码
+            if st.session_state.get("card_total") != len(cards):
+                st.session_state.card_page = 1
+                st.session_state.card_total = len(cards)
             PAGE_SIZE = 50
             total_pages = max(1, (len(cards) + PAGE_SIZE - 1) // PAGE_SIZE)
             if "card_page" not in st.session_state:
