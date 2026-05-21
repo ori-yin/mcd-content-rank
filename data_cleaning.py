@@ -127,10 +127,9 @@ def clean_raw_csv(uploaded_file) -> pd.DataFrame:
 
 def read_cleaned_csv(uploaded_file) -> pd.DataFrame:
     """读取已清洗的 CSV，自动尝试多种编码"""
-    try:
-        return pd.read_csv(uploaded_file, encoding="gbk")
-    except Exception:
+    for enc in ['gbk', 'utf-8', 'utf-8-sig']:
         try:
-            return pd.read_csv(uploaded_file, encoding="utf-8")
+            return pd.read_csv(uploaded_file, encoding=enc)
         except Exception:
-            return pd.read_csv(uploaded_file, encoding="utf-8-sig")
+            continue
+    raise ValueError("无法读取 CSV 文件，请检查编码格式")

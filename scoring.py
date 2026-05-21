@@ -9,11 +9,8 @@ from config import (
     CTR_UNKNOWN_THRESHOLD, GC_UNKNOWN_THRESHOLD, EXP,
 )
 
-
-def piecewise_score(G, threshold):
-    if G < threshold:
-        return 100.0 * ((G / threshold) ** EXP)
-    return 100.0
+PENALTY_BINS = [-1, 99, 499, 999, 4999, float("inf")]
+PENALTY_LABELS = [0.1, 0.3, 0.5, 0.8, 1.0]
 
 
 def piecewise_score_vec(G_col, threshold_col):
@@ -46,8 +43,8 @@ def compute_full_scores(df: pd.DataFrame) -> pd.DataFrame:
         df["触达_norm"] * 0.2 + df["CTR_score_full"] * 0.50 + df["GC_score_full"] * 0.30
     ) * pd.cut(
         df["触达成功"].fillna(0),
-        bins=[-1, 99, 499, 999, 4999, float("inf")],
-        labels=[0.1, 0.3, 0.5, 0.8, 1.0]
+        bins=PENALTY_BINS,
+        labels=PENALTY_LABELS,
     ).astype(float)
     return df
 
@@ -69,8 +66,8 @@ def compute_filtered_scores(dff: pd.DataFrame, w_reach: float, w_ctr: float, w_g
     reach_raw = dff["触达成功"].fillna(0)
     penalty = pd.cut(
         reach_raw,
-        bins=[-1, 99, 499, 999, 4999, float("inf")],
-        labels=[0.1, 0.3, 0.5, 0.8, 1.0]
+        bins=PENALTY_BINS,
+        labels=PENALTY_LABELS,
     ).astype(float)
     dff["综合评分"] = base_score * penalty
     return dff

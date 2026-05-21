@@ -2,7 +2,7 @@
 styles.py - 麦当劳内容排行榜：CSS 样式
 """
 
-from config import MCD_RED, MCD_GOLD, MCD_GREEN, MCD_BG
+from config import MCD_RED, MCD_GOLD, MCD_BG
 
 
 def get_css() -> str:
