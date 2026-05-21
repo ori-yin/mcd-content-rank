@@ -39,3 +39,21 @@ MCD_BG = "#FAFAFA"
 
 # ─── 列名常量 ──────────────────────────────────────────────────
 OWNER_COL = "预算owner"
+
+# ─── API 配置 ──────────────────────────────────────────────────
+API_PROVIDERS = {
+    "百度千帆": {
+        "base_url": "https://qianfan.baidubce.com/v2/coding",
+        "models": ["qianfan-code-latest"],
+    },
+    "SiliconFlow": {
+        "base_url": "https://api.siliconflow.cn/v1",
+        "models": ["deepseek-ai/DeepSeek-V3-0324", "Qwen/Qwen2.5-72B-Instruct"],
+    },
+    "OpenAI": {
+        "base_url": None,
+        "models": ["gpt-4o-mini", "gpt-4o"],
+    },
+}
+
+PAGE_SIZE = 20

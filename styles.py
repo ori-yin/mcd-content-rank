@@ -2,7 +2,7 @@
 styles.py - 麦当劳内容排行榜：CSS 样式
 """
 
-from config import MCD_RED, MCD_GOLD, MCD_BG
+from config import MCD_RED, MCD_GOLD, MCD_GREEN, MCD_BG
 
 
 def get_css() -> str:
@@ -396,6 +396,82 @@ def get_css() -> str:
   .score-info-wrap:hover .score-tooltip {{
     visibility: visible;
     opacity: 1;
+  }}
+
+  /* ─── AI 分析卡片 ─── */
+  .ai-card {{
+    background: #FFFFFF;
+    border: 1px solid #E8E8E8;
+    border-left: 4px solid {MCD_GOLD};
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }}
+  .ai-card-header {{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }}
+  .ai-card-title {{
+    font-size: 14px;
+    font-weight: 700;
+    color: #1a1a1a;
+  }}
+  .ai-badge {{
+    display: inline-block;
+    background: {MCD_RED};
+    color: #FFF;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    letter-spacing: 0.05em;
+  }}
+  .ai-tag {{
+    display: inline-block;
+    background: #F5F5F5;
+    color: #555;
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 6px;
+    margin-right: 6px;
+    margin-bottom: 4px;
+    border: 1px solid #EFEFEF;
+  }}
+  .ai-tag-label {{
+    color: #999;
+    font-size: 11px;
+    margin-right: 3px;
+  }}
+  .ai-highlight {{
+    color: {MCD_GREEN};
+    font-weight: 600;
+  }}
+  .ai-weakness {{
+    color: {MCD_RED};
+    font-weight: 600;
+  }}
+  .ai-suggestion {{
+    background: #FFF8F0;
+    border: 1px solid #FFE0B2;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    color: #333;
+    margin-top: 8px;
+  }}
+
+  /* ─── 按钮加载动画 ─── */
+  @keyframes mcd-pulse {{
+    0%, 100% {{ opacity: 1; }}
+    50% {{ opacity: 0.5; }}
+  }}
+  .stButton > button[data-testid="stBaseButton-primary"]:disabled {{
+    animation: mcd-pulse 1.2s ease-in-out infinite;
+    background: {MCD_RED} !important;
+    color: #FFF !important;
   }}
 
 </style>
