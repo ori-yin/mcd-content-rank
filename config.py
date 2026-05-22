@@ -42,13 +42,13 @@ OWNER_COL = "预算owner"
 
 # ─── API 配置 ──────────────────────────────────────────────────
 API_PROVIDERS = {
-    "麦当劳AI网关": {
-        "base_url": "https://ai-gateway-test.mcdchina.net/v1",
-        "models": ["gemini-3-flash-preview", "gemini-3-pro-image-preview", "deepseek-v3", "claude-sonnet-4.6", "claude-haiku-4.5"],
-    },
     "百度千帆": {
         "base_url": "https://qianfan.baidubce.com/v2/coding",
         "models": ["qianfan-code-latest"],
+    },
+    "麦当劳AI网关": {
+        "base_url": "https://ai-gateway-test.mcdchina.net/v1",
+        "models": ["gemini-3-flash-preview", "gemini-3-pro-image-preview", "deepseek-v3", "claude-sonnet-4.6", "claude-haiku-4.5"],
     },
     "SiliconFlow": {
         "base_url": "https://api.siliconflow.cn/v1",
@@ -62,5 +62,5 @@ API_PROVIDERS = {
 
 PAGE_SIZE = 20
 
-# ─── 默认 API Key（麦当劳AI网关，内网专用）──────────────────────
-DEFAULT_API_KEY = "REMOVED_API_KEY"
+# ─── 默认 API Key（百度千帆）──────────────────────────────────
+DEFAULT_API_KEY = "bce-v3/ALTAKSP-QmNPHghHzqzyoxZMVnzVo/c6b429d64ddc09c0c24d2c61a79ab30d1f1f5a55"
