@@ -7,7 +7,7 @@ import streamlit as st
 import pandas as pd
 from datetime import timedelta
 
-from config import MCD_RED, MCD_GOLD, MCD_BG, OWNER_COL, API_PROVIDERS, PAGE_SIZE
+from config import MCD_RED, MCD_GOLD, MCD_BG, OWNER_COL, API_PROVIDERS, PAGE_SIZE, DEFAULT_API_KEY
 from styles import get_css
 from data_cleaning import clean_raw_csv, read_cleaned_csv
 from scoring import compute_derived_metrics, compute_full_scores, compute_filtered_scores
@@ -138,7 +138,7 @@ if uploaded is not None:
         with st.expander("API 配置", expanded=False):
             ai_provider = st.selectbox("API Provider", list(API_PROVIDERS.keys()), index=0)
             ai_model = st.selectbox("模型", API_PROVIDERS[ai_provider]["models"])
-            ai_api_key = st.text_input("API Key", type="password")
+            ai_api_key = st.text_input("API Key", value=DEFAULT_API_KEY, type="password")
 
         ai_count = st.slider("分析前 N 条", 3, 20, 5)
         ai_run = st.button("开始 AI 分析", use_container_width=True)

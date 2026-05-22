@@ -463,6 +463,11 @@ def get_css() -> str:
     margin-top: 8px;
   }}
 
+  /* ─── 隐藏 API Key 密码小眼睛 ─── */
+  [data-testid="stTextInputVisibilityToggle"] {{
+    display: none !important;
+  }}
+
   /* ─── 按钮加载动画 ─── */
   @keyframes mcd-pulse {{
     0%, 100% {{ opacity: 1; }}
