@@ -62,5 +62,5 @@ API_PROVIDERS = {
 
 PAGE_SIZE = 20
 
-# ─── 默认 API Key（麦当劳AI网关）──────────────────────────────
+# ─── 默认 API Key（麦当劳AI网关，内网专用）──────────────────────
 DEFAULT_API_KEY = "REMOVED_API_KEY"
