@@ -136,6 +136,18 @@ def read_cleaned_csv(uploaded_file) -> pd.DataFrame:
     raise ValueError("无法读取 CSV 文件，请检查编码格式")
 
 
+def _coerce_numeric_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """将数值列统一转为 float64（xlsx 可能读出 str、object、int64 或 Arrow 类型）"""
+    for col in df.columns:
+        if pd.api.types.is_numeric_dtype(df[col]):
+            df[col] = df[col].astype('float64')
+        else:
+            converted = pd.to_numeric(df[col], errors='coerce')
+            if converted.notna().sum() > len(df) * 0.5:
+                df[col] = converted.astype('float64')
+    return df
+
+
 def clean_raw_xlsx(uploaded_file) -> pd.DataFrame:
     """
     读取原始 XLSX（含 JSON 列），解析 emoji 完整保留
@@ -155,6 +167,7 @@ def clean_raw_xlsx(uploaded_file) -> pd.DataFrame:
     data_rows = rows[1:]
 
     df = pd.DataFrame(data_rows, columns=headers)
+    df = _coerce_numeric_columns(df)
 
     if df.shape[1] < 15:
         raise ValueError(f"XLSX 只有 {df.shape[1]} 列，第 15 列（O列）不存在")
@@ -188,4 +201,7 @@ def read_cleaned_xlsx(uploaded_file) -> pd.DataFrame:
     headers = list(rows[0])
     data_rows = rows[1:]
 
-    return pd.DataFrame(data_rows, columns=headers)
+    df = pd.DataFrame(data_rows, columns=headers)
+    df = _coerce_numeric_columns(df)
+
+    return df
