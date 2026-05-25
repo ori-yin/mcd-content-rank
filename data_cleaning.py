@@ -7,7 +7,6 @@ import logging
 import re
 import pandas as pd
 from io import BytesIO
-import openpyxl
 
 logger = logging.getLogger(__name__)
 
@@ -166,6 +165,7 @@ def clean_raw_xlsx(uploaded_file) -> pd.DataFrame:
     1. 用 openpyxl 读取（UTF-16 内部编码，完美支持 emoji）
     2. 解析第 O 列（索引 14）的 JSON，提取标题和内容
     """
+    import openpyxl
     wb = openpyxl.load_workbook(BytesIO(uploaded_file.read()), read_only=True, data_only=True)
     ws = wb.active
 
@@ -205,6 +205,7 @@ def clean_raw_xlsx(uploaded_file) -> pd.DataFrame:
 
 def read_cleaned_xlsx(uploaded_file) -> pd.DataFrame:
     """读取已清洗的 XLSX，emoji 完整保留"""
+    import openpyxl
     wb = openpyxl.load_workbook(BytesIO(uploaded_file.read()), read_only=True, data_only=True)
     ws = wb.active
 
