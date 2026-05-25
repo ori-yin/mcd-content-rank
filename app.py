@@ -9,7 +9,7 @@ from datetime import timedelta
 
 from config import MCD_RED, MCD_GOLD, MCD_BG, OWNER_COL, API_PROVIDERS, PAGE_SIZE, DEFAULT_API_KEY
 from styles import get_css
-from data_cleaning import clean_raw_csv, read_cleaned_csv
+from data_cleaning import clean_raw_csv, read_cleaned_csv, clean_raw_xlsx, read_cleaned_xlsx
 from scoring import compute_derived_metrics, compute_full_scores, compute_filtered_scores
 from llm_service import analyze_content
 
@@ -39,15 +39,15 @@ with st.expander("数据源", expanded=(st.session_state.get("last_file_id") is 
     with col_left:
         mode = st.radio(
             "数据类型",
-            ["原始 CSV（含 JSON 列，需清洗）", "已清洗 CSV（直接使用）"],
+            ["原始数据（含 JSON 列，需清洗）", "已清洗数据（直接使用）"],
             horizontal=True,
-            help="原始 CSV：上传运行清洗脚本之前的文件；已清洗 CSV：运行完脚本后的文件"
+            help="原始数据：上传含 JSON 消息列的文件；已清洗数据：上传已完成解析的文件"
         )
     with col_right:
         uploaded = st.file_uploader(
-            "上传 CSV 文件",
-            type=["csv"],
-            help="支持 UTF-8、GBK、GB2312、Latin1 编码"
+            "上传文件",
+            type=["csv", "xlsx"],
+            help="CSV 支持 UTF-8/GBK 编码；XLSX 完整保留 emoji"
         )
 
 # 只在首次上传或文件变化时触发气球
@@ -57,16 +57,24 @@ if uploaded is not None:
         st.balloons()
         st.session_state.last_file_id = current_file_id
 
+    is_xlsx = uploaded.name.lower().endswith('.xlsx')
+
     # ─── 读取数据 ───────────────────────────────────────────────
-    if mode == "原始 CSV（含 JSON 列，需清洗）":
+    if mode == "原始数据（含 JSON 列，需清洗）":
         with st.spinner("正在运行数据清洗脚本..."):
             try:
-                df = clean_raw_csv(uploaded)
+                if is_xlsx:
+                    df = clean_raw_xlsx(uploaded)
+                else:
+                    df = clean_raw_csv(uploaded)
             except ValueError as e:
                 st.error(str(e))
                 st.stop()
     else:
-        df = read_cleaned_csv(uploaded)
+        if is_xlsx:
+            df = read_cleaned_xlsx(uploaded)
+        else:
+            df = read_cleaned_csv(uploaded)
 
     # ─── 解析日期列 ────────────────────────────────────────────
     date_col = "发送日期"

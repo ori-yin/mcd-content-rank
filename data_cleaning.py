@@ -6,6 +6,7 @@ import json
 import re
 import pandas as pd
 from io import BytesIO
+import openpyxl
 
 
 def extract_title_from_forms(forms):
@@ -77,9 +78,9 @@ def parse_message(raw):
     title = str(title).strip() if title else ''
     text = str(text).strip() if text else ''
 
-    # 清洗特殊字符
-    title = title.replace('?', '').replace('\r\n', '').replace('\n', '').replace('\r', '')
-    text = text.replace('?', '').replace('\r\n', '').replace('\n', '').replace('\r', '')
+    # 清洗换行符（保留 emoji 和其他 Unicode 字符）
+    title = title.replace('\r\n', '').replace('\n', '').replace('\r', '')
+    text = text.replace('\r\n', '').replace('\n', '').replace('\r', '')
 
     return pd.Series({'标题': title, '内容': text})
 
@@ -127,9 +128,64 @@ def clean_raw_csv(uploaded_file) -> pd.DataFrame:
 
 def read_cleaned_csv(uploaded_file) -> pd.DataFrame:
     """读取已清洗的 CSV，自动尝试多种编码"""
-    for enc in ['gbk', 'utf-8', 'utf-8-sig']:
+    for enc in ['utf-8', 'utf-8-sig', 'gbk']:
         try:
             return pd.read_csv(uploaded_file, encoding=enc)
         except Exception:
             continue
     raise ValueError("无法读取 CSV 文件，请检查编码格式")
+
+
+def clean_raw_xlsx(uploaded_file) -> pd.DataFrame:
+    """
+    读取原始 XLSX（含 JSON 列），解析 emoji 完整保留
+    1. 用 openpyxl 读取（UTF-16 内部编码，完美支持 emoji）
+    2. 解析第 O 列（索引 14）的 JSON，提取标题和内容
+    """
+    wb = openpyxl.load_workbook(BytesIO(uploaded_file.read()), read_only=True, data_only=True)
+    ws = wb.active
+
+    rows = list(ws.iter_rows(values_only=True))
+    wb.close()
+
+    if len(rows) < 2:
+        raise ValueError("XLSX 文件没有数据行")
+
+    headers = list(rows[0])
+    data_rows = rows[1:]
+
+    df = pd.DataFrame(data_rows, columns=headers)
+
+    if df.shape[1] < 15:
+        raise ValueError(f"XLSX 只有 {df.shape[1]} 列，第 15 列（O列）不存在")
+
+    # 读取第 O 列（索引 14）
+    o_col_name = df.columns[14]
+    o_col = df[o_col_name]
+
+    # 执行解析
+    parsed_df = o_col.apply(parse_message)
+
+    # 合并回原 DataFrame，删除原始 JSON 列
+    df['标题'] = parsed_df['标题']
+    df['内容'] = parsed_df['内容']
+    df = df.drop(df.columns[14], axis=1)
+
+    return df
+
+
+def read_cleaned_xlsx(uploaded_file) -> pd.DataFrame:
+    """读取已清洗的 XLSX，emoji 完整保留"""
+    wb = openpyxl.load_workbook(BytesIO(uploaded_file.read()), read_only=True, data_only=True)
+    ws = wb.active
+
+    rows = list(ws.iter_rows(values_only=True))
+    wb.close()
+
+    if len(rows) < 2:
+        raise ValueError("XLSX 文件没有数据行")
+
+    headers = list(rows[0])
+    data_rows = rows[1:]
+
+    return pd.DataFrame(data_rows, columns=headers)
