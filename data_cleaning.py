@@ -3,10 +3,13 @@ data_cleaning.py - 麦当劳内容排行榜：数据清洗
 """
 
 import json
+import logging
 import re
 import pandas as pd
 from io import BytesIO
 import openpyxl
+
+logger = logging.getLogger(__name__)
 
 
 def extract_title_from_forms(forms):
@@ -46,7 +49,7 @@ def extract_text_from_forms(forms):
     return None
 
 
-def parse_message(raw):
+def parse_message(raw, strip_question_marks=False):
     """将原始 JSON 消息解析为标题和正文"""
     if pd.isna(raw) or not isinstance(raw, str):
         return pd.Series({'标题': '', '内容': ''})
@@ -82,6 +85,11 @@ def parse_message(raw):
     title = title.replace('\r\n', '').replace('\n', '').replace('\r', '')
     text = text.replace('\r\n', '').replace('\n', '').replace('\r', '')
 
+    # CSV 路径：清理 GBK 编码残留的 ? 字符
+    if strip_question_marks:
+        title = title.replace('?', '')
+        text = text.replace('?', '')
+
     return pd.Series({'标题': title, '内容': text})
 
 
@@ -115,8 +123,8 @@ def clean_raw_csv(uploaded_file) -> pd.DataFrame:
     # 读取第 O 列（索引 14）
     o_col = df.iloc[:, 14]
 
-    # 执行解析
-    parsed_df = o_col.apply(parse_message)
+    # 执行解析（CSV 路径需要清理 GBK 编码残留的 ?）
+    parsed_df = o_col.apply(lambda x: parse_message(x, strip_question_marks=True))
 
     # 合并回原 DataFrame，删除原始 JSON 列
     df['标题'] = parsed_df['标题']
@@ -128,9 +136,10 @@ def clean_raw_csv(uploaded_file) -> pd.DataFrame:
 
 def read_cleaned_csv(uploaded_file) -> pd.DataFrame:
     """读取已清洗的 CSV，自动尝试多种编码"""
+    bytes_data = uploaded_file.read()
     for enc in ['utf-8', 'utf-8-sig', 'gbk']:
         try:
-            return pd.read_csv(uploaded_file, encoding=enc)
+            return pd.read_csv(BytesIO(bytes_data), encoding=enc)
         except Exception:
             continue
     raise ValueError("无法读取 CSV 文件，请检查编码格式")
@@ -144,6 +153,9 @@ def _coerce_numeric_columns(df: pd.DataFrame) -> pd.DataFrame:
         else:
             converted = pd.to_numeric(df[col], errors='coerce')
             if converted.notna().sum() > len(df) * 0.5:
+                nan_count = converted.isna().sum() - df[col].isna().sum()
+                if nan_count > 0:
+                    logger.warning("列 '%s' 有 %d 个非数值被转为 NaN", col, nan_count)
                 df[col] = converted.astype('float64')
     return df
 
@@ -163,7 +175,7 @@ def clean_raw_xlsx(uploaded_file) -> pd.DataFrame:
     if len(rows) < 2:
         raise ValueError("XLSX 文件没有数据行")
 
-    headers = list(rows[0])
+    headers = [str(h).strip() if h else '' for h in rows[0]]
     data_rows = rows[1:]
 
     df = pd.DataFrame(data_rows, columns=headers)
@@ -175,6 +187,10 @@ def clean_raw_xlsx(uploaded_file) -> pd.DataFrame:
     # 读取第 O 列（索引 14）
     o_col_name = df.columns[14]
     o_col = df[o_col_name]
+
+    # 检查公式单元格未计算的情况（data_only=True 对未缓存公式返回 None）
+    if o_col.isna().all():
+        raise ValueError("XLSX 第 15 列数据全为空，可能是未计算的公式。请在 Excel 中打开文件后再上传")
 
     # 执行解析
     parsed_df = o_col.apply(parse_message)
@@ -198,7 +214,7 @@ def read_cleaned_xlsx(uploaded_file) -> pd.DataFrame:
     if len(rows) < 2:
         raise ValueError("XLSX 文件没有数据行")
 
-    headers = list(rows[0])
+    headers = [str(h).strip() if h else '' for h in rows[0]]
     data_rows = rows[1:]
 
     df = pd.DataFrame(data_rows, columns=headers)

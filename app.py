@@ -71,10 +71,17 @@ if uploaded is not None:
                 st.error(str(e))
                 st.stop()
     else:
-        if is_xlsx:
-            df = read_cleaned_xlsx(uploaded)
-        else:
-            df = read_cleaned_csv(uploaded)
+        try:
+            if is_xlsx:
+                df = read_cleaned_xlsx(uploaded)
+            else:
+                df = read_cleaned_csv(uploaded)
+        except ValueError as e:
+            st.error(str(e))
+            st.stop()
+        except Exception as e:
+            st.error(f"文件读取失败：{e}")
+            st.stop()
 
     # ─── 解析日期列 ────────────────────────────────────────────
     date_col = "发送日期"
