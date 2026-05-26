@@ -63,4 +63,4 @@ API_PROVIDERS = {
 PAGE_SIZE = 20
 
 # ─── 默认 API Key（百度千帆）──────────────────────────────────
-DEFAULT_API_KEY = "bce-v3/ALTAKSP-QmNPHghHzqzyoxZMVnzVo/c6b429d64ddc09c0c24d2c61a79ab30d1f1f5a55"
+DEFAULT_API_KEY = "ce-v3/ALTAKSP-QmNPHghHzqzyoxZMVnzVo/c6b429d64ddc09c0c24d2c61a79ab30d1f1f5a55"
