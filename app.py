@@ -351,31 +351,30 @@ if uploaded is not None:
             # ─── 底部翻页 ───────────────────────────────────────────
             st.markdown(f"""
 <style>
-.pg-bar {{ display:flex; align-items:center; justify-content:space-between; margin:20px 0 8px; padding:0 4px; }}
-.pg-bar .stButton > button {{
+div[data-testid="stHorizontalBlock"]:last-of-type {{ max-width:520px; margin:16px auto 8px !important; }}
+div[data-testid="stHorizontalBlock"]:last-of-type .stButton > button {{
   height:30px !important; min-height:30px !important; padding:0 14px !important;
   border-radius:6px !important; font-size:13px !important; font-weight:600 !important;
   border:1px solid #E0E0E0 !important; background:#fff !important; color:#333 !important;
+  width:100% !important;
 }}
-.pg-bar .stButton > button:hover {{ border-color:{MCD_RED} !important; color:{MCD_RED} !important; }}
-.pg-bar [data-testid="stWidgetLabel"] {{ display:none !important; }}
-.pg-bar .stNumberInput {{ max-width:80px !important; }}
-.pg-bar .stNumberInput input {{
+div[data-testid="stHorizontalBlock"]:last-of-type .stButton > button:hover {{ border-color:{MCD_RED} !important; color:{MCD_RED} !important; }}
+div[data-testid="stHorizontalBlock"]:last-of-type [data-testid="stWidgetLabel"] {{ display:none !important; }}
+div[data-testid="stHorizontalBlock"]:last-of-type .stNumberInput {{ max-width:72px !important; }}
+div[data-testid="stHorizontalBlock"]:last-of-type .stNumberInput input {{
   height:30px !important; min-height:30px !important; padding:0 6px !important;
   border-radius:6px !important; font-size:13px !important; text-align:center !important;
 }}
-.pg-info {{ font-size:12px; color:#999; white-space:nowrap; }}
 </style>
-<div class="pg-bar"></div>
 """, unsafe_allow_html=True)
-            pg1, pg2, pg3, pg4, pg5 = st.columns([1, 2.5, 0.8, 0.5, 1])
+            pg1, pg2, pg3, pg4, pg5 = st.columns(5)
             with pg1:
                 if page > 1:
                     if st.button("‹  上一页", key="pg_prev"):
                         st.session_state.card_page = page - 1
                         st.rerun()
             with pg2:
-                st.markdown(f"<div style='text-align:center;padding-top:6px;'><span class='pg-info'>第 {page} / {total_pages} 页 · 共 {len(cards)} 条</span></div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='text-align:center;padding-top:6px;font-size:12px;color:#999;'>第 {page} / {total_pages} 页 · 共 {len(cards)} 条</div>", unsafe_allow_html=True)
             with pg3:
                 jump_page = st.number_input("跳页", min_value=1, max_value=total_pages, value=page, step=1, label_visibility="collapsed", key="pg_jump")
             with pg4:
