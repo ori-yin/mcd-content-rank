@@ -253,13 +253,13 @@ if uploaded is not None:
 
                 # tooltip
                 reach_raw_t = int(getattr(row, '触达成功', 0) or 0)
-                if reach_raw_t < 100:
+                if reach_raw_t <= 99:
                     penalty_coef_t, penalty_label = 0.1, "置信度低(x0.1)"
-                elif reach_raw_t < 500:
+                elif reach_raw_t <= 499:
                     penalty_coef_t, penalty_label = 0.3, "置信度低(x0.3)"
-                elif reach_raw_t < 1000:
+                elif reach_raw_t <= 999:
                     penalty_coef_t, penalty_label = 0.5, "置信度中(x0.5)"
-                elif reach_raw_t < 5000:
+                elif reach_raw_t <= 4999:
                     penalty_coef_t, penalty_label = 0.8, "置信度较高(x0.8)"
                 else:
                     penalty_coef_t, penalty_label = 1.0, "置信度高(x1.0)"
@@ -267,7 +267,7 @@ if uploaded is not None:
                 reach_norm = getattr(row, '触达_norm', 0)
                 ctr_score_t = getattr(row, 'CTR_score', 0)
                 gc_score_t = getattr(row, 'GC_score', 0)
-                base_score_t = reach_norm * w_reach + ctr_score_t * w_ctr + gc_score_t * w_gc
+                base_score_t = reach_norm * norm_reach + ctr_score_t * norm_ctr + gc_score_t * norm_gc
                 impact_parts = []
                 if reach_norm < 33:
                     impact_parts.append("触达偏低({:.1f})".format(reach_norm))
@@ -283,7 +283,7 @@ if uploaded is not None:
                     impact_parts.append("GC转化率偏高({:.1f})".format(gc_score_t))
                 impact = " / ".join(impact_parts) if impact_parts else "各项均衡"
                 formula = "({:.1f}x{:.2f} + {:.1f}x{:.2f} + {:.1f}x{:.2f}) x {:.1f} = {:.2f}  [{}]".format(
-                    reach_norm, w_reach, ctr_score_t, w_ctr, gc_score_t, w_gc,
+                    reach_norm, norm_reach, ctr_score_t, norm_ctr, gc_score_t, norm_gc,
                     penalty_coef_t, score, penalty_label
                 )
                 tooltip_text = _html.escape(impact + chr(10) + formula)
