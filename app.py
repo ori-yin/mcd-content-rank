@@ -348,29 +348,44 @@ if uploaded is not None:
             grid_html = '<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">' + "".join(html_parts) + '</div>'
             st.html(grid_html)
 
-            # 底部翻页
-            pcol1, pcol2, pcol3, pcol4, pcol5 = st.columns([1, 1, 0.6, 2, 1])
-            with pcol1:
+            # ─── 底部翻页 ───────────────────────────────────────────
+            st.markdown(f"""
+<style>
+.pg-bar {{ display:flex; align-items:center; justify-content:space-between; margin:20px 0 8px; padding:0 4px; }}
+.pg-bar .stButton > button {{
+  height:30px !important; min-height:30px !important; padding:0 14px !important;
+  border-radius:6px !important; font-size:13px !important; font-weight:600 !important;
+  border:1px solid #E0E0E0 !important; background:#fff !important; color:#333 !important;
+}}
+.pg-bar .stButton > button:hover {{ border-color:{MCD_RED} !important; color:{MCD_RED} !important; }}
+.pg-bar [data-testid="stWidgetLabel"] {{ display:none !important; }}
+.pg-bar .stNumberInput {{ max-width:80px !important; }}
+.pg-bar .stNumberInput input {{
+  height:30px !important; min-height:30px !important; padding:0 6px !important;
+  border-radius:6px !important; font-size:13px !important; text-align:center !important;
+}}
+.pg-info {{ font-size:12px; color:#999; white-space:nowrap; }}
+</style>
+<div class="pg-bar"></div>
+""", unsafe_allow_html=True)
+            pg1, pg2, pg3, pg4, pg5 = st.columns([1, 2.5, 0.8, 0.5, 1])
+            with pg1:
                 if page > 1:
-                    if st.button("上一页", use_container_width=True):
+                    if st.button("‹  上一页", key="pg_prev"):
                         st.session_state.card_page = page - 1
                         st.rerun()
-            with pcol2:
-                jump_input = st.text_input("页码", value=str(page), label_visibility="collapsed", key="jump_page_input")
-            with pcol3:
-                if st.button("跳转", use_container_width=True):
-                    try:
-                        jp = int(jump_input)
-                        if 1 <= jp <= total_pages:
-                            st.session_state.card_page = jp
-                            st.rerun()
-                    except ValueError:
-                        pass
-            with pcol4:
-                st.markdown(f"<div style='color:#888; font-size:13px; padding-top:6px;'>第 {page}/{total_pages} 页，共 {len(cards)} 条</div>", unsafe_allow_html=True)
-            with pcol5:
+            with pg2:
+                st.markdown(f"<div style='text-align:center;padding-top:6px;'><span class='pg-info'>第 {page} / {total_pages} 页 · 共 {len(cards)} 条</span></div>", unsafe_allow_html=True)
+            with pg3:
+                jump_page = st.number_input("跳页", min_value=1, max_value=total_pages, value=page, step=1, label_visibility="collapsed", key="pg_jump")
+            with pg4:
+                if st.button("Go", key="pg_go"):
+                    if jump_page != page:
+                        st.session_state.card_page = jump_page
+                        st.rerun()
+            with pg5:
                 if page < total_pages:
-                    if st.button("下一页", use_container_width=True):
+                    if st.button("下一页  ›", key="pg_next"):
                         st.session_state.card_page = page + 1
                         st.rerun()
 
