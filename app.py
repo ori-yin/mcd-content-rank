@@ -2,7 +2,6 @@
 app.py - 麦当劳内容排行榜
 """
 import html as _html
-import streamlit.components.v1 as components
 import streamlit as st
 import pandas as pd
 from datetime import timedelta
@@ -440,45 +439,66 @@ if uploaded is not None:
     # ═══════════════════════════════════════════════════════════
     with tab2:
         st.markdown('<div class="section-title">综合评分算法说明</div>', unsafe_allow_html=True)
-        mermaid_def = """flowchart TD
-    A[原始数据] --> B[计算衍生指标]
-    B --> C["CTR分 CTR_score"]
-    B --> D["GC分 GC_score"]
-    A --> G["触达分 = (触达/最大触达)^0.3 x 100"]
-    C --> E1{"CTR &lt; 渠道Q3?"}
-    E1 -->|是| E2["100 x (CTR/Q3)^1.5"]
-    E1 -->|否| E3["100 饱和"]
-    D --> F1{"GC率 &lt; 渠道Q3?"}
-    F1 -->|是| F2["100 x (GC率/Q3)^1.5"]
-    F1 -->|否| F3["100 饱和"]
-    G --> H["加权求和"]
-    E2 --> H
-    E3 --> H
-    F2 --> H
-    F3 --> H
-    H --> I["base = 触达 x0.2 + CTR x0.5 + GC x0.3"]
-    I --> J["置信度惩戒"]
-    J --> J1{"触达量"}
-    J1 -->|"&lt; 100"| J2["x 0.1"]
-    J1 -->|"100~499"| J3["x 0.3"]
-    J1 -->|"500~999"| J4["x 0.5"]
-    J1 -->|"1000~4999"| J5["x 0.8"]
-    J1 -->|"&gt;=5000"| J6["x 1.0"]
-    J2 --> K["综合评分"]
-    J3 --> K
-    J4 --> K
-    J5 --> K
-    J6 --> K
-    style K fill:#DA291C,color:#fff,font-weight:bold
-    style I fill:#FFC000,color:#000
-    style H fill:#FFC000,color:#000"""
-        components.html(
-            f"""<div class="mermaid">{mermaid_def}</div>
-<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
-<script>mermaid.initialize({{startOnLoad:true, theme:'default'}});</script>""",
-            height=650,
-            scrolling=True,
-        )
+        dot_src = r"""
+digraph G {
+    rankdir=TB;
+    graph [fontname="Microsoft YaHei,PingFang SC,sans-serif", bgcolor="transparent", pad="0.2"];
+    node  [fontname="Microsoft YaHei,PingFang SC,sans-serif", fontsize=11, style=filled, fillcolor="#F8F8F8", color="#CCCCCC", shape=box, penwidth=1.2, margin="0.15,0.08"];
+    edge  [fontname="Microsoft YaHei,PingFang SC,sans-serif", fontsize=9, color="#999999"];
+
+    A  [label="原始数据", fillcolor="#F0F0F0", color="#AAAAAA"];
+    B  [label="计算衍生指标"];
+    C  [label="CTR分\nCTR_score"];
+    D  [label="GC分\nGC_score"];
+    G  [label="触达分 =\n(触达/最大触达)^0.3 × 100"];
+    E1 [label="CTR < 渠道Q3?", shape=diamond, fillcolor="#FFF8F0", color="#FFC000"];
+    E2 [label="100 × (CTR/Q3)^1.5"];
+    E3 [label="100 饱和"];
+    F1 [label="GC率 < 渠道Q3?", shape=diamond, fillcolor="#FFF8F0", color="#FFC000"];
+    F2 [label="100 × (GC率/Q3)^1.5"];
+    F3 [label="100 饱和"];
+    H  [label="加权求和", fillcolor="#FFC000", color="#E0A800", fontcolor="#000000"];
+    I  [label="base =\n触达×0.2 + CTR×0.5 + GC×0.3", fillcolor="#FFC000", color="#E0A800", fontcolor="#000000"];
+    J  [label="置信度惩戒"];
+    J1 [label="触达量", shape=diamond, fillcolor="#FFF8F0", color="#FFC000"];
+    J2 [label="× 0.1"];
+    J3 [label="× 0.3"];
+    J4 [label="× 0.5"];
+    J5 [label="× 0.8"];
+    J6 [label="× 1.0"];
+    K  [label="综合评分", fillcolor="#DA291C", color="#B82015", fontcolor="#FFFFFF", penwidth=2];
+
+    A -> B;
+    A -> G;
+    B -> C;
+    B -> D;
+    C -> E1;
+    D -> F1;
+    E1 -> E2 [label="是"];
+    E1 -> E3 [label="否"];
+    F1 -> F2 [label="是"];
+    F1 -> F3 [label="否"];
+    E2 -> H;
+    E3 -> H;
+    F2 -> H;
+    F3 -> H;
+    G  -> H;
+    H  -> I;
+    I  -> J;
+    J  -> J1;
+    J1 -> J2 [label="< 100"];
+    J1 -> J3 [label="100~499"];
+    J1 -> J4 [label="500~999"];
+    J1 -> J5 [label="1000~4999"];
+    J1 -> J6 [label=">=5000"];
+    J2 -> K;
+    J3 -> K;
+    J4 -> K;
+    J5 -> K;
+    J6 -> K;
+}
+"""
+        st.graphviz_chart(dot_src, use_container_width=True)
 
         with st.expander("阈值与惩戒系数参考", expanded=False):
             st.markdown("""
