@@ -8,6 +8,21 @@ import openai
 from config import API_PROVIDERS
 
 
+CHANNEL_GUIDE = """【各渠道高转化文案特征（基于历史4848条数据分析）】
+企微1v1（基准CTR 2.62%，GC转化率 18.5%）：
+- 高CTR标题短(15字)、98%含利益点("领券""免费""任务")、内容1行、触达偏精准(median 1.3万)
+- 低CTR标题长(17字)、仅5%含利益点、直接报价格("39.9元任选5")
+APP Push（基准CTR 0.31%，GC转化率 69.5%）：
+- 高CTR标题短(16字)、情感化("暖冬""一年一度""回归")、触达量大(median 9.4万)
+- 低CTR标题长(15字)、产品描述型("鳞魂炸鸡""超满足4件套")
+微信小程序订阅消息（基准CTR 4.01%，GC转化率 41.0%）：
+- 高CTR标题极短(9字)、44%含利益点、直接说优惠("3元脆薯饼券")
+- 低CTR标题11字、仅7%含利益点、报套餐价("22.9元堡卷小食套餐")
+短信（基准CTR 0.53%，GC转化率 26.7%）：
+- 高CTR偏提醒型("核销提醒""用券提醒")
+- 低CTR偏拉新型("早餐9.9拉新")"""
+
+
 def build_analysis_prompt(items: list) -> str:
     """构建批量分析 prompt"""
     lines = []
@@ -29,11 +44,11 @@ def build_analysis_prompt(items: list) -> str:
 
 每条内容请输出：
 - "rank_factor": 排名核心归因（15字内，如"标题CTA强+高转化"或"触达低拉低总分"）
-- "title_eval": 标题质量评估（20字内，如"利益点明确，有紧迫感"）
-- "content_eval": 正文质量评估（20字内，如"信息完整但偏长"）
-- "highlight": 亮点（15字内，如有）
-- "weakness": 短板（15字内，如有）
-- "suggestion": 一条具体改进建议（25字内）
+- "highlight": 亮点（15字内）
+- "weakness": 短板（15字内）
+- "suggestion": 改进建议（30字内，含标题和正文建议，参考该渠道高转化特征）
+
+{CHANNEL_GUIDE}
 
 严格输出 JSON 数组，不要其他文字。共{len(items)}条：
 {chr(10).join(lines)}"""
@@ -72,8 +87,7 @@ def analyze_content(api_key: str, provider: str, model: str, items: list) -> lis
         if not isinstance(results, list):
             results = [results]
         # 补齐或截断
-        default = {"rank_factor": "—", "title_eval": "—", "content_eval": "—",
-                    "highlight": "—", "weakness": "—", "suggestion": "—"}
+        default = {"rank_factor": "—", "highlight": "—", "weakness": "—", "suggestion": "—"}
         results = (results + [default] * len(items))[:len(items)]
         for r in results:
             for k, v in default.items():

@@ -36,6 +36,10 @@ st.markdown(f"""
 if "ds_expanded" not in st.session_state:
     st.session_state.ds_expanded = True
 
+# 优先从 session_state 恢复已处理的数据（避免页面 reload 后丢失）
+df = st.session_state.get("processed_df")
+date_col = "发送日期"
+
 with st.expander("数据源", expanded=st.session_state.ds_expanded):
     col_left, col_right = st.columns([1, 1])
     with col_left:
@@ -88,7 +92,6 @@ if uploaded is not None:
             st.stop()
 
     # ─── 解析日期列 ────────────────────────────────────────────
-    date_col = "发送日期"
     if date_col in df.columns:
         df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
 
@@ -97,6 +100,11 @@ if uploaded is not None:
 
     # ─── 计算全量综合评分（用于渠道均值）─────────────────────────
     df = compute_full_scores(df)
+
+    # 存入 session_state，页面 reload 后可直接恢复
+    st.session_state.processed_df = df
+
+if df is not None:
     channel_avg_score = df.groupby("渠道")["综合评分_full"].mean().to_dict() if "渠道" in df.columns else {}
 
     # ─── 侧边筛选 ─────────────────────────────────────────────
@@ -151,16 +159,15 @@ if uploaded is not None:
             norm_ctr = w_ctr / total_w
             norm_gc = w_gc / total_w
 
-        # ─── AI 内容分析 ──────────────────────────────────────────
+        # ─── AI API 配置 ──────────────────────────────────────────
         st.markdown("---")
-        st.markdown("**AI 内容分析**")
+        st.markdown("**AI配置**")
         with st.expander("API 配置", expanded=False):
             ai_provider = st.selectbox("API Provider", list(API_PROVIDERS.keys()), index=0)
             ai_model = st.selectbox("模型", API_PROVIDERS[ai_provider]["models"])
             ai_api_key = st.text_input("API Key", value=DEFAULT_API_KEY, type="password")
-
-        ai_count = st.slider("分析前 N 条", 3, 20, 5)
-        ai_run = st.button("开始 AI 分析", use_container_width=True)
+        if st.button("AI分析", use_container_width=True, key="ai_sidebar_btn"):
+            st.session_state.ai_page_clicked = True
 
     # ─── 应用筛选 ─────────────────────────────────────────────
     dff = df
@@ -230,7 +237,7 @@ if uploaded is not None:
             if st.session_state.get("card_total") != len(cards):
                 st.session_state.card_page = 1
                 st.session_state.card_total = len(cards)
-            PAGE_SIZE = 20
+            PAGE_SIZE = 10
             total_pages = max(1, (len(cards) + PAGE_SIZE - 1) // PAGE_SIZE)
             if "card_page" not in st.session_state:
                 st.session_state.card_page = 1
@@ -238,8 +245,9 @@ if uploaded is not None:
             page_cards = cards[(page-1)*PAGE_SIZE : page*PAGE_SIZE]
 
             # 合并渲染：拼成一个 HTML 字符串
+            _ai_results = st.session_state.get("ai_page_results", {})
             html_parts = []
-            for row in page_cards:
+            for _gi, row in enumerate(page_cards):
                 rank = row.排名
                 badge_class = {1: "rank-1", 2: "rank-2", 3: "rank-3"}.get(rank, "rank-other")
 
@@ -313,6 +321,23 @@ if uploaded is not None:
 
                 channel_avg = channel_avg_score.get(channel_short, 0)
 
+                # AI 解读标签：有结果时带 tooltip
+                _card_gi = (page - 1) * PAGE_SIZE + _gi
+                _card_ai = _ai_results.get(_card_gi)
+                if _card_ai and "error" not in _card_ai:
+                    _ai_tip = (
+                        f"归因：{_card_ai.get('rank_factor','—')}\n"
+                        f"亮点：{_card_ai.get('highlight','—')}\n"
+                        f"短板：{_card_ai.get('weakness','—')}\n"
+                        f"建议：{_card_ai.get('suggestion','—')}"
+                    )
+                    _ai_tip_escaped = _html.escape(_ai_tip).replace("\n", "<br>")
+                    _ai_tag_html = f"""<span class="ai-tag-btn ai-has-tip">✨ AI<div class="ai-tip">{_ai_tip_escaped}</div></span>"""
+                elif _card_ai and "error" in _card_ai:
+                    _ai_tag_html = f"""<span class="ai-tag-btn" style="opacity:0.5;" title="{_html.escape(_card_ai['error'])}">⚠ AI失败</span>"""
+                else:
+                    _ai_tag_html = """<span class="ai-tag-btn">✨ AI</span>"""
+
                 html_parts.append(f"""
                 <div class="content-card">
                   <div style="display:flex; justify-content:space-between; align-items:flex-start;">
@@ -341,6 +366,7 @@ if uploaded is not None:
                     <span>GC {gc_val:,}</span>
                     <span>Sales {int(sales_val):,}</span>
                     <span>GC转化率 {gc_rate_val:.2f}%</span>
+                    {_ai_tag_html}
                   </div>
                 </div>
                 """)
@@ -382,65 +408,22 @@ div[data-testid="stHorizontalBlock"]:last-of-type .stNumberInput input {{
                         st.session_state.card_page = page + 1
                         st.rerun()
 
-            # ─── AI 分析结果 ─────────────────────────────────────
-            if ai_run:
+            # ─── AI 解读本页（由侧边栏按钮触发）──────────────────
+            _ai_page_start = (page - 1) * PAGE_SIZE
+            _ai_page_end = min(_ai_page_start + PAGE_SIZE, len(cards))
+
+            if st.session_state.pop("ai_page_clicked", False):
                 if not ai_api_key:
-                    st.warning("请先在侧边栏填写 API Key")
+                    st.warning("请先在侧边栏「AI配置」中填写 API Key")
                 else:
-                    top_items = dff.head(ai_count).to_dict("records")
-                    with st.status(f"AI 正在分析前 {ai_count} 条内容...", expanded=True) as status:
-                        st.write("正在调用 LLM 接口，请稍候...")
-                        ai_results = analyze_content(ai_api_key, ai_provider, ai_model, top_items)
-                        st.write(f"分析完成，共 {len(ai_results)} 条结果")
-                        status.update(label="AI 分析完成", state="complete", expanded=False)
-                    st.session_state.ai_results = ai_results
-                    st.session_state.ai_items = top_items
-
-            if st.session_state.get("ai_results") and st.session_state.get("ai_items"):
-                ai_results = st.session_state.ai_results
-                top_items = st.session_state.ai_items
-                st.markdown('<div class="section-title">AI 内容分析</div>', unsafe_allow_html=True)
-                ai_html_parts = []
-                for i, (item, result) in enumerate(zip(top_items, ai_results)):
-                    rank = item.get("排名", i + 1)
-                    title = str(item.get("标题", ""))[:60]
-                    channel = str(item.get("渠道", ""))
-                    score = item.get("综合评分", 0)
-
-                    if "error" in result:
-                        body = f'<div style="color:#DA291C;">{result["error"]}</div>'
-                    else:
-                        highlight = result.get("highlight", "—")
-                        weakness = result.get("weakness", "—")
-                        suggestion = result.get("suggestion", "—")
-                        body = f"""
-                          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:6px;">
-                            <span class="ai-tag"><span class="ai-tag-label">归因</span>{result.get('rank_factor', '—')}</span>
-                            <span class="ai-tag"><span class="ai-tag-label">标题</span>{result.get('title_eval', '—')}</span>
-                            <span class="ai-tag"><span class="ai-tag-label">正文</span>{result.get('content_eval', '—')}</span>
-                          </div>
-                          <div style="display:flex; gap:8px; margin-bottom:6px;">
-                            <span class="ai-tag"><span class="ai-highlight">亮点</span> {highlight}</span>
-                            <span class="ai-tag"><span class="ai-weakness">短板</span> {weakness}</span>
-                          </div>
-                          <div class="ai-suggestion">💡 {suggestion}</div>
-                        """
-
-                    ai_html_parts.append(f"""
-                    <div class="ai-card">
-                      <div class="ai-card-header">
-                        <div>
-                          <span class="ai-badge">AI</span>
-                          <span class="ai-card-title">#{rank} {title}{'...' if len(str(item.get('标题', ''))) > 60 else ''}</span>
-                          <span style="font-size:12px; color:#888; margin-left:6px;">{channel} · 评分 {score:.2f}</span>
-                        </div>
-                      </div>
-                      {body}
-                    </div>
-                    """)
-
-                ai_grid = '<div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">' + "".join(ai_html_parts) + '</div>'
-                st.html(ai_grid)
+                    _page_items = dff.iloc[_ai_page_start:_ai_page_end].to_dict("records")
+                    with st.status(f"AI 正在分析第 {page} 页（{_ai_page_end - _ai_page_start} 条）...", expanded=True) as _status:
+                        _results = analyze_content(ai_api_key, ai_provider, ai_model, _page_items)
+                        _status.update(label="AI 分析完成", state="complete", expanded=False)
+                    st.session_state.ai_page_results = {
+                        _ai_page_start + i: r for i, r in enumerate(_results)
+                    }
+                    st.rerun()
 
     # ═══════════════════════════════════════════════════════════
     # Tab 2: 算法说明

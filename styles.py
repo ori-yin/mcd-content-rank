@@ -463,6 +463,70 @@ def get_css() -> str:
     margin-top: 8px;
   }}
 
+  /* ─── 卡片 AI 标签按钮 ─── */
+  .ai-tag-btn {{
+    background: #FFF0F0;
+    color: {MCD_RED};
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid #FFDADA;
+    cursor: default;
+    transition: all 0.15s ease;
+  }}
+  .ai-tag-btn:hover {{
+    background: {MCD_RED};
+    color: #FFFFFF;
+    border-color: {MCD_RED};
+  }}
+
+  /* ─── AI 解读 hover tooltip ─── */
+  .ai-has-tip {{
+    position: relative;
+    cursor: help;
+  }}
+  .ai-tip {{
+    visibility: hidden;
+    opacity: 0;
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(30, 30, 30, 0.95);
+    color: #FFFFFF;
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.8;
+    white-space: normal;
+    min-width: 260px;
+    max-width: 360px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    z-index: 9999;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+  }}
+  .ai-tip::after {{
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: rgba(30, 30, 30, 0.95);
+  }}
+  .ai-has-tip:hover .ai-tip {{
+    visibility: visible;
+    opacity: 1;
+  }}
+  .ai-has-tip:hover {{
+    background: {MCD_RED};
+    color: #FFFFFF;
+    border-color: {MCD_RED};
+  }}
+
   /* ─── 隐藏 API Key 密码小眼睛 ─── */
   [data-testid="stTextInputVisibilityToggle"] {{
     display: none !important;
