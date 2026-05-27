@@ -2,7 +2,7 @@
 app.py - 麦当劳内容排行榜
 """
 import html as _html
-import streamlit_mermaid as stmd
+import streamlit.components.v1 as components
 import streamlit as st
 import pandas as pd
 from datetime import timedelta
@@ -435,16 +435,15 @@ if uploaded is not None:
     # ═══════════════════════════════════════════════════════════
     with tab2:
         st.markdown('<div class="section-title">综合评分算法说明</div>', unsafe_allow_html=True)
-        stmd.st_mermaid("""
-flowchart TD
+        mermaid_def = """flowchart TD
     A[原始数据] --> B[计算衍生指标]
     B --> C["CTR分 CTR_score"]
     B --> D["GC分 GC_score"]
     A --> G["触达分 = (触达/最大触达)^0.3 x 100"]
-    C --> E1{"CTR < 渠道Q3?"}
+    C --> E1{"CTR &lt; 渠道Q3?"}
     E1 -->|是| E2["100 x (CTR/Q3)^1.5"]
     E1 -->|否| E3["100 饱和"]
-    D --> F1{"GC率 < 渠道Q3?"}
+    D --> F1{"GC率 &lt; 渠道Q3?"}
     F1 -->|是| F2["100 x (GC率/Q3)^1.5"]
     F1 -->|否| F3["100 饱和"]
     G --> H["加权求和"]
@@ -455,11 +454,11 @@ flowchart TD
     H --> I["base = 触达 x0.2 + CTR x0.5 + GC x0.3"]
     I --> J["置信度惩戒"]
     J --> J1{"触达量"}
-    J1 -->|"< 100"| J2["x 0.1"]
+    J1 -->|"&lt; 100"| J2["x 0.1"]
     J1 -->|"100~499"| J3["x 0.3"]
     J1 -->|"500~999"| J4["x 0.5"]
     J1 -->|"1000~4999"| J5["x 0.8"]
-    J1 -->|">=5000"| J6["x 1.0"]
+    J1 -->|"&gt;=5000"| J6["x 1.0"]
     J2 --> K["综合评分"]
     J3 --> K
     J4 --> K
@@ -467,8 +466,14 @@ flowchart TD
     J6 --> K
     style K fill:#DA291C,color:#fff,font-weight:bold
     style I fill:#FFC000,color:#000
-    style H fill:#FFC000,color:#000
-""", height=650)
+    style H fill:#FFC000,color:#000"""
+        components.html(
+            f"""<div class="mermaid">{mermaid_def}</div>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({{startOnLoad:true, theme:'default'}});</script>""",
+            height=650,
+            scrolling=True,
+        )
 
         with st.expander("阈值与惩戒系数参考", expanded=False):
             st.markdown("""
