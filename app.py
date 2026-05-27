@@ -351,40 +351,34 @@ if uploaded is not None:
             # ─── 底部翻页 ───────────────────────────────────────────
             st.markdown(f"""
 <style>
-div[data-testid="stHorizontalBlock"]:last-of-type {{ max-width:520px; margin:16px auto 8px !important; }}
 div[data-testid="stHorizontalBlock"]:last-of-type .stButton > button {{
-  height:30px !important; min-height:30px !important; padding:0 14px !important;
+  height:35px !important; min-height:35px !important; padding:0 12px !important;
   border-radius:6px !important; font-size:13px !important; font-weight:600 !important;
   border:1px solid #E0E0E0 !important; background:#fff !important; color:#333 !important;
-  width:100% !important;
 }}
 div[data-testid="stHorizontalBlock"]:last-of-type .stButton > button:hover {{ border-color:{MCD_RED} !important; color:{MCD_RED} !important; }}
 div[data-testid="stHorizontalBlock"]:last-of-type [data-testid="stWidgetLabel"] {{ display:none !important; }}
-div[data-testid="stHorizontalBlock"]:last-of-type .stNumberInput {{ max-width:72px !important; }}
+div[data-testid="stHorizontalBlock"]:last-of-type .stNumberInput {{ max-width:50px !important; flex:none !important; }}
 div[data-testid="stHorizontalBlock"]:last-of-type .stNumberInput input {{
-  height:30px !important; min-height:30px !important; padding:0 6px !important;
+  height:35px !important; min-height:35px !important; padding:0 4px !important;
   border-radius:6px !important; font-size:13px !important; text-align:center !important;
 }}
 </style>
 """, unsafe_allow_html=True)
-            pg1, pg2, pg3, pg4, pg5 = st.columns(5)
-            with pg1:
+            _pg = st.container(horizontal=True, gap="small")
+            with _pg:
                 if page > 1:
-                    if st.button("‹  上一页", key="pg_prev"):
+                    if st.button("‹ 上一页", key="pg_prev"):
                         st.session_state.card_page = page - 1
                         st.rerun()
-            with pg2:
-                st.markdown(f"<div style='text-align:center;padding-top:6px;font-size:12px;color:#999;'>第 {page} / {total_pages} 页 · 共 {len(cards)} 条</div>", unsafe_allow_html=True)
-            with pg3:
+                st.markdown(f"<span style='font-size:12px;color:#999;white-space:nowrap;'>第 {page}/{total_pages} 页 · {len(cards)} 条</span>", unsafe_allow_html=True)
                 jump_page = st.number_input("跳页", min_value=1, max_value=total_pages, value=page, step=1, label_visibility="collapsed", key="pg_jump")
-            with pg4:
                 if st.button("Go", key="pg_go"):
                     if jump_page != page:
                         st.session_state.card_page = jump_page
                         st.rerun()
-            with pg5:
                 if page < total_pages:
-                    if st.button("下一页  ›", key="pg_next"):
+                    if st.button("下一页 ›", key="pg_next"):
                         st.session_state.card_page = page + 1
                         st.rerun()
 
