@@ -244,8 +244,16 @@ if df is not None:
             page = st.session_state.card_page
             page_cards = cards[(page-1)*PAGE_SIZE : page*PAGE_SIZE]
 
-            # 合并渲染：拼成一个 HTML 字符串
+            # 合并渲染：拼成一个 HTML 字符串（CSS 内联到 iframe 内）
             _ai_results = st.session_state.get("ai_page_results", {})
+            _ai_css = f"""<style>
+.ai-tag-btn {{ background:#FFF0F0; color:{MCD_RED}; font-size:12px; font-weight:600; padding:4px 10px; border-radius:20px; border:1px solid #FFDADA; display:inline-block; }}
+.ai-tag-btn:hover {{ background:{MCD_RED}; color:#FFF; border-color:{MCD_RED}; }}
+.ai-has-tip {{ position:relative; cursor:help; display:inline-block; }}
+.ai-tip {{ visibility:hidden; opacity:0; position:absolute; bottom:calc(100% + 10px); left:50%; transform:translateX(-50%); background:rgba(30,30,30,0.95); color:#FFF; border-radius:10px; padding:12px 16px; font-size:12px; font-weight:400; line-height:1.8; min-width:260px; max-width:360px; box-shadow:0 4px 20px rgba(0,0,0,0.25); z-index:9999; pointer-events:none; transition:opacity 0.15s; }}
+.ai-tip::after {{ content:''; position:absolute; top:100%; left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(30,30,30,0.95); }}
+.ai-has-tip:hover .ai-tip {{ visibility:visible; opacity:1; }}
+</style>"""
             html_parts = []
             for _gi, row in enumerate(page_cards):
                 rank = row.排名
@@ -371,7 +379,7 @@ if df is not None:
                 </div>
                 """)
 
-            grid_html = '<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">' + "".join(html_parts) + '</div>'
+            grid_html = _ai_css + '<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">' + "".join(html_parts) + '</div>'
             st.html(grid_html)
 
             # ─── 底部翻页 ───────────────────────────────────────────
