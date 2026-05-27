@@ -34,7 +34,10 @@ st.markdown(f"""
 # 文件上传 + 清洗模式选择
 # ═══════════════════════════════════════════════════════════════
 
-with st.expander("数据源", expanded=(st.session_state.get("last_file_id") is None)):
+if "ds_expanded" not in st.session_state:
+    st.session_state.ds_expanded = True
+
+with st.expander("数据源", expanded=st.session_state.ds_expanded):
     col_left, col_right = st.columns([1, 1])
     with col_left:
         mode = st.radio(
@@ -56,6 +59,8 @@ if uploaded is not None:
     if st.session_state.get("last_file_id") != current_file_id:
         st.balloons()
         st.session_state.last_file_id = current_file_id
+        st.session_state.ds_expanded = False
+        st.rerun()
 
     is_xlsx = uploaded.name.lower().endswith('.xlsx')
 
