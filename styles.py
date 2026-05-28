@@ -194,18 +194,18 @@ def get_css() -> str:
   /* ─── 排名徽章 ─── */
   .rank-badge {{
     display: inline-block;
-    width: 30px; height: 30px;
-    border-radius: 50%;
-    text-align: center; line-height: 30px;
-    font-weight: 900; font-size: 13px;
-    margin-right: 8px;
-    border: 2px solid transparent;
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    text-align: center; line-height: 28px;
+    font-weight: 700; font-size: 12px;
+    margin-right: 10px;
+    border: none;
   }}
   .rank-1 {{
-    background: {MCD_GOLD};
+    background: linear-gradient(135deg, {MCD_GOLD} 0%, #FFD700 100%);
     color: {MCD_RED};
-    border-color: rgba(255,255,255,0.5);
-    box-shadow: 0 2px 8px rgba(255,188,13,0.5);
+    border-color: transparent;
+    box-shadow: 0 2px 6px rgba(255,192,0,0.3);
   }}
   .rank-2 {{
     background: #E8E8E8;
@@ -223,33 +223,33 @@ def get_css() -> str:
     border-color: transparent;
   }}
 
-  /* ─── 内容卡片 ─── */
+  /* ─── 内容卡片：精致阴影 ─── */
   .content-card {{
     background: #FFFFFF;
-    border: 1px solid #EFEFEF;
-    border-radius: 14px;
-    padding: 18px 22px;
-    margin-bottom: 14px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
-    transition: box-shadow 0.15s ease, transform 0.15s ease;
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    transition: all 0.15s ease;
   }}
   .content-card:hover {{
-    box-shadow: 0 4px 20px rgba(228,0,4, 0.12);
-    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    border-color: rgba(0,0,0,0.1);
   }}
   .card-title {{
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 600;
     color: #1a1a1a;
     margin-bottom: 6px;
-    line-height: 1.5;
+    line-height: 1.6;
     font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
   }}
   .card-content {{
     font-size: 13px;
-    color: #666;
+    color: #888;
     line-height: 1.7;
-    margin-bottom: 12px;
+    margin-bottom: 14px;
   }}
   .card-meta {{
     display: flex;
@@ -259,27 +259,28 @@ def get_css() -> str:
     color: #888;
   }}
   .card-meta span {{
-    background: #F8F8F8;
-    padding: 4px 10px;
-    border-radius: 20px;
+    background: #F8F7F5;
+    padding: 3px 10px;
+    border-radius: 6px;
     font-weight: 500;
-    border: 1px solid #EFEFEF;
+    border: none;
   }}
   .card-score {{
-    font-size: 26px;
-    font-weight: 900;
+    font-size: 28px;
+    font-weight: 700;
     color: {MCD_RED};
     text-align: right;
     line-height: 1;
     font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    letter-spacing: -0.02em;
   }}
   .card-score-label {{
-    font-size: 10px;
-    color: #CCC;
+    font-size: 11px;
+    color: #BBB;
     text-align: right;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    margin-top: 4px;
   }}
 
   /* ─── 章节标题 ─── */
@@ -401,12 +402,12 @@ def get_css() -> str:
   /* ─── AI 分析卡片 ─── */
   .ai-card {{
     background: #FFFFFF;
-    border: 1px solid #E8E8E8;
-    border-left: 4px solid {MCD_GOLD};
-    border-radius: 12px;
+    border: 1px solid rgba(0,0,0,0.06);
+    border-left: 3px solid {MCD_GOLD};
+    border-radius: 10px;
     padding: 16px 20px;
-    margin-bottom: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    margin-bottom: 14px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
   }}
   .ai-card-header {{
     display: flex;
@@ -431,14 +432,15 @@ def get_css() -> str:
   }}
   .ai-tag {{
     display: inline-block;
-    background: #F5F5F5;
-    color: #555;
+    background: #F8F7F5;
+    color: #666;
     font-size: 12px;
     padding: 3px 10px;
     border-radius: 6px;
     margin-right: 6px;
     margin-bottom: 4px;
-    border: 1px solid #EFEFEF;
+    border: none;
+    font-weight: 500;
   }}
   .ai-tag-label {{
     color: #999;

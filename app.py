@@ -247,7 +247,7 @@ if df is not None:
             # 合并渲染：拼成一个 HTML 字符串（CSS 内联到 iframe 内）
             _ai_results = st.session_state.get("ai_page_results", {})
             _ai_css = f"""<style>
-.ai-tag-btn {{ background:#FFF0F0; color:{MCD_RED}; font-size:12px; font-weight:600; padding:4px 10px; border-radius:20px; border:1px solid #FFDADA; display:inline-block; }}
+.ai-tag-btn {{ background:#F8F7F5; color:{MCD_RED}; font-size:12px; font-weight:600; padding:3px 10px; border-radius:6px; border:none; display:inline-block; }}
 .ai-tag-btn:hover {{ background:{MCD_RED}; color:#FFF; border-color:{MCD_RED}; }}
 .ai-has-tip {{ position:relative; cursor:help; display:inline-block; }}
 .ai-tip {{ visibility:hidden; opacity:0; position:absolute; bottom:calc(100% + 10px); left:50%; transform:translateX(-50%); background:rgba(30,30,30,0.95); color:#FFF; border-radius:10px; padding:12px 16px; font-size:12px; font-weight:400; line-height:1.8; min-width:260px; max-width:360px; box-shadow:0 4px 20px rgba(0,0,0,0.25); z-index:9999; pointer-events:none; transition:opacity 0.15s; }}
