@@ -15,65 +15,36 @@ def get_css() -> str:
     color: #1a1a1a;
   }}
 
-  /* ─── Streamlit 顶部导航条 ─── */
-  .st-emotion-cache-1kyxreq {{
-    background: {MCD_GOLD} !important;
-  }}
-
-  /* ─── 侧边栏：金色主题 ─── */
+  /* ─── 侧边栏：白底，品牌色仅用于交互态 ─── */
   [data-testid="stSidebar"] {{
-    background: {MCD_GOLD} !important;
-    border-right: 3px solid rgba(0,0,0,0.08);
-
-  }}
-
-  /* ─── 文件上传区：统一左右两侧边框 ─── */
-  [data-testid="stSidebar"] [data-testid="stRadio"] > div {{
-    border: 1px solid rgba(0,0,0,0.15) !important;
-    border-radius: 8px !important;
-    padding: 6px 10px !important;
-    background: rgba(255,255,255,0.6) !important;
-  }}
-  [data-testid="stSidebar"] [data-testid="stFileUploader"] > div > div {{
-    border: 1px solid rgba(0,0,0,0.15) !important;
-    border-radius: 8px !important;
-    padding: 6px 10px !important;
-    background: rgba(255,255,255,0.6) !important;
+    background: #FFFFFF !important;
+    border-right: 1px solid #E8E8E8;
+    border-top: 3px solid {MCD_GOLD};
   }}
 
   [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
   [data-testid="stSidebar"] label,
   [data-testid="stSidebar"] p {{
-    color: #000000 !important;
+    color: #1a1a1a !important;
     font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif !important;
   }}
 
-  /* ─── 侧边栏：弱化数据类型和上传文件标签 ─── */
-  [data-testid="stSidebar"] [data-testid="stRadio"] label,
-  [data-testid="stSidebar"] [data-testid="stFileUploader"] label {{
-    color: #999 !important;
-    font-weight: 300 !important;
-    font-size: 10px !important;
-    letter-spacing: 0.02em;
-  }}
-
-  /* ─── 侧边栏：其他标签保持正常 ─── */
+  /* ─── 侧边栏：标签层级 ─── */
   [data-testid="stSidebar"] .stRadio label,
   [data-testid="stSidebar"] .stSelectbox label,
   [data-testid="stSidebar"] .stTextInput label,
   [data-testid="stSidebar"] .stDateInput label,
   [data-testid="stSidebar"] .stSlider label {{
-    color: #000000 !important;
-    font-weight: 700;
+    color: #666 !important;
+    font-weight: 600;
     font-size: 12px;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    letter-spacing: 0.02em;
     margin-bottom: 4px;
   }}
 
   [data-testid="stSidebar"] hr {{
-    border-color: rgba(0,0,0,0.15) !important;
-    margin: 12px 0;
+    border-color: #EFEFEF !important;
+    margin: 16px 0;
   }}
 
   [data-testid="stSidebar"] .stSlider > div {{
@@ -81,64 +52,61 @@ def get_css() -> str:
   }}
 
   [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] {{
-    background: rgba(255,255,255,0.5) !important;
-    border-radius: 6px !important;
-
+    background: #E8E8E8 !important;
+    border-radius: 4px !important;
   }}
 
   [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] [aria-valuenow] {{
     background: {MCD_RED} !important;
-    border-radius: 6px !important;
-
+    border-radius: 4px !important;
   }}
 
   [data-testid="stSidebar"] .stSelectbox > div > div,
   [data-testid="stSidebar"] .stTextInput > div > div,
   [data-testid="stSidebar"] .stDateInput > div > div {{
-    background: rgba(255,255,255,0.6) !important;
-    border: 1px solid rgba(0,0,0,0.12) !important;
-    border-radius: 10px !important;
-    color: #000000 !important;
+    background: #FFFFFF !important;
+    border: 1px solid #E0E0E0 !important;
+    border-radius: 6px !important;
+    color: #1a1a1a !important;
   }}
 
   [data-testid="stSidebar"] [data-baseweb="select"] span {{
-    color: #000000 !important;
+    color: #1a1a1a !important;
   }}
 
   [data-testid="stSidebar"] [data-baseweb="input"] {{
-    color: #000000 !important;
+    color: #1a1a1a !important;
   }}
 
   [data-testid="stSidebar"] .stDownloadButton > button {{
     background: {MCD_RED} !important;
     color: #FFFFFF !important;
-    font-weight: 700;
+    font-weight: 600;
     border: none !important;
-    border-radius: 10px !important;
+    border-radius: 6px !important;
   }}
 
   /* ─── 页面布局 ─── */
   .block-container {{
-    padding-top: 1.5rem;
-    padding-left: 2rem;
-    padding-right: 2rem;
+    padding-top: 2rem;
+    padding-left: 2.5rem;
+    padding-right: 2.5rem;
     background: {MCD_BG};
   }}
 
-  /* ─── 顶部指标卡（弱化：小字+中灰）─── */
+  /* ─── 顶部指标卡 ─── */
   div[data-testid="stMetricValue"] {{
-    font-size: 14px !important;
-    font-weight: 300 !important;
-    color: #999 !important;
+    font-size: 24px !important;
+    font-weight: 700 !important;
+    color: #1a1a1a !important;
     font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif !important;
-    letter-spacing: 0;
+    letter-spacing: -0.02em;
   }}
   div[data-testid="stMetricLabel"] {{
-    font-size: 10px !important;
-    color: #BBB !important;
-    font-weight: 300;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    font-size: 12px !important;
+    color: #999 !important;
+    font-weight: 500;
+    letter-spacing: 0.02em;
   }}
   div[data-testid="stMetricDelta"] {{
     display: none;
@@ -146,49 +114,39 @@ def get_css() -> str:
 
   /* ─── Tab 栏 ─── */
   .stTabs [data-baseweb="tab-list"] {{
-    gap: 4px;
-    border-bottom: 2px solid #EFEFEF;
+    gap: 0;
+    border-bottom: 1px solid #E8E8E8;
   }}
   .stTabs [data-baseweb="tab"] {{
-    color: #888 !important;
-    font-weight: 600;
+    color: #999 !important;
+    font-weight: 500;
     font-size: 14px;
-    padding: 8px 16px;
-    border-radius: 8px 8px 0 0;
-    border-bottom: 3px solid transparent;
-    transition: all 0.15s ease;
+    padding: 10px 20px;
+    border-radius: 0;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s ease;
   }}
   .stTabs [data-baseweb="tab"]:hover {{
-    color: {MCD_RED} !important;
+    color: #333 !important;
   }}
   .stTabs [aria-selected="true"] {{
-    color: {MCD_RED} !important;
-    border-bottom: 3px solid {MCD_RED} !important;
-    font-weight: 700;
+    color: #1a1a1a !important;
+    border-bottom: 2px solid {MCD_RED} !important;
+    font-weight: 600;
   }}
 
-  /* ─── 主标题卡片 ─── */
+  /* ─── Header：品牌色在标题，不用色块 ─── */
   .mcd-header {{
-    background: {MCD_RED};
-    border-radius: 16px;
-    padding: 28px 36px;
-    color: #FFFFFF;
+    padding: 0 0 16px 0;
     margin-bottom: 24px;
-    border-left: 6px solid {MCD_GOLD};
+    border-bottom: 1px solid #E8E8E8;
   }}
   .mcd-header h1 {{
-    font-size: 22px;
-    font-weight: 900;
-    margin: 0 0 6px 0;
-    letter-spacing: -0.02em;
-    color: #FFFFFF;
-  }}
-  .mcd-header p {{
-    font-size: 13px;
-    opacity: 1;
+    font-size: 20px;
+    font-weight: 700;
     margin: 0;
-    font-weight: 500;
-    color: #FFFFFF;
+    letter-spacing: -0.01em;
+    color: {MCD_RED};
   }}
 
   /* ─── 排名徽章 ─── */
@@ -202,10 +160,9 @@ def get_css() -> str:
     border: none;
   }}
   .rank-1 {{
-    background: linear-gradient(135deg, {MCD_GOLD} 0%, #FFD700 100%);
-    color: {MCD_RED};
+    background: {MCD_GOLD};
+    color: #000;
     border-color: transparent;
-    box-shadow: 0 2px 6px rgba(255,192,0,0.3);
   }}
   .rank-2 {{
     background: #E8E8E8;
@@ -286,25 +243,25 @@ def get_css() -> str:
   /* ─── 章节标题 ─── */
   .section-title {{
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 600;
     color: #1a1a1a;
     margin: 28px 0 14px 0;
     padding-bottom: 8px;
-    border-bottom: 2px solid {MCD_RED};
+    border-bottom: 1px solid #E8E8E8;
     letter-spacing: -0.01em;
   }}
 
   /* ─── 数据表格 ─── */
   .stDataFrame thead th {{
-    background: {MCD_RED} !important;
-    color: #FFFFFF !important;
+    background: #F8F8F8 !important;
+    color: #666 !important;
     font-size: 12px !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.03em;
-    border: none !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.02em;
+    border-bottom: 2px solid #E8E8E8 !important;
     padding: 10px 12px !important;
   }}
-  .stDataFrame tbody tr:hover {{ background: rgba(228,0,4, 0.04) !important; }}
+  .stDataFrame tbody tr:hover {{ background: #FAFAFA !important; }}
   .stDataFrame tbody td {{
     font-size: 13px !important;
     color: #333 !important;

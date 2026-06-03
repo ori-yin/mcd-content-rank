@@ -25,7 +25,7 @@ st.markdown(get_css(), unsafe_allow_html=True)
 # ─── Header ───────────────────────────────────────────────────
 st.markdown(f"""
 <div class="mcd-header">
-  <h1>麦当劳内容排行榜</h1>
+  <h1>内容排行榜</h1>
 </div>
 """, unsafe_allow_html=True)
 
@@ -109,7 +109,11 @@ if df is not None:
 
     # ─── 侧边筛选 ─────────────────────────────────────────────
     with st.sidebar:
-        st.markdown("**筛选条件**")
+        st.markdown(f"""
+<div style="margin-bottom:20px; padding-bottom:14px; border-bottom:1px solid #E8E8E8;">
+  <div style="font-size:14px; font-weight:700; color:{MCD_RED}; letter-spacing:-0.01em;">McDonald's</div>
+</div>
+""", unsafe_allow_html=True)
 
         if date_col in df.columns and df[date_col].notna().any():
             min_dt = df[date_col].min().date()
@@ -140,15 +144,13 @@ if df is not None:
         keyword = st.text_input("搜索关键词", "")
 
         # ─── 权重配置 ─────────────────────────────────────────────
-        st.markdown("**权重**")
         with st.expander("权重配置", expanded=False):
             w_reach = st.slider("触达权重", 0.0, 1.0, 0.20, 0.05)
             w_ctr = st.slider("CTR权重", 0.0, 1.0, 0.50, 0.05)
             w_gc = st.slider("GC转化率权重", 0.0, 1.0, 0.30, 0.05)
 
         # ─── 排序 ────────────────────────────────────────────────
-        st.markdown("**排序**")
-        sort_order = st.radio("综合评分排序", ["降序", "升序"], index=0, horizontal=True, label_visibility="collapsed")
+        sort_order = st.radio("排序", ["降序", "升序"], index=0, horizontal=True)
 
         total_w = w_reach + w_ctr + w_gc
         if total_w == 0:
@@ -161,8 +163,7 @@ if df is not None:
 
         # ─── AI API 配置 ──────────────────────────────────────────
         st.markdown("---")
-        st.markdown("**AI配置**")
-        with st.expander("API 配置", expanded=False):
+        with st.expander("AI 配置", expanded=False):
             ai_provider = st.selectbox("API Provider", list(API_PROVIDERS.keys()), index=0)
             ai_model = st.selectbox("模型", API_PROVIDERS[ai_provider]["models"])
             ai_api_key = st.text_input("API Key", value=DEFAULT_API_KEY, type="password")
