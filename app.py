@@ -145,9 +145,9 @@ if df is not None:
 
         # ─── 权重配置 ─────────────────────────────────────────────
         with st.expander("权重配置", expanded=False):
-            w_reach = st.slider("触达权重", 0.0, 1.0, 0.20, 0.05)
+            w_reach = st.slider("触达权重", 0.0, 1.0, 0.25, 0.05)
             w_ctr = st.slider("CTR权重", 0.0, 1.0, 0.50, 0.05)
-            w_gc = st.slider("GC转化率权重", 0.0, 1.0, 0.30, 0.05)
+            w_gc = st.slider("GC转化率权重", 0.0, 1.0, 0.25, 0.05)
 
         # ─── 排序 ────────────────────────────────────────────────
         sort_order = st.radio("排序", ["降序", "升序"], index=0, horizontal=True)
@@ -458,7 +458,7 @@ digraph G {
     F2 [label="100 × (GC率/Q3)^1.5"];
     F3 [label="100 饱和"];
     H  [label="加权求和", fillcolor="#FFC000", color="#E0A800", fontcolor="#000000"];
-    I  [label="base =\n触达×0.2 + CTR×0.5 + GC×0.3", fillcolor="#FFC000", color="#E0A800", fontcolor="#000000"];
+    I  [label="base =\n触达×0.25 + CTR×0.5 + GC×0.25", fillcolor="#FFC000", color="#E0A800", fontcolor="#000000"];
     J  [label="置信度惩戒"];
     J1 [label="触达量", shape=diamond, fillcolor="#FFF8F0", color="#FFC000"];
     J2 [label="× 0.1"];

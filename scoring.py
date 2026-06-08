@@ -40,7 +40,7 @@ def compute_full_scores(df: pd.DataFrame) -> pd.DataFrame:
     df["GC_score_full"] = piecewise_score_vec(df["订单GC转化率"], _gc_thresh)
 
     df["综合评分_full"] = (
-        df["触达_norm"] * 0.2 + df["CTR_score_full"] * 0.50 + df["GC_score_full"] * 0.30
+        df["触达_norm"] * 0.25 + df["CTR_score_full"] * 0.50 + df["GC_score_full"] * 0.25
     ) * pd.cut(
         df["触达成功"].fillna(0),
         bins=PENALTY_BINS,
