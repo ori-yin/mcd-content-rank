@@ -6,7 +6,7 @@ import streamlit as st
 import pandas as pd
 from datetime import timedelta
 
-from config import MCD_RED, MCD_GOLD, MCD_BG, OWNER_COL, API_PROVIDERS, PAGE_SIZE, DEFAULT_API_KEY
+from config import MCD_RED, MCD_GOLD, MCD_BG, OWNER_COL, API_PROVIDERS, PAGE_SIZE, DEFAULT_API_KEY, DEFAULT_W_REACH, DEFAULT_W_CTR, DEFAULT_W_GC
 from styles import get_css
 from data_cleaning import clean_raw_csv, read_cleaned_csv, clean_raw_xlsx, read_cleaned_xlsx
 from scoring import compute_derived_metrics, compute_full_scores, compute_filtered_scores
@@ -145,9 +145,9 @@ if df is not None:
 
         # ─── 权重配置 ─────────────────────────────────────────────
         with st.expander("权重配置", expanded=False):
-            w_reach = st.slider("触达权重", 0.0, 1.0, 0.25, 0.05)
-            w_ctr = st.slider("CTR权重", 0.0, 1.0, 0.50, 0.05)
-            w_gc = st.slider("GC转化率权重", 0.0, 1.0, 0.25, 0.05)
+            w_reach = st.slider("触达权重", 0.0, 1.0, DEFAULT_W_REACH, 0.05)
+            w_ctr = st.slider("CTR权重", 0.0, 1.0, DEFAULT_W_CTR, 0.05)
+            w_gc = st.slider("GC转化率权重", 0.0, 1.0, DEFAULT_W_GC, 0.05)
 
         # ─── 排序 ────────────────────────────────────────────────
         sort_order = st.radio("排序", ["降序", "升序"], index=0, horizontal=True)

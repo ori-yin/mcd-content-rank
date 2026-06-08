@@ -7,6 +7,7 @@ import pandas as pd
 from config import (
     CTR_THRESHOLDS, GC_THRESHOLDS,
     CTR_UNKNOWN_THRESHOLD, GC_UNKNOWN_THRESHOLD, EXP,
+    DEFAULT_W_REACH, DEFAULT_W_CTR, DEFAULT_W_GC,
 )
 
 PENALTY_BINS = [-1, 99, 499, 999, 4999, float("inf")]
@@ -40,7 +41,7 @@ def compute_full_scores(df: pd.DataFrame) -> pd.DataFrame:
     df["GC_score_full"] = piecewise_score_vec(df["订单GC转化率"], _gc_thresh)
 
     df["综合评分_full"] = (
-        df["触达_norm"] * 0.25 + df["CTR_score_full"] * 0.50 + df["GC_score_full"] * 0.25
+        df["触达_norm"] * DEFAULT_W_REACH + df["CTR_score_full"] * DEFAULT_W_CTR + df["GC_score_full"] * DEFAULT_W_GC
     ) * pd.cut(
         df["触达成功"].fillna(0),
         bins=PENALTY_BINS,
