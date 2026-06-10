@@ -96,9 +96,9 @@ def get_css() -> str:
 
   /* ─── 顶部指标卡 ─── */
   div[data-testid="stMetricValue"] {{
-    font-size: 24px !important;
-    font-weight: 700 !important;
-    color: #1a1a1a !important;
+    font-size: 18px !important;
+    font-weight: 500 !important;
+    color: #504e49 !important;
     font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif !important;
     letter-spacing: -0.02em;
   }}
