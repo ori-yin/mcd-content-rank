@@ -462,9 +462,16 @@ div[data-testid="stHorizontalBlock"]:last-of-type .stNumberInput input {{
                     _min, _max = s.min(), s.max()
                     return ((s - _min) / (_max - _min) * 100).round(2) if _max > _min else pd.Series(50, index=s.index)
 
-                _bu_agg["CTR_norm"] = _norm(_bu_agg["CTR"])
+                # 分段评分：低于 Q3 → 100×(值/Q3)^1.5，达标 → 100 饱和
+                def _piecewise(series, q3):
+                    ratio = series / q3
+                    return (ratio.clip(upper=1) ** 1.5 * 100).round(2).where(series < q3, 100.0)
+
+                _bu_ctr_q3 = _bu_agg["CTR"].quantile(0.75)
+                _bu_gc_q3 = _bu_agg["GC转化率"].quantile(0.75)
+                _bu_agg["CTR_norm"] = _piecewise(_bu_agg["CTR"], _bu_ctr_q3) if _bu_ctr_q3 > 0 else 50.0
                 _bu_agg["触达_norm"] = ((_bu_agg["触达"] / _bu_agg["触达"].max()) ** 0.3 * 100).round(2)
-                _bu_agg["GC_norm"] = _norm(_bu_agg["GC转化率"])
+                _bu_agg["GC_norm"] = _piecewise(_bu_agg["GC转化率"], _bu_gc_q3) if _bu_gc_q3 > 0 else 50.0
 
                 _bu_base = (
                     _bu_agg["CTR_norm"] * 0.50
