@@ -260,7 +260,7 @@ if df is not None:
                 badge_class = {1: "rank-1", 2: "rank-2", 3: "rank-3"}.get(rank, "rank-other")
 
                 score = row.综合评分
-                if score >= 75:
+                if score >= 70:
                     score_color = "#00A04A"
                 elif score >= 40:
                     score_color = "#FFC000"
@@ -496,7 +496,7 @@ div[data-testid="stHorizontalBlock"]:last-of-type .stNumberInput input {{
                     rank = row.排名
                     badge_class = {1: "rank-1", 2: "rank-2", 3: "rank-3"}.get(rank, "rank-other")
                     score = row.BU综合评分
-                    if score >= 75:
+                    if score >= 70:
                         score_color = "#00A04A"
                     elif score >= 40:
                         score_color = "#C79200"
