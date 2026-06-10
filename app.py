@@ -60,10 +60,9 @@ with st.expander("数据源", expanded=st.session_state.ds_expanded):
 if uploaded is not None:
     current_file_id = uploaded.file_id
     if st.session_state.get("last_file_id") != current_file_id:
-        st.balloons()
         st.session_state.last_file_id = current_file_id
         st.session_state.ds_expanded = False
-        st.rerun()
+        st.balloons()
 
     is_xlsx = uploaded.name.lower().endswith('.xlsx')
 
@@ -223,7 +222,7 @@ if df is not None:
     col4.metric("平均 CTR", f"{avg_ctr:.2f}%")
 
     # ─── Tab 切换 ─────────────────────────────────────────────
-    tab1, tab2, tab3 = st.tabs(["卡片排行榜", "算法说明", "数据表格"])
+    tab1, tab_bu, tab2, tab3 = st.tabs(["卡片排行榜", "BU排行榜", "算法说明", "数据表格"])
 
     # ═══════════════════════════════════════════════════════════
     # Tab 1: 卡片排行榜
@@ -433,6 +432,140 @@ div[data-testid="stHorizontalBlock"]:last-of-type .stNumberInput input {{
                         _ai_page_start + i: r for i, r in enumerate(_results)
                     }
                     st.rerun()
+
+    # ═══════════════════════════════════════════════════════════
+    # Tab BU: BU 排行榜
+    # ═══════════════════════════════════════════════════════════
+    with tab_bu:
+        if total_rows == 0:
+            st.warning("当前筛选条件下无数据，请调整筛选条件")
+        else:
+            _bu_col = OWNER_COL
+            if _bu_col not in dff.columns:
+                st.warning(f"数据中缺少「{_bu_col}」列，无法生成 BU 排行榜")
+            else:
+                # ─── 按 BU 聚合 ─────────────────────────────────
+                _bu_agg = dff.groupby(_bu_col).agg(
+                    计划数量=("综合评分", "size"),
+                    触达=("触达成功", "sum"),
+                    点击=("点击人次", "sum"),
+                    GC=("订单GC", "sum"),
+                    Sales=("订单Sales", "sum"),
+                    均值综合评分=("综合评分", "mean"),
+                ).reset_index()
+
+                _bu_agg["CTR"] = (_bu_agg["点击"] / _bu_agg["触达"] * 100).round(2).fillna(0)
+                _bu_agg["GC转化率"] = (_bu_agg["GC"] / _bu_agg["点击"] * 100).round(2).fillna(0)
+
+                # ─── BU 综合评分（min-max 归一化 × 权重 + 置信度惩戒）──
+                def _norm(s):
+                    _min, _max = s.min(), s.max()
+                    return ((s - _min) / (_max - _min) * 100).round(2) if _max > _min else pd.Series(50, index=s.index)
+
+                _bu_agg["CTR_norm"] = _norm(_bu_agg["CTR"])
+                _bu_agg["触达_norm"] = _norm(_bu_agg["触达"])
+                _bu_agg["GC_norm"] = _norm(_bu_agg["GC转化率"])
+
+                _bu_base = (
+                    _bu_agg["CTR_norm"] * 0.50
+                    + _bu_agg["触达_norm"] * 0.25
+                    + _bu_agg["GC_norm"] * 0.25
+                ).round(2)
+
+                # 置信度惩戒（与卡片排行榜一致）
+                _bu_penalty = pd.cut(
+                    _bu_agg["触达"].fillna(0),
+                    bins=[-1, 99, 499, 999, 4999, float("inf")],
+                    labels=[0.1, 0.3, 0.5, 0.8, 1.0],
+                ).astype(float)
+                _bu_agg["BU综合评分"] = (_bu_base * _bu_penalty).round(2)
+
+                _bu_agg = _bu_agg.sort_values("BU综合评分", ascending=False).reset_index(drop=True)
+                _bu_agg["排名"] = _bu_agg.index + 1
+
+                # ─── 卡片渲染 ─────────────────────────────────────
+                bu_html_parts = []
+                for row in _bu_agg.itertuples():
+                    rank = row.排名
+                    badge_class = {1: "rank-1", 2: "rank-2", 3: "rank-3"}.get(rank, "rank-other")
+                    score = row.BU综合评分
+                    if score >= 75:
+                        score_color = "#00A04A"
+                    elif score >= 40:
+                        score_color = "#C79200"
+                    else:
+                        score_color = "#DA291C"
+
+                    bu_name = str(getattr(row, _bu_col, '') or '')
+                    plan_cnt = int(getattr(row, '计划数量', 0) or 0)
+                    reach = int(getattr(row, '触达', 0) or 0)
+                    clicks = int(getattr(row, '点击', 0) or 0)
+                    ctr_val = float(getattr(row, 'CTR', 0) or 0)
+                    gc_val = int(getattr(row, 'GC', 0) or 0)
+                    sales_val = float(getattr(row, 'Sales', 0) or 0)
+                    gc_rate = float(getattr(row, 'GC转化率', 0) or 0)
+                    wavg = float(getattr(row, '均值综合评分', 0) or 0)
+
+                    # 归一化值 + 置信度惩戒（用于 tooltip）
+                    _ctr_norm = float(getattr(row, 'CTR_norm', 0) or 0)
+                    _reach_norm = float(getattr(row, '触达_norm', 0) or 0)
+                    _gc_norm = float(getattr(row, 'GC_norm', 0) or 0)
+                    _base = _ctr_norm * 0.50 + _reach_norm * 0.25 + _gc_norm * 0.25
+                    if reach <= 99:
+                        _penalty_coef, _penalty_label = 0.1, "置信度低(x0.1)"
+                    elif reach <= 499:
+                        _penalty_coef, _penalty_label = 0.3, "置信度低(x0.3)"
+                    elif reach <= 999:
+                        _penalty_coef, _penalty_label = 0.5, "置信度中(x0.5)"
+                    elif reach <= 4999:
+                        _penalty_coef, _penalty_label = 0.8, "置信度较高(x0.8)"
+                    else:
+                        _penalty_coef, _penalty_label = 1.0, "置信度高(x1.0)"
+                    _bu_tooltip = (
+                        f"CTR {ctr_val:.2f}% → {_ctr_norm:.1f} × 0.50 = {(_ctr_norm * 0.50):.1f}\n"
+                        f"触达 {reach:,} → {_reach_norm:.1f} × 0.25 = {(_reach_norm * 0.25):.1f}\n"
+                        f"GC转化率 {gc_rate:.2f}% → {_gc_norm:.1f} × 0.25 = {(_gc_norm * 0.25):.1f}\n"
+                        f"基础分 {_base:.1f} × {_penalty_coef} = {score:.1f}  [{_penalty_label}]\n"
+                        f"内容均值 = {wavg:.1f}"
+                    )
+                    _bu_tooltip_escaped = _html.escape(_bu_tooltip).replace("\n", "<br>")
+
+                    bu_html_parts.append(f"""
+                    <div class="content-card">
+                      <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                        <div style="flex:1;">
+                          <div style="display:flex; align-items:center; gap:8px;">
+                            <span class="rank-badge {badge_class}">{rank}</span>
+                            <div>
+                              <div style="font-size:14px; font-weight:600; color:#141413;">{bu_name}</div>
+                              <div style="font-size:12px; color:#6b6a64;">{plan_cnt} 个计划</div>
+                            </div>
+                          </div>
+                        </div>
+                        <div>
+                          <div style="display:flex;align-items:flex-start;justify-content:flex-end;gap:0;">
+                            <div class="card-score" style="color:{score_color};">{score:.1f}</div>
+                            <div class="score-info-wrap">
+                              <span class="info-icon">i</span>
+                              <div class="score-tooltip">{_bu_tooltip_escaped}</div>
+                            </div>
+                          </div>
+                          <div class="card-score-label">均值 {wavg:.1f}</div>
+                        </div>
+                      </div>
+                      <div class="card-meta" style="margin-top:14px;">
+                        <span>触达 {reach:,}</span>
+                        <span>点击 {clicks:,}</span>
+                        <span>CTR {ctr_val:.2f}%</span>
+                        <span>GC {gc_val:,}</span>
+                        <span>Sales {int(sales_val):,}</span>
+                        <span>GC转化率 {gc_rate:.2f}%</span>
+                      </div>
+                    </div>
+                    """)
+
+                bu_grid = '<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px;">' + "".join(bu_html_parts) + '</div>'
+                st.html(bu_grid)
 
     # ═══════════════════════════════════════════════════════════
     # Tab 2: 算法说明
