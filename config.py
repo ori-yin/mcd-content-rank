@@ -37,6 +37,43 @@ MCD_GOLD = "#FFC000"
 MCD_GREEN = "#00A04A"
 MCD_BG = "#FAFAFA"
 
+# ─── 配色主题 ──────────────────────────────────────────────────
+THEMES = {
+    "经典红金": {
+        "bg": "#FAFAFA",
+        "sidebar_bg": "#FFFFFF",
+        "card_bg": "#FFFFFF",
+        "text": "#1a1a1a",
+        "text_sub": "#666",
+        "text_muted": "#999",
+        "border": "#E8E8E8",
+        "accent": "#DA291C",
+        "gold": "#FFC000",
+    },
+    "暖羊皮纸": {
+        "bg": "#f5f4ed",
+        "sidebar_bg": "#faf9f5",
+        "card_bg": "#faf9f5",
+        "text": "#141413",
+        "text_sub": "#504e49",
+        "text_muted": "#6b6a64",
+        "border": "#e8e6dc",
+        "accent": "#DA291C",
+        "gold": "#C79200",
+    },
+    "暗色": {
+        "bg": "#1a1a1a",
+        "sidebar_bg": "#222222",
+        "card_bg": "#2a2a2a",
+        "text": "#e8e6dc",
+        "text_sub": "#b5b3aa",
+        "text_muted": "#8a8880",
+        "border": "#3a3a3a",
+        "accent": "#DA291C",
+        "gold": "#C79200",
+    },
+}
+
 # ─── 列名常量 ──────────────────────────────────────────────────
 OWNER_COL = "预算owner"
 

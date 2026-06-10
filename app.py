@@ -6,7 +6,7 @@ import streamlit as st
 import pandas as pd
 from datetime import timedelta
 
-from config import MCD_RED, MCD_GOLD, MCD_BG, OWNER_COL, API_PROVIDERS, PAGE_SIZE, DEFAULT_API_KEY, DEFAULT_W_REACH, DEFAULT_W_CTR, DEFAULT_W_GC
+from config import MCD_RED, MCD_GOLD, MCD_BG, OWNER_COL, API_PROVIDERS, PAGE_SIZE, DEFAULT_API_KEY, DEFAULT_W_REACH, DEFAULT_W_CTR, DEFAULT_W_GC, THEMES
 from styles import get_css
 from data_cleaning import clean_raw_csv, read_cleaned_csv, clean_raw_xlsx, read_cleaned_xlsx
 from scoring import compute_derived_metrics, compute_full_scores, compute_filtered_scores
@@ -168,6 +168,69 @@ if df is not None:
             ai_api_key = st.text_input("API Key", value=DEFAULT_API_KEY, type="password")
         if st.button("AI分析", use_container_width=True, key="ai_sidebar_btn"):
             st.session_state.ai_page_clicked = True
+
+        # ─── 配色主题 ──────────────────────────────────────────────
+        st.markdown("---")
+        with st.expander("配色主题", expanded=False):
+            selected_theme = st.selectbox("主题", list(THEMES.keys()), index=0)
+
+    # ─── 注入主题覆盖 CSS ───────────────────────────────────────
+    _t = THEMES[selected_theme]
+    st.markdown(f"""
+<style>
+  html, body, .stApp {{ background: {_t['bg']}; color: {_t['text']}; }}
+  [data-testid="stSidebar"] {{ background: {_t['sidebar_bg']} !important; border-right: 1px solid {_t['border']}; border-top: 3px solid {_t['gold']}; }}
+  [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
+  [data-testid="stSidebar"] label, [data-testid="stSidebar"] p {{ color: {_t['text']} !important; }}
+  [data-testid="stSidebar"] .stRadio label, [data-testid="stSidebar"] .stSelectbox label,
+  [data-testid="stSidebar"] .stTextInput label, [data-testid="stSidebar"] .stDateInput label,
+  [data-testid="stSidebar"] .stSlider label {{ color: {_t['text_sub']} !important; }}
+  [data-testid="stSidebar"] hr {{ border-color: {_t['border']} !important; }}
+  [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] {{ background: {_t['border']} !important; }}
+  [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] [aria-valuenow] {{ background: {_t['accent']} !important; }}
+  [data-testid="stSidebar"] .stSelectbox > div > div,
+  [data-testid="stSidebar"] .stTextInput > div > div,
+  [data-testid="stSidebar"] .stDateInput > div > div {{ background: {_t['sidebar_bg']} !important; border: 1px solid {_t['border']} !important; color: {_t['text']} !important; }}
+  [data-testid="stSidebar"] [data-baseweb="select"] span {{ color: {_t['text']} !important; }}
+  [data-testid="stSidebar"] [data-baseweb="input"] {{ color: {_t['text']} !important; }}
+  div[data-testid="stMetricValue"] {{ color: {_t['text_sub']} !important; }}
+  div[data-testid="stMetricLabel"] {{ color: {_t['text_muted']} !important; }}
+  .stTabs [data-baseweb="tab-list"] {{ border-bottom: 1px solid {_t['border']}; }}
+  .stTabs [data-baseweb="tab"] {{ color: {_t['text_muted']} !important; }}
+  .stTabs [data-baseweb="tab"]:hover {{ color: {_t['text']} !important; }}
+  .stTabs [aria-selected="true"] {{ color: {_t['text']} !important; border-bottom: 2px solid {_t['accent']} !important; }}
+  .mcd-header {{ border-bottom: 1px solid {_t['border']}; }}
+  .mcd-header h1 {{ color: {_t['accent']}; }}
+  .rank-1 {{ background: {_t['gold']}33; color: {_t['gold']}; border-color: {_t['gold']}; }}
+  .rank-2 {{ background: {_t['border']}; color: {_t['text_sub']}; }}
+  .rank-3 {{ background: {_t['gold']}33; color: {_t['gold']}; border-color: {_t['gold']}55; }}
+  .rank-other {{ background: {_t['border']}; color: {_t['text_muted']}; }}
+  .content-card {{ background: {_t['card_bg']}; border: 1px solid {_t['border']}; }}
+  .content-card:hover {{ border-color: {_t['text_muted']}; }}
+  .card-title {{ color: {_t['text']}; }}
+  .card-content {{ color: {_t['text_sub']}; }}
+  .card-meta {{ color: {_t['text_sub']}; }}
+  .card-meta span {{ background: {_t['bg']}; }}
+  .card-score {{ color: {_t['accent']}; }}
+  .card-score-label {{ color: {_t['text_muted']}; }}
+  .section-title {{ color: {_t['text']}; border-bottom: 1px solid {_t['border']}; }}
+  .stDataFrame thead th {{ background: {_t['bg']} !important; color: {_t['text_sub']} !important; border-bottom: 2px solid {_t['border']} !important; }}
+  .stDataFrame tbody td {{ color: {_t['text']} !important; border-color: {_t['border']} !important; }}
+  .stDataFrame tbody tr:hover {{ background: {_t['gold']}22 !important; }}
+  .score-info-wrap .info-icon {{ background: {_t['border']}; color: {_t['text_muted']}; }}
+  .score-info-wrap:hover .info-icon {{ background: {_t['accent']}; color: #FFF; }}
+  .ai-card {{ background: {_t['card_bg']}; border: 1px solid {_t['border']}; border-left: 3px solid {_t['gold']}; }}
+  .ai-card-title {{ color: {_t['text']}; }}
+  .ai-tag {{ background: {_t['bg']}; color: {_t['text_sub']}; }}
+  .ai-tag-btn {{ background: {_t['accent']}15; color: {_t['accent']}; border: 1px solid {_t['accent']}33; }}
+  .ai-tag-btn:hover {{ background: {_t['accent']}; color: #FFFFFF; border-color: {_t['accent']}; }}
+  .ai-has-tip:hover {{ background: {_t['accent']}; color: #FFFFFF; border-color: {_t['accent']}; }}
+  .stButton > button {{ border: 1px solid {_t['border']} !important; background: {_t['card_bg']} !important; color: {_t['text']} !important; }}
+  .stButton > button:hover {{ border-color: {_t['accent']} !important; color: {_t['accent']} !important; }}
+  .mcd-header div {{ color: {_t['accent']}; }}
+  [data-testid="stSidebar"] .stDownloadButton > button {{ background: {_t['accent']} !important; }}
+</style>
+""", unsafe_allow_html=True)
 
     # ─── 应用筛选 ─────────────────────────────────────────────
     dff = df
