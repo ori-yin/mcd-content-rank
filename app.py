@@ -463,7 +463,7 @@ div[data-testid="stHorizontalBlock"]:last-of-type .stNumberInput input {{
                     return ((s - _min) / (_max - _min) * 100).round(2) if _max > _min else pd.Series(50, index=s.index)
 
                 _bu_agg["CTR_norm"] = _norm(_bu_agg["CTR"])
-                _bu_agg["触达_norm"] = _norm(_bu_agg["触达"])
+                _bu_agg["触达_norm"] = ((_bu_agg["触达"] / _bu_agg["触达"].max()) ** 0.3 * 100).round(2)
                 _bu_agg["GC_norm"] = _norm(_bu_agg["GC转化率"])
 
                 _bu_base = (
