@@ -82,9 +82,9 @@ OWNER_COL = "预算owner"
 # ─── API 配置 ──────────────────────────────────────────────────
 API_PROVIDERS = {
     "火山方舟": {
-        "base_url": "https://ark.cn-beijing.volces.com/api/v3",
+        "base_url": "https://ark.cn-beijing.volces.com/api/coding/v3",
         "models": ["minimax-m3"],
-        "api_key": "-897605b4-831b-494a-9e2e-d477d6b17158-fb2d1",
+        "api_key": "k-897605b4-831b-494a-9e2e-d477d6b17158-fb2d1",
     },
     "百度千帆": {
         "base_url": "https://qianfan.baidubce.com/v2/coding",
