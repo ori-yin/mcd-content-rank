@@ -99,7 +99,7 @@ API_PROVIDERS = {
     "火山方舟": {
         "base_url": "https://ark.cn-beijing.volces.com/api/v3",
         "models": ["minimax-m3"],
-        "api_key": "a897605b4-831b-494a-9e2e-d477d6b17158-fb2d1",
+        "api_key": "-a897605b4-831b-494a-9e2e-d477d6b17158-fb2d1",
     },
     "OpenAI": {
         "base_url": None,
