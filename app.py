@@ -357,7 +357,7 @@ if df is not None:
                 reach_norm = getattr(row, '触达_norm', 0)
                 ctr_score_t = getattr(row, 'CTR_score', 0)
                 gc_score_t = getattr(row, 'GC_score', 0)
-                base_score_t = reach_norm * norm_reach + ctr_score_t * norm_ctr + gc_score_t * norm_gc
+                base_score_t = round(reach_norm * norm_reach + ctr_score_t * norm_ctr + gc_score_t * norm_gc, 2)
                 impact_parts = []
                 if reach_norm < 33:
                     impact_parts.append("触达偏低({:.1f})".format(reach_norm))
@@ -539,7 +539,8 @@ div[data-testid="stHorizontalBlock"]:last-of-type .stNumberInput input {{
                 # 分段评分：低于 Q3 → 100×(值/Q3)^1.5，达标 → 100 饱和
                 def _piecewise(series, q3):
                     ratio = series / q3
-                    return (ratio.clip(upper=1) ** 1.5 * 100).round(2).where(series < q3, 100.0)
+                    score = (ratio.clip(upper=1) ** 1.5 * 100).round(2)
+                    return score.where(series.notna() & (series < q3), 100.0).where(series.notna())
 
                 _bu_ctr_q3 = _bu_agg["CTR"].quantile(0.75)
                 _bu_gc_q3 = _bu_agg["GC转化率"].quantile(0.75)
