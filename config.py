@@ -84,18 +84,27 @@ API_PROVIDERS = {
     "百度千帆": {
         "base_url": "https://qianfan.baidubce.com/v2/coding",
         "models": ["qianfan-code-latest"],
+        "api_key": "ce-v3/ALTAKSP-QmNPHghHzqzyoxZMVnzVo/c6b429d64ddc09c0c24d2c61a79ab30d1f1f5a55",
     },
     "麦当劳AI网关": {
         "base_url": "https://ai-gateway-test.mcdchina.net/v1",
         "models": ["gemini-3-flash-preview", "gemini-3-pro-image-preview", "deepseek-v3", "claude-sonnet-4.6", "claude-haiku-4.5"],
+        "api_key": "",
     },
     "SiliconFlow": {
         "base_url": "https://api.siliconflow.cn/v1",
         "models": ["deepseek-ai/DeepSeek-V3-0324", "Qwen/Qwen2.5-72B-Instruct"],
+        "api_key": "",
+    },
+    "火山方舟": {
+        "base_url": "https://ark.cn-beijing.volces.com/api/v3",
+        "models": ["minimax-m3"],
+        "api_key": "a897605b4-831b-494a-9e2e-d477d6b17158-fb2d1",
     },
     "OpenAI": {
         "base_url": None,
         "models": ["gpt-4o-mini", "gpt-4o"],
+        "api_key": "",
     },
 }
 
@@ -105,6 +114,3 @@ DEFAULT_W_CTR = 0.50
 DEFAULT_W_GC = 0.25
 
 PAGE_SIZE = 20
-
-# ─── 默认 API Key（百度千帆）──────────────────────────────────
-DEFAULT_API_KEY = "ce-v3/ALTAKSP-QmNPHghHzqzyoxZMVnzVo/c6b429d64ddc09c0c24d2c61a79ab30d1f1f5a55"

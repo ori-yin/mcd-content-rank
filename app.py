@@ -6,7 +6,7 @@ import streamlit as st
 import pandas as pd
 from datetime import timedelta
 
-from config import MCD_RED, MCD_GOLD, MCD_BG, OWNER_COL, API_PROVIDERS, PAGE_SIZE, DEFAULT_API_KEY, DEFAULT_W_REACH, DEFAULT_W_CTR, DEFAULT_W_GC, THEMES
+from config import MCD_RED, MCD_GOLD, MCD_BG, OWNER_COL, API_PROVIDERS, PAGE_SIZE, DEFAULT_W_REACH, DEFAULT_W_CTR, DEFAULT_W_GC, THEMES
 from styles import get_css
 from data_cleaning import clean_raw_csv, read_cleaned_csv, clean_raw_xlsx, read_cleaned_xlsx
 from scoring import compute_derived_metrics, compute_full_scores, compute_filtered_scores
@@ -163,9 +163,20 @@ if df is not None:
         # ─── AI API 配置 ──────────────────────────────────────────
         st.markdown("---")
         with st.expander("AI 配置", expanded=False):
-            ai_provider = st.selectbox("API Provider", list(API_PROVIDERS.keys()), index=0)
+            def _on_provider_change():
+                st.session_state["ai_api_key"] = API_PROVIDERS[st.session_state["ai_provider"]].get("api_key", "")
+
+            ai_provider = st.selectbox(
+                "API Provider", list(API_PROVIDERS.keys()), index=0,
+                key="ai_provider", on_change=_on_provider_change,
+            )
             ai_model = st.selectbox("模型", API_PROVIDERS[ai_provider]["models"])
-            ai_api_key = st.text_input("API Key", value=DEFAULT_API_KEY, type="password")
+            _default_key = API_PROVIDERS[ai_provider].get("api_key", "")
+            ai_api_key = st.text_input(
+                "API Key",
+                value=st.session_state.get("ai_api_key", _default_key),
+                type="password", key="ai_api_key",
+            )
         if st.button("AI分析", use_container_width=True, key="ai_sidebar_btn"):
             st.session_state.ai_page_clicked = True
 
