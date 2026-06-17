@@ -8,6 +8,15 @@ from config import MCD_RED, MCD_GOLD, MCD_GREEN, MCD_BG
 def get_css() -> str:
     return f"""
 <style>
+  /* ─── 隐藏 Streamlit 默认顶部 header ─── */
+  header[data-testid="stHeader"] {{
+    display: none !important;
+  }}
+  /* 隐藏所有 header 元素 */
+  header {{
+    display: none !important;
+  }}
+
   /* ─── 全局字体 ─── */
     html, body, .stApp {{
     font-family: 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif !important;

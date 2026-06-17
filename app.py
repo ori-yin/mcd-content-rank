@@ -14,20 +14,13 @@ from llm_service import analyze_content
 
 st.set_page_config(
     page_title="麦当劳内容排行榜",
-    page_icon="🏆",
+    page_icon="static/favicon.png",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 # ─── 注入样式 ─────────────────────────────────────────────────
 st.markdown(get_css(), unsafe_allow_html=True)
-
-# ─── Header ───────────────────────────────────────────────────
-st.markdown(f"""
-<div class="mcd-header">
-  <h1>内容排行榜</h1>
-</div>
-""", unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════════
 # 文件上传 + 清洗模式选择
