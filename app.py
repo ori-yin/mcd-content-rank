@@ -2,14 +2,15 @@
 app.py - 麦当劳内容排行榜
 """
 import html as _html
-import streamlit_mermaid as stmd
 import streamlit as st
 import pandas as pd
-import json
-import re
-import numpy as np
-from datetime import datetime, timedelta
-from io import BytesIO
+from datetime import timedelta
+
+from config import MCD_RED, MCD_GOLD, MCD_BG, OWNER_COL, API_PROVIDERS, PAGE_SIZE, DEFAULT_W_REACH, DEFAULT_W_CTR, DEFAULT_W_GC, THEMES
+from styles import get_css
+from data_cleaning import clean_raw_csv, read_cleaned_csv, clean_raw_xlsx, read_cleaned_xlsx
+from scoring import compute_derived_metrics, compute_full_scores, compute_filtered_scores
+from llm_service import analyze_content
 
 st.set_page_config(
     page_title="麦当劳内容排行榜",
@@ -18,670 +19,100 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ═══════════════════════════════════════════════════════════════
-# Section 0: CTR/GC 分段函数阈值配置
-#   - Q3 阈值 = 75th percentile，来自全量数据统计
-#   - 校准：使 Q3 得分 = 100
-#   - 公式: G < C → score = × 100 × (G/C)^EXP; G >= C → score = × 100 (EXP=1.5)
-# ═══════════════════════════════════════════════════════════════
-
-# CTR 阈值配置 (单位: 百分比%，如 0.31 = 0.31% CTR)
-CTR_THRESHOLDS = {
-    "APP Push": 0.31,
-    "企微1v1": 2.62,
-    "微信小程序订阅消息": 4.01,
-    "短信": 0.53,
-}
-# GC 阈值配置 (单位: 百分比，如 69.5 = 69.5%)
-GC_THRESHOLDS = {
-    "APP Push": 69.5,
-    "企微1v1": 18.5,
-    "微信小程序订阅消息": 41.0,
-    "短信": 26.7,
-}
-# 未知渠道 fallback Q3 (来自全量 CTR/GC 统计)
-CTR_UNKNOWN_THRESHOLD = 2.85   # 2.85%
-GC_UNKNOWN_THRESHOLD = 34.8  # 34.8%
-
-EXP = 1.5  # 幂次：E越大区分度越大（G/threshold^EXP，若 G/threshold=0.5→得分=100×0.5^1.5≈35）
-
-
-
-def piecewise_score(G, threshold):
-    if G < threshold:
-        return 100.0 * ((G / threshold) ** EXP)
-    return 100.0
-
-def piecewise_score_vec(G_col, threshold_col):
-    """向量化版本：整列一次计算，比 apply 快 100 倍"""
-    ratio = G_col / threshold_col
-    return np.where(ratio >= 1, 100.0, 100.0 * ratio ** EXP)
-
-# ─── 品牌色 ─────────────────────────────────────────────────────
-MCD_RED = "#DA291C"  # 麦当劳品牌红
-MCD_GOLD = "#FFC000"
-MCD_GREEN = "#00A04A"
-MCD_BG = "#FAFAFA"
-
-# ─── 列名常量 ──────────────────────────────────────────────────
-OWNER_COL = "预算owner"   
-
-# ─── 样式 ─────────────────────────────────────────────────────
-st.markdown(f"""
-<style>
-  /* ─── 全局字体 ─── */
-    html, body, .stApp {{
-    font-family: 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif !important;
-    background: {MCD_BG};
-    color: #1a1a1a;
-  }}
-
-  /* ─── Streamlit 顶部导航条 ─── */
-  .st-emotion-cache-1kyxreq {{
-    background: {MCD_GOLD} !important;
-  }}
-
-  /* ─── 侧边栏：金色主题 ─── */
-  [data-testid="stSidebar"] {{
-    background: {MCD_GOLD} !important;
-    border-right: 3px solid rgba(0,0,0,0.08);
-
-  }}
-
-  /* ─── 文件上传区：统一左右两侧边框 ─── */
-  [data-testid="stSidebar"] [data-testid="stRadio"] > div {{
-    border: 1px solid rgba(0,0,0,0.15) !important;
-    border-radius: 8px !important;
-    padding: 6px 10px !important;
-    background: rgba(255,255,255,0.6) !important;
-  }}
-  [data-testid="stSidebar"] [data-testid="stFileUploader"] > div > div {{
-    border: 1px solid rgba(0,0,0,0.15) !important;
-    border-radius: 8px !important;
-    padding: 6px 10px !important;
-    background: rgba(255,255,255,0.6) !important;
-  }}
-
-  [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
-  [data-testid="stSidebar"] label,
-  [data-testid="stSidebar"] p {{
-    color: #000000 !important;
-    font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif !important;
-  }}
-
-  /* ─── 侧边栏：弱化数据类型和上传文件标签 ─── */
-  [data-testid="stSidebar"] [data-testid="stRadio"] label,
-  [data-testid="stSidebar"] [data-testid="stFileUploader"] label {{
-    color: #999 !important;
-    font-weight: 300 !important;
-    font-size: 10px !important;
-    letter-spacing: 0.02em;
-  }}
-
-  /* ─── 侧边栏：其他标签保持正常 ─── */
-  [data-testid="stSidebar"] .stRadio label,
-  [data-testid="stSidebar"] .stSelectbox label,
-  [data-testid="stSidebar"] .stTextInput label,
-  [data-testid="stSidebar"] .stDateInput label,
-  [data-testid="stSidebar"] .stSlider label {{
-    color: #000000 !important;
-    font-weight: 700;
-    font-size: 12px;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    margin-bottom: 4px;
-  }}
-
-  [data-testid="stSidebar"] hr {{
-    border-color: rgba(0,0,0,0.15) !important;
-    margin: 12px 0;
-  }}
-
-  [data-testid="stSidebar"] .stSlider > div {{
-    padding: 4px 0;
-  }}
-
-  [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] {{
-    background: rgba(255,255,255,0.5) !important;
-    border-radius: 6px !important;
-
-  }}
-
-  [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] [aria-valuenow] {{
-    background: {MCD_RED} !important;
-    border-radius: 6px !important;
-
-  }}
-
-  [data-testid="stSidebar"] .stSelectbox > div > div,
-  [data-testid="stSidebar"] .stTextInput > div > div,
-  [data-testid="stSidebar"] .stDateInput > div > div {{
-    background: rgba(255,255,255,0.6) !important;
-    border: 1px solid rgba(0,0,0,0.12) !important;
-    border-radius: 10px !important;
-    color: #000000 !important;
-  }}
-
-  [data-testid="stSidebar"] [data-baseweb="select"] span {{
-    color: #000000 !important;
-  }}
-
-  [data-testid="stSidebar"] [data-baseweb="input"] {{
-    color: #000000 !important;
-  }}
-
-  [data-testid="stSidebar"] .stDownloadButton > button {{
-    background: {MCD_RED} !important;
-    color: #FFFFFF !important;
-    font-weight: 700;
-    border: none !important;
-    border-radius: 10px !important;
-  }}
-
-  /* ─── 页面布局 ─── */
-  .block-container {{
-    padding-top: 1.5rem;
-    padding-left: 2rem;
-    padding-right: 2rem;
-    background: {MCD_BG};
-  }}
-
-  /* ─── 顶部指标卡（弱化：小字+中灰）─── */
-  div[data-testid="stMetricValue"] {{
-    font-size: 14px !important;
-    font-weight: 300 !important;
-    color: #999 !important;
-    font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif !important;
-    letter-spacing: 0;
-  }}
-  div[data-testid="stMetricLabel"] {{
-    font-size: 10px !important;
-    color: #BBB !important;
-    font-weight: 300;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }}
-  div[data-testid="stMetricDelta"] {{
-    display: none;
-  }}
-
-  /* ─── Tab 栏 ─── */
-  .stTabs [data-baseweb="tab-list"] {{
-    gap: 4px;
-    border-bottom: 2px solid #EFEFEF;
-  }}
-  .stTabs [data-baseweb="tab"] {{
-    color: #888 !important;
-    font-weight: 600;
-    font-size: 14px;
-    padding: 8px 16px;
-    border-radius: 8px 8px 0 0;
-    border-bottom: 3px solid transparent;
-    transition: all 0.15s ease;
-  }}
-  .stTabs [data-baseweb="tab"]:hover {{
-    color: {MCD_RED} !important;
-  }}
-  .stTabs [aria-selected="true"] {{
-    color: {MCD_RED} !important;
-    border-bottom: 3px solid {MCD_RED} !important;
-    font-weight: 700;
-  }}
-
-  /* ─── 主标题卡片 ─── */
-  .mcd-header {{
-    background: {MCD_RED};
-    border-radius: 16px;
-    padding: 28px 36px;
-    color: #FFFFFF;
-    margin-bottom: 24px;
-    border-left: 6px solid {MCD_GOLD};
-  }}
-  .mcd-header h1 {{
-    font-size: 22px;
-    font-weight: 900;
-    margin: 0 0 6px 0;
-    letter-spacing: -0.02em;
-    color: #FFFFFF;
-  }}
-  .mcd-header p {{
-    font-size: 13px;
-    opacity: 1;
-    margin: 0;
-    font-weight: 500;
-    color: #FFFFFF;
-  }}
-
-  /* ─── 排名徽章 ─── */
-  .rank-badge {{
-    display: inline-block;
-    width: 30px; height: 30px;
-    border-radius: 50%;
-    text-align: center; line-height: 30px;
-    font-weight: 900; font-size: 13px;
-    margin-right: 8px;
-    border: 2px solid transparent;
-  }}
-  .rank-1 {{
-    background: {MCD_GOLD};
-    color: {MCD_RED};
-    border-color: rgba(255,255,255,0.5);
-    box-shadow: 0 2px 8px rgba(255,188,13,0.5);
-  }}
-  .rank-2 {{
-    background: #E8E8E8;
-    color: #666;
-    border-color: rgba(0,0,0,0.08);
-  }}
-  .rank-3 {{
-    background: #FFC000;
-    color: #000;
-    border-color: rgba(0,0,0,0.1);
-  }}
-  .rank-other {{
-    background: #F2F2F2;
-    color: #AAA;
-    border-color: transparent;
-  }}
-
-  /* ─── 内容卡片 ─── */
-  .content-card {{
-    background: #FFFFFF;
-    border: 1px solid #EFEFEF;
-    border-radius: 14px;
-    padding: 18px 22px;
-    margin-bottom: 14px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
-    transition: box-shadow 0.15s ease, transform 0.15s ease;
-  }}
-  .content-card:hover {{
-    box-shadow: 0 4px 20px rgba(228,0,4, 0.12);
-    transform: translateY(-1px);
-  }}
-  .card-title {{
-    font-size: 14px;
-    font-weight: 700;
-    color: #1a1a1a;
-    margin-bottom: 6px;
-    line-height: 1.5;
-    font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
-  }}
-  .card-content {{
-    font-size: 13px;
-    color: #666;
-    line-height: 1.7;
-    margin-bottom: 12px;
-  }}
-  .card-meta {{
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    font-size: 12px;
-    color: #888;
-  }}
-  .card-meta span {{
-    background: #F8F8F8;
-    padding: 4px 10px;
-    border-radius: 20px;
-    font-weight: 500;
-    border: 1px solid #EFEFEF;
-  }}
-  .card-score {{
-    font-size: 26px;
-    font-weight: 900;
-    color: {MCD_RED};
-    text-align: right;
-    line-height: 1;
-    font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
-  }}
-  .card-score-label {{
-    font-size: 10px;
-    color: #CCC;
-    text-align: right;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }}
-
-  /* ─── 章节标题 ─── */
-  .section-title {{
-    font-size: 14px;
-    font-weight: 700;
-    color: #1a1a1a;
-    margin: 28px 0 14px 0;
-    padding-bottom: 8px;
-    border-bottom: 2px solid {MCD_RED};
-    letter-spacing: -0.01em;
-  }}
-
-  /* ─── 数据表格 ─── */
-  .stDataFrame thead th {{
-    background: {MCD_RED} !important;
-    color: #FFFFFF !important;
-    font-size: 12px !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.03em;
-    border: none !important;
-    padding: 10px 12px !important;
-  }}
-  .stDataFrame tbody tr:hover {{ background: rgba(228,0,4, 0.04) !important; }}
-  .stDataFrame tbody td {{
-    font-size: 13px !important;
-    color: #333 !important;
-    padding: 9px 12px !important;
-    border-color: #F0F0F0 !important;
-  }}
-
-  /* ─── 清洗状态提示 ─── */
-  .clean-status {{
-    background: #FFF8F0;
-    border: 1px solid {MCD_GOLD};
-    border-left: 4px solid {MCD_GOLD};
-    border-radius: 10px;
-    padding: 10px 16px;
-    margin-bottom: 20px;
-    font-size: 13px;
-    color: #000000;
-    font-weight: 500;
-  }}
-
-  /* ─── 副文本 / 说明文字 ─── */
-  .stCaption {{
-    font-size: 12px !important;
-    color: #AAA !important;
-  }}
-
-  /* ─── 数字高亮 ─── */
-  .stAlert {{
-    border-radius: 10px;
-  }}
-
-  /* ─── 综合评分 Info Tooltip ─── */
-  .score-info-wrap {{
-    display: inline-block;
-    position: relative;
-    vertical-align: middle;
-    margin-left: 5px;
-    cursor: help;
-    line-height: 1;
-  }}
-  .score-info-wrap .info-icon {{
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: #E0E0E0;
-    color: #999;
-    font-size: 9px;
-    font-weight: 900;
-    font-style: normal;
-    line-height: 1;
-    user-select: none;
-    transition: background 0.15s, color 0.15s;
-  }}
-  .score-info-wrap:hover .info-icon {{
-    background: {MCD_RED};
-    color: #FFF;
-  }}
-  .score-tooltip {{
-    visibility: hidden;
-    opacity: 0;
-    position: absolute;
-    bottom: calc(100% + 8px);
-    right: calc(100% + 10px);
-    background: rgba(30, 30, 30, 0.95);
-    color: #FFFFFF;
-    border-radius: 10px;
-    padding: 10px 14px;
-    font-size: 12px;
-    white-space: pre-line;
-    line-height: 1.6;
-    min-width: 220px;
-    max-width: 300px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
-    z-index: 9999;
-    pointer-events: none;
-    transition: opacity 0.15s ease;
-  }}
-  .score-tooltip::after {{
-    content: '';
-    position: absolute;
-    top: 100%;
-    right: auto;
-    left: 100%;
-    border: 5px solid transparent;
-    border-left-color: rgba(30, 30, 30, 0.95);
-  }}
-  .score-info-wrap:hover .score-tooltip {{
-    visibility: visible;
-    opacity: 1;
-  }}
-
-</style>
-""", unsafe_allow_html=True)
-
-# ═══════════════════════════════════════════════════════════════
-# Section 1: 全局配置与样式
-# ═══════════════════════════════════════════════════════════════
+# ─── 注入样式 ─────────────────────────────────────────────────
+st.markdown(get_css(), unsafe_allow_html=True)
 
 # ─── Header ───────────────────────────────────────────────────
 st.markdown(f"""
 <div class="mcd-header">
-  <h1>麦当劳内容排行榜</h1>
+  <h1>内容排行榜</h1>
 </div>
 """, unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════════
-# Section 2: 数据清洗函数
+# 文件上传 + 清洗模式选择
 # ═══════════════════════════════════════════════════════════════
 
-# Ori 的数据清洗脚本
-# ═══════════════════════════════════════════════════════════════
+if "ds_expanded" not in st.session_state:
+    st.session_state.ds_expanded = True
 
-def extract_title_from_forms(forms):
-    """从 forms 列表中提取标题"""
-    if not isinstance(forms, list):
-        return None
-    for item in forms:
-        if item.get('code') == 'thing1' and item.get('value'):
-            return item['value']
-    for item in forms:
-        code = item.get('code', '')
-        value = item.get('value')
-        if code.startswith('thing') and value:
-            return value
-    for item in forms:
-        code = item.get('code', '')
-        value = item.get('value')
-        if not code.startswith('time') and value:
-            return value
-    return None
+# 优先从 session_state 恢复已处理的数据（避免页面 reload 后丢失）
+df = st.session_state.get("processed_df")
+date_col = "发送日期"
 
-
-def extract_text_from_forms(forms):
-    """从 forms 列表中提取正文"""
-    if not isinstance(forms, list):
-        return None
-    for item in forms:
-        code = item.get('code', '')
-        value = item.get('value')
-        if code in ['thing5', 'short_thing5'] and value:
-            return value
-    for item in forms:
-        code = item.get('code', '')
-        value = item.get('value')
-        if code.startswith('thing') and code != 'thing1' and value:
-            return value
-    return None
-
-
-def parse_message(raw):
-    """将原始 JSON 消息解析为标题和正文"""
-    if pd.isna(raw) or not isinstance(raw, str):
-        return pd.Series({'标题': '', '内容': ''})
-
-    try:
-        data = json.loads(raw)
-    except (json.JSONDecodeError, TypeError):
-        return pd.Series({'标题': '', '内容': ''})
-
-    title = data.get('title')
-    if not title:
-        title = extract_title_from_forms(data.get('forms'))
-    if not title:
-        attachments = data.get('attachments')
-        if isinstance(attachments, list) and len(attachments) > 0:
-            title = attachments[0].get('name', '')
-
-    text = data.get('text')
-    if not text:
-        text = extract_text_from_forms(data.get('forms'))
-
-    if not title and text:
-        first_part = re.split(r'[。！？\n]', str(text).strip())[0].strip()
-        if len(first_part) > 0:
-            title = first_part
-        else:
-            title = str(text)[:20]
-
-    title = str(title).strip() if title else ''
-    text = str(text).strip() if text else ''
-
-    # 清洗特殊字符
-    title = title.replace('?', '').replace('\r\n', '').replace('\n', '').replace('\r', '')
-    text = text.replace('?', '').replace('\r\n', '').replace('\n', '').replace('\r', '')
-
-    return pd.Series({'标题': title, '内容': text})
-
-
-def clean_raw_csv(uploaded_file) -> pd.DataFrame:
-    """
-    1. 尝试多种编码读取原始 CSV
-    2. 检查是否有至少 15 列
-    3. 读取第 O 列（索引 14，即第 15 列）
-    4. 解析 JSON，提取标题和内容
-    5. 合并回原 DataFrame，删除原始 JSON 列
-    """
-    bytes_data = uploaded_file.read()
-
-    # 尝试多种编码（原脚本逻辑）
-    encodings = ['utf-8', 'gbk', 'gb2312', 'latin1']
-    df = None
-    for enc in encodings:
-        try:
-            df = pd.read_csv(BytesIO(bytes_data), encoding=enc, on_bad_lines='skip')
-            break
-        except Exception:
-            continue
-
-    if df is None:
-        raise ValueError("无法读取 CSV 文件，请检查文件格式")
-
-    # 检查是否有至少 15 列（原脚本逻辑）
-    if df.shape[1] < 15:
-        raise ValueError(f"CSV 只有 {df.shape[1]} 列，第 15 列（O列）不存在")
-
-    # 读取第 O 列（索引 14，原脚本逻辑）
-    o_col = df.iloc[:, 14]
-
-    # 执行解析（原脚本逻辑）
-    parsed_df = o_col.apply(parse_message)
-
-    # 合并回原 DataFrame，删除原始 JSON 列（原脚本逻辑）
-    df['标题'] = parsed_df['标题']
-    df['内容'] = parsed_df['内容']
-    df = df.drop(df.columns[14], axis=1)
-
-    return df
-
-# ═══════════════════════════════════════════════════════════════
-# Section 3: App 主逻辑
-# ═══════════════════════════════════════════════════════════════
-
-# App 主逻辑
-# ═══════════════════════════════════════════════════════════════
-
-# ─── 文件上传 + 清洗模式选择 ────────────────────────────────────
-with st.expander("数据源", expanded=(st.session_state.get("last_file_id") is None)):
+with st.expander("数据源", expanded=st.session_state.ds_expanded):
     col_left, col_right = st.columns([1, 1])
     with col_left:
         mode = st.radio(
             "数据类型",
-            ["原始 CSV（含 JSON 列，需清洗）", "已清洗 CSV（直接使用）"],
+            ["原始数据（含 JSON 列，需清洗）", "已清洗数据（直接使用）"],
             horizontal=True,
-            help="原始 CSV：上传运行清洗脚本之前的文件；已清洗 CSV：运行完脚本后的文件"
+            help="原始数据：上传含 JSON 消息列的文件；已清洗数据：上传已完成解析的文件"
         )
     with col_right:
         uploaded = st.file_uploader(
-            "上传 CSV 文件",
-            type=["csv"],
-            help="支持 UTF-8、GBK、GB2312、Latin1 编码"
+            "上传文件",
+            type=["csv", "xlsx"],
+            help="CSV 支持 UTF-8/GBK 编码；XLSX 完整保留 emoji"
         )
 
 # 只在首次上传或文件变化时触发气球
 if uploaded is not None:
     current_file_id = uploaded.file_id
     if st.session_state.get("last_file_id") != current_file_id:
-        st.balloons()
         st.session_state.last_file_id = current_file_id
+        st.session_state.ds_expanded = False
+        st.balloons()
+
+    is_xlsx = uploaded.name.lower().endswith('.xlsx')
 
     # ─── 读取数据 ───────────────────────────────────────────────
-    if mode == "原始 CSV（含 JSON 列，需清洗）":
+    if mode == "原始数据（含 JSON 列，需清洗）":
         with st.spinner("正在运行数据清洗脚本..."):
             try:
-                df = clean_raw_csv(uploaded)
+                if is_xlsx:
+                    df = clean_raw_xlsx(uploaded)
+                else:
+                    df = clean_raw_csv(uploaded)
             except ValueError as e:
                 st.error(str(e))
                 st.stop()
     else:
-        # 已清洗 CSV，直接读取（第一版方式）
         try:
-            df = pd.read_csv(uploaded, encoding="gbk")
-        except Exception:
-            try:
-                df = pd.read_csv(uploaded, encoding="utf-8")
-            except Exception:
-                df = pd.read_csv(uploaded, encoding="utf-8-sig")
+            if is_xlsx:
+                df = read_cleaned_xlsx(uploaded)
+            else:
+                df = read_cleaned_csv(uploaded)
+        except ValueError as e:
+            st.error(str(e))
+            st.stop()
+        except Exception as e:
+            st.error(f"文件读取失败：{e}")
+            st.stop()
 
     # ─── 解析日期列 ────────────────────────────────────────────
-    date_col = "发送日期"
     if date_col in df.columns:
         df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
 
     # ─── 计算衍生指标 ─────────────────────────────────────────
-    df["CTR"] = (df["点击人次"] / df["触达成功"] * 100).round(2)
-    df["CTR"] = df["CTR"].replace([float("inf"), -float("inf")], 0).fillna(0)
-    df["订单GC转化率"] = (df["订单GC"] / df["点击人次"] * 100).round(2)
-    df["订单GC转化率"] = df["订单GC转化率"].replace([float("inf"), -float("inf")], 0).fillna(0)
+    df = compute_derived_metrics(df)
 
-    # ─── 幂次归一化（仅触达）────────────────────────────────
-    df["触达_norm"] = ((df["触达成功"] / df["触达成功"].max()) ** 0.3) * 100
+    # ─── 计算全量综合评分（用于渠道均值）─────────────────────────
+    df = compute_full_scores(df)
 
-    # --- 计算全量数据的综合评分（用于渠道均值，不受筛选影响）----------------------
+    # 存入 session_state，页面 reload 后可直接恢复
+    st.session_state.processed_df = df
 
-
-    _ctr_thresh = df["渠道"].astype(str).map(CTR_THRESHOLDS).fillna(CTR_UNKNOWN_THRESHOLD)
-    df["CTR_score_full"] = piecewise_score_vec(df["CTR"], _ctr_thresh)
-    _gc_thresh = df["渠道"].astype(str).map(GC_THRESHOLDS).fillna(GC_UNKNOWN_THRESHOLD)
-    df["GC_score_full"] = piecewise_score_vec(df["订单GC转化率"], _gc_thresh)
-    df["综合评分_full"] = (
-        df["触达_norm"] * 0.2 + df["CTR_score_full"] * 0.50 + df["GC_score_full"] * 0.30
-    ) * pd.cut(
-        df["触达成功"].fillna(0),
-        bins=[-1, 99, 499, 999, 4999, float("inf")],
-        labels=[0.1, 0.3, 0.5, 0.8, 1.0]
-    ).astype(float)
-
-    # --- 计算分渠道平均综合评分（基于全量数据，不受筛选影响）----------------------
+if df is not None:
     channel_avg_score = df.groupby("渠道")["综合评分_full"].mean().to_dict() if "渠道" in df.columns else {}
-    # 注：CTR_norm 和 订单GC转化率_norm 在筛选后按渠道分层计算，此处不预先计算
 
     # ─── 侧边筛选 ─────────────────────────────────────────────
     with st.sidebar:
-        # ─── 筛选条件 ───────────────────────────────────────────
-        st.markdown("**筛选条件**")
+        st.markdown(f"""
+<div style="margin-bottom:20px; padding-bottom:14px; border-bottom:1px solid #E8E8E8;">
+  <div style="font-size:14px; font-weight:700; color:{MCD_RED}; letter-spacing:-0.01em;">McDonald's</div>
+</div>
+""", unsafe_allow_html=True)
 
         if date_col in df.columns and df[date_col].notna().any():
             min_dt = df[date_col].min().date()
@@ -711,15 +142,14 @@ if uploaded is not None:
 
         keyword = st.text_input("搜索关键词", "")
 
-        # ─── 权重配置（折叠）─────────────────────────────────────
-        st.markdown("**权重**")
+        # ─── 权重配置 ─────────────────────────────────────────────
         with st.expander("权重配置", expanded=False):
-            w_reach = st.slider("触达权重", 0.0, 1.0, 0.20, 0.05)
-            w_ctr = st.slider("CTR权重", 0.0, 1.0, 0.50, 0.05)
-            w_gc = st.slider("GC转化率权重", 0.0, 1.0, 0.30, 0.05)
+            w_reach = st.slider("触达权重", 0.0, 1.0, DEFAULT_W_REACH, 0.05)
+            w_ctr = st.slider("CTR权重", 0.0, 1.0, DEFAULT_W_CTR, 0.05)
+            w_gc = st.slider("GC转化率权重", 0.0, 1.0, DEFAULT_W_GC, 0.05)
+
         # ─── 排序 ────────────────────────────────────────────────
-        st.markdown("**排序**")
-        sort_order = st.radio("综合评分排序", ["降序", "升序"], index=0, horizontal=True, label_visibility="collapsed")
+        sort_order = st.radio("排序", ["降序", "升序"], index=0, horizontal=True)
 
         total_w = w_reach + w_ctr + w_gc
         if total_w == 0:
@@ -730,8 +160,88 @@ if uploaded is not None:
             norm_ctr = w_ctr / total_w
             norm_gc = w_gc / total_w
 
-    # ─── 计算综合评分（筛选后在渠道分层归一化之后计算）──────────────────
-    # 注：触达_norm 已在全局计算，CTR_norm 和 订单GC转化率_norm 需在筛选后按渠道分层计算
+        # ─── AI API 配置 ──────────────────────────────────────────
+        st.markdown("---")
+        with st.expander("AI 配置", expanded=False):
+            def _on_provider_change():
+                st.session_state["ai_api_key"] = API_PROVIDERS[st.session_state["ai_provider"]].get("api_key", "")
+
+            ai_provider = st.selectbox(
+                "API Provider", list(API_PROVIDERS.keys()), index=0,
+                key="ai_provider", on_change=_on_provider_change,
+            )
+            ai_model = st.selectbox("模型", API_PROVIDERS[ai_provider]["models"])
+            _default_key = API_PROVIDERS[ai_provider].get("api_key", "")
+            ai_api_key = st.text_input(
+                "API Key",
+                value=st.session_state.get("ai_api_key", _default_key),
+                type="password", key="ai_api_key",
+            )
+        if st.button("AI分析", use_container_width=True, key="ai_sidebar_btn"):
+            st.session_state.ai_page_clicked = True
+
+        # ─── 配色主题 ──────────────────────────────────────────────
+        st.markdown("---")
+        with st.expander("配色主题", expanded=False):
+            selected_theme = st.selectbox("主题", list(THEMES.keys()), index=0)
+
+    # ─── 注入主题覆盖 CSS ───────────────────────────────────────
+    _t = THEMES[selected_theme]
+    st.markdown(f"""
+<style>
+  html, body, .stApp {{ background: {_t['bg']}; color: {_t['text']}; }}
+  [data-testid="stSidebar"] {{ background: {_t['sidebar_bg']} !important; border-right: 1px solid {_t['border']}; border-top: 3px solid {_t['gold']}; }}
+  [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
+  [data-testid="stSidebar"] label, [data-testid="stSidebar"] p {{ color: {_t['text']} !important; }}
+  [data-testid="stSidebar"] .stRadio label, [data-testid="stSidebar"] .stSelectbox label,
+  [data-testid="stSidebar"] .stTextInput label, [data-testid="stSidebar"] .stDateInput label,
+  [data-testid="stSidebar"] .stSlider label {{ color: {_t['text_sub']} !important; }}
+  [data-testid="stSidebar"] hr {{ border-color: {_t['border']} !important; }}
+  [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] {{ background: {_t['border']} !important; }}
+  [data-testid="stSidebar"] .stSlider [data-baseweb="slider"] [aria-valuenow] {{ background: {_t['accent']} !important; }}
+  [data-testid="stSidebar"] .stSelectbox > div > div,
+  [data-testid="stSidebar"] .stTextInput > div > div,
+  [data-testid="stSidebar"] .stDateInput > div > div {{ background: {_t['sidebar_bg']} !important; border: 1px solid {_t['border']} !important; color: {_t['text']} !important; }}
+  [data-testid="stSidebar"] [data-baseweb="select"] span {{ color: {_t['text']} !important; }}
+  [data-testid="stSidebar"] [data-baseweb="input"] {{ color: {_t['text']} !important; }}
+  div[data-testid="stMetricValue"] {{ color: {_t['text_sub']} !important; }}
+  div[data-testid="stMetricLabel"] {{ color: {_t['text_muted']} !important; }}
+  .stTabs [data-baseweb="tab-list"] {{ border-bottom: 1px solid {_t['border']}; }}
+  .stTabs [data-baseweb="tab"] {{ color: {_t['text_muted']} !important; }}
+  .stTabs [data-baseweb="tab"]:hover {{ color: {_t['text']} !important; }}
+  .stTabs [aria-selected="true"] {{ color: {_t['text']} !important; border-bottom: 2px solid {_t['accent']} !important; }}
+  .mcd-header {{ border-bottom: 1px solid {_t['border']}; }}
+  .mcd-header h1 {{ color: {_t['accent']}; }}
+  .rank-1 {{ background: {_t['gold']}33; color: {_t['gold']}; border-color: {_t['gold']}; }}
+  .rank-2 {{ background: {_t['border']}; color: {_t['text_sub']}; }}
+  .rank-3 {{ background: {_t['gold']}33; color: {_t['gold']}; border-color: {_t['gold']}55; }}
+  .rank-other {{ background: {_t['border']}; color: {_t['text_muted']}; }}
+  .content-card {{ background: {_t['card_bg']}; border: 1px solid {_t['border']}; }}
+  .content-card:hover {{ border-color: {_t['text_muted']}; }}
+  .card-title {{ color: {_t['text']}; }}
+  .card-content {{ color: {_t['text_sub']}; }}
+  .card-meta {{ color: {_t['text_sub']}; }}
+  .card-meta span {{ background: {_t['bg']}; }}
+  .card-score {{ color: {_t['accent']}; }}
+  .card-score-label {{ color: {_t['text_muted']}; }}
+  .section-title {{ color: {_t['text']}; border-bottom: 1px solid {_t['border']}; }}
+  .stDataFrame thead th {{ background: {_t['bg']} !important; color: {_t['text_sub']} !important; border-bottom: 2px solid {_t['border']} !important; }}
+  .stDataFrame tbody td {{ color: {_t['text']} !important; border-color: {_t['border']} !important; }}
+  .stDataFrame tbody tr:hover {{ background: {_t['gold']}22 !important; }}
+  .score-info-wrap .info-icon {{ background: {_t['border']}; color: {_t['text_muted']}; }}
+  .score-info-wrap:hover .info-icon {{ background: {_t['accent']}; color: #FFF; }}
+  .ai-card {{ background: {_t['card_bg']}; border: 1px solid {_t['border']}; border-left: 3px solid {_t['gold']}; }}
+  .ai-card-title {{ color: {_t['text']}; }}
+  .ai-tag {{ background: {_t['bg']}; color: {_t['text_sub']}; }}
+  .ai-tag-btn {{ background: {_t['accent']}15; color: {_t['accent']}; border: 1px solid {_t['accent']}33; }}
+  .ai-tag-btn:hover {{ background: {_t['accent']}; color: #FFFFFF; border-color: {_t['accent']}; }}
+  .ai-has-tip:hover {{ background: {_t['accent']}; color: #FFFFFF; border-color: {_t['accent']}; }}
+  .stButton > button {{ border: 1px solid {_t['border']} !important; background: {_t['card_bg']} !important; color: {_t['text']} !important; }}
+  .stButton > button:hover {{ border-color: {_t['accent']} !important; color: {_t['accent']} !important; }}
+  .mcd-header div {{ color: {_t['accent']}; }}
+  [data-testid="stSidebar"] .stDownloadButton > button {{ background: {_t['accent']} !important; }}
+</style>
+""", unsafe_allow_html=True)
 
     # ─── 应用筛选 ─────────────────────────────────────────────
     dff = df
@@ -757,35 +267,15 @@ if uploaded is not None:
     if keyword:
         kw = keyword.lower()
         mask = pd.Series(False, index=dff.index)
-        # 搜索标题列
         title_candidates = [c for c in ["标题", "消息标题"] if c in dff.columns]
         if title_candidates:
             mask |= dff[title_candidates[0]].astype(str).str.lower().str.contains(kw, na=False)
-        # 搜索内容列
         if "内容" in dff.columns:
             mask |= dff["内容"].astype(str).str.lower().str.contains(kw, na=False)
         dff = dff[mask]
 
-    # ─── 分段评分（CTR/GC 按渠道 Q3 阈值 + 校准）───────────────────
-    # CTR_score 和 GC_score 范围: 0 ~ 100+，饱和在 100（各渠道 Q3 = 100）
-
-    _dff_ctr_thresh = dff["渠道"].astype(str).map(CTR_THRESHOLDS).fillna(CTR_UNKNOWN_THRESHOLD)
-    dff["CTR_score"] = piecewise_score_vec(dff["CTR"], _dff_ctr_thresh)
-    _dff_gc_thresh = dff["渠道"].astype(str).map(GC_THRESHOLDS).fillna(GC_UNKNOWN_THRESHOLD)
-    dff["GC_score"] = piecewise_score_vec(dff["订单GC转化率"], _dff_gc_thresh)
-    # ─── 计算综合评分（CTR_score/GC_score 替代原 CTR_norm/GC转化率_norm）───
-    base_score = (
-        dff["触达_norm"] * norm_reach
-        + dff["CTR_score"] * norm_ctr
-        + dff["GC_score"] * norm_gc
-    ).round(2)
-    reach_raw_for_penalty = dff["触达成功"].fillna(0)
-    penalty_vec = pd.cut(
-        reach_raw_for_penalty,
-        bins=[-1, 99, 499, 999, 4999, float("inf")],
-        labels=[0.1, 0.3, 0.5, 0.8, 1.0]
-    ).astype(float)
-    dff["综合评分"] = base_score * penalty_vec
+    # ─── 计算筛选后的综合评分 ──────────────────────────────────
+    dff = compute_filtered_scores(dff, norm_reach, norm_ctr, norm_gc)
 
     # ─── 筛选后重排排名 ────────────────────────────────────────
     if len(dff) > 0:
@@ -806,42 +296,45 @@ if uploaded is not None:
     col4.metric("平均 CTR", f"{avg_ctr:.2f}%")
 
     # ─── Tab 切换 ─────────────────────────────────────────────
-    tab1, tab2, tab3 = st.tabs(["卡片排行榜", "算法说明", "数据表格"])
+    tab1, tab_bu, tab2, tab3 = st.tabs(["卡片排行榜", "BU排行榜", "算法说明", "数据表格"])
 
+    # ═══════════════════════════════════════════════════════════
+    # Tab 1: 卡片排行榜
+    # ═══════════════════════════════════════════════════════════
     with tab1:
         if total_rows == 0:
             st.warning("当前筛选条件下无数据，请调整筛选条件")
         else:
-            
             cards = list(dff.itertuples())
 
-            # ─── 分页 ─────────────────────────────────────────────
-            # 筛选变化时重置页码
+            # 分页
             if st.session_state.get("card_total") != len(cards):
                 st.session_state.card_page = 1
                 st.session_state.card_total = len(cards)
-            PAGE_SIZE = 50
+            PAGE_SIZE = 10
             total_pages = max(1, (len(cards) + PAGE_SIZE - 1) // PAGE_SIZE)
             if "card_page" not in st.session_state:
                 st.session_state.card_page = 1
             page = st.session_state.card_page
             page_cards = cards[(page-1)*PAGE_SIZE : page*PAGE_SIZE]
 
-            # ─── 合并渲染：拼成一个 HTML 字符串 ──────────────────────
+            # 合并渲染：拼成一个 HTML 字符串（CSS 内联到 iframe 内）
+            _ai_results = st.session_state.get("ai_page_results", {})
+            _ai_css = f"""<style>
+.ai-tag-btn {{ background:#F8F7F5; color:{MCD_RED}; font-size:12px; font-weight:600; padding:3px 10px; border-radius:6px; border:none; display:inline-block; }}
+.ai-tag-btn:hover {{ background:{MCD_RED}; color:#FFF; border-color:{MCD_RED}; }}
+.ai-has-tip {{ position:relative; cursor:help; display:inline-block; }}
+.ai-tip {{ visibility:hidden; opacity:0; position:absolute; bottom:calc(100% + 10px); left:50%; transform:translateX(-50%); background:rgba(30,30,30,0.95); color:#FFF; border-radius:10px; padding:12px 16px; font-size:12px; font-weight:400; line-height:1.8; min-width:260px; max-width:360px; box-shadow:0 4px 20px rgba(0,0,0,0.25); z-index:9999; pointer-events:none; transition:opacity 0.15s; }}
+.ai-tip::after {{ content:''; position:absolute; top:100%; left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(30,30,30,0.95); }}
+.ai-has-tip:hover .ai-tip {{ visibility:visible; opacity:1; }}
+</style>"""
             html_parts = []
-            for row in page_cards:
+            for _gi, row in enumerate(page_cards):
                 rank = row.排名
-                if rank == 1:
-                    badge_class = "rank-1"
-                elif rank == 2:
-                    badge_class = "rank-2"
-                elif rank == 3:
-                    badge_class = "rank-3"
-                else:
-                    badge_class = "rank-other"
+                badge_class = {1: "rank-1", 2: "rank-2", 3: "rank-3"}.get(rank, "rank-other")
 
                 score = row.综合评分
-                if score >= 75:
+                if score >= 70:
                     score_color = "#00A04A"
                 elif score >= 40:
                     score_color = "#FFC000"
@@ -850,13 +343,13 @@ if uploaded is not None:
 
                 # tooltip
                 reach_raw_t = int(getattr(row, '触达成功', 0) or 0)
-                if reach_raw_t < 100:
+                if reach_raw_t <= 99:
                     penalty_coef_t, penalty_label = 0.1, "置信度低(x0.1)"
-                elif reach_raw_t < 500:
+                elif reach_raw_t <= 499:
                     penalty_coef_t, penalty_label = 0.3, "置信度低(x0.3)"
-                elif reach_raw_t < 1000:
+                elif reach_raw_t <= 999:
                     penalty_coef_t, penalty_label = 0.5, "置信度中(x0.5)"
-                elif reach_raw_t < 5000:
+                elif reach_raw_t <= 4999:
                     penalty_coef_t, penalty_label = 0.8, "置信度较高(x0.8)"
                 else:
                     penalty_coef_t, penalty_label = 1.0, "置信度高(x1.0)"
@@ -864,7 +357,7 @@ if uploaded is not None:
                 reach_norm = getattr(row, '触达_norm', 0)
                 ctr_score_t = getattr(row, 'CTR_score', 0)
                 gc_score_t = getattr(row, 'GC_score', 0)
-                base_score_t = reach_norm * w_reach + ctr_score_t * w_ctr + gc_score_t * w_gc
+                base_score_t = round(reach_norm * norm_reach + ctr_score_t * norm_ctr + gc_score_t * norm_gc, 2)
                 impact_parts = []
                 if reach_norm < 33:
                     impact_parts.append("触达偏低({:.1f})".format(reach_norm))
@@ -880,11 +373,10 @@ if uploaded is not None:
                     impact_parts.append("GC转化率偏高({:.1f})".format(gc_score_t))
                 impact = " / ".join(impact_parts) if impact_parts else "各项均衡"
                 formula = "({:.1f}x{:.2f} + {:.1f}x{:.2f} + {:.1f}x{:.2f}) x {:.1f} = {:.2f}  [{}]".format(
-                    reach_norm, w_reach, ctr_score_t, w_ctr, gc_score_t, w_gc,
+                    reach_norm, norm_reach, ctr_score_t, norm_ctr, gc_score_t, norm_gc,
                     penalty_coef_t, score, penalty_label
                 )
                 tooltip_text = _html.escape(impact + chr(10) + formula)
-
 
                 date_val = getattr(row, '发送日期', None)
                 date_str = str(date_val)[:10] if date_val is not None and not (isinstance(date_val, float) and date_val != date_val) else ""
@@ -910,6 +402,23 @@ if uploaded is not None:
                 except: gc_rate_val = 0.0
 
                 channel_avg = channel_avg_score.get(channel_short, 0)
+
+                # AI 解读标签：有结果时带 tooltip
+                _card_gi = (page - 1) * PAGE_SIZE + _gi
+                _card_ai = _ai_results.get(_card_gi)
+                if _card_ai and "error" not in _card_ai:
+                    _ai_tip = (
+                        f"归因：{_card_ai.get('rank_factor','—')}\n"
+                        f"亮点：{_card_ai.get('highlight','—')}\n"
+                        f"短板：{_card_ai.get('weakness','—')}\n"
+                        f"建议：{_card_ai.get('suggestion','—')}"
+                    )
+                    _ai_tip_escaped = _html.escape(_ai_tip).replace("\n", "<br>")
+                    _ai_tag_html = f"""<span class="ai-tag-btn ai-has-tip">✨ AI<div class="ai-tip">{_ai_tip_escaped}</div></span>"""
+                elif _card_ai and "error" in _card_ai:
+                    _ai_tag_html = f"""<span class="ai-tag-btn" style="opacity:0.5;" title="{_html.escape(_card_ai['error'])}">⚠ AI失败</span>"""
+                else:
+                    _ai_tag_html = """<span class="ai-tag-btn">✨ AI</span>"""
 
                 html_parts.append(f"""
                 <div class="content-card">
@@ -939,63 +448,272 @@ if uploaded is not None:
                     <span>GC {gc_val:,}</span>
                     <span>Sales {int(sales_val):,}</span>
                     <span>GC转化率 {gc_rate_val:.2f}%</span>
+                    {_ai_tag_html}
                   </div>
                 </div>
                 """)
 
-            grid_html = '<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">' + "".join(html_parts) + '</div>'
+            grid_html = _ai_css + '<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">' + "".join(html_parts) + '</div>'
             st.html(grid_html)
-            # ─── 底部翻页 ─────────────────────────────────────────
-            pcol1, pcol2, pcol3 = st.columns([1, 3, 1])
-            with pcol1:
+
+            # ─── 底部翻页 ───────────────────────────────────────────
+            st.markdown(f"""
+<style>
+div[data-testid="stHorizontalBlock"]:last-of-type .stButton > button {{
+  height:35px !important; min-height:35px !important; padding:0 12px !important;
+  border-radius:6px !important; font-size:13px !important; font-weight:600 !important;
+  border:1px solid #E0E0E0 !important; background:#fff !important; color:#333 !important;
+}}
+div[data-testid="stHorizontalBlock"]:last-of-type .stButton > button:hover {{ border-color:{MCD_RED} !important; color:{MCD_RED} !important; }}
+div[data-testid="stHorizontalBlock"]:last-of-type [data-testid="stWidgetLabel"] {{ display:none !important; }}
+div[data-testid="stHorizontalBlock"]:last-of-type .stNumberInput {{ max-width:50px !important; flex:none !important; }}
+div[data-testid="stHorizontalBlock"]:last-of-type .stNumberInput input {{
+  height:35px !important; min-height:35px !important; padding:0 4px !important;
+  border-radius:6px !important; font-size:13px !important; text-align:center !important;
+}}
+</style>
+""", unsafe_allow_html=True)
+            _pg = st.container(horizontal=True, gap="small")
+            with _pg:
                 if page > 1:
-                    if st.button("⬅ 上一页", use_container_width=True):
+                    if st.button("‹ 上一页", key="pg_prev"):
                         st.session_state.card_page = page - 1
                         st.rerun()
-            with pcol2:
-                st.markdown(f"<div style='text-align:center; color:#888; font-size:13px; padding-top:6px;'>第 {page} / {total_pages} 页，共 {len(cards)} 条</div>", unsafe_allow_html=True)
-            with pcol3:
+                st.markdown(f"<span style='font-size:12px;color:#999;white-space:nowrap;'>第 {page}/{total_pages} 页 · {len(cards)} 条</span>", unsafe_allow_html=True)
+                jump_page = st.number_input("跳页", min_value=1, max_value=total_pages, value=page, step=1, label_visibility="collapsed", key="pg_jump")
+                if st.button("Go", key="pg_go"):
+                    if jump_page != page:
+                        st.session_state.card_page = jump_page
+                        st.rerun()
                 if page < total_pages:
-                    if st.button("下一页 ➡", use_container_width=True):
+                    if st.button("下一页 ›", key="pg_next"):
                         st.session_state.card_page = page + 1
                         st.rerun()
 
+            # ─── AI 解读本页（由侧边栏按钮触发）──────────────────
+            _ai_page_start = (page - 1) * PAGE_SIZE
+            _ai_page_end = min(_ai_page_start + PAGE_SIZE, len(cards))
+
+            if st.session_state.pop("ai_page_clicked", False):
+                if not ai_api_key:
+                    st.warning("请先在侧边栏「AI配置」中填写 API Key")
+                else:
+                    _page_items = dff.iloc[_ai_page_start:_ai_page_end].to_dict("records")
+                    with st.status(f"AI 正在分析第 {page} 页（{_ai_page_end - _ai_page_start} 条）...", expanded=True) as _status:
+                        _results = analyze_content(ai_api_key, ai_provider, ai_model, _page_items)
+                        _status.update(label="AI 分析完成", state="complete", expanded=False)
+                    st.session_state.ai_page_results = {
+                        _ai_page_start + i: r for i, r in enumerate(_results)
+                    }
+                    st.rerun()
+
+    # ═══════════════════════════════════════════════════════════
+    # Tab BU: BU 排行榜
+    # ═══════════════════════════════════════════════════════════
+    with tab_bu:
+        if total_rows == 0:
+            st.warning("当前筛选条件下无数据，请调整筛选条件")
+        else:
+            _bu_col = OWNER_COL
+            if _bu_col not in dff.columns:
+                st.warning(f"数据中缺少「{_bu_col}」列，无法生成 BU 排行榜")
+            else:
+                # ─── 按 BU 聚合 ─────────────────────────────────
+                _bu_agg = dff.groupby(_bu_col).agg(
+                    计划数量=("综合评分", "size"),
+                    触达=("触达成功", "sum"),
+                    点击=("点击人次", "sum"),
+                    GC=("订单GC", "sum"),
+                    Sales=("订单Sales", "sum"),
+                    均值综合评分=("综合评分", "mean"),
+                ).reset_index()
+
+                _bu_agg["CTR"] = (_bu_agg["点击"] / _bu_agg["触达"] * 100).round(2).fillna(0)
+                _bu_agg["GC转化率"] = (_bu_agg["GC"] / _bu_agg["点击"] * 100).round(2).fillna(0)
+
+                # ─── BU 综合评分（min-max 归一化 × 权重 + 置信度惩戒）──
+                def _norm(s):
+                    _min, _max = s.min(), s.max()
+                    return ((s - _min) / (_max - _min) * 100).round(2) if _max > _min else pd.Series(50, index=s.index)
+
+                # 分段评分：低于 Q3 → 100×(值/Q3)^1.5，达标 → 100 饱和
+                def _piecewise(series, q3):
+                    ratio = series / q3
+                    score = (ratio.clip(upper=1) ** 1.5 * 100).round(2)
+                    return score.where(series.notna() & (series < q3), 100.0).where(series.notna())
+
+                _bu_ctr_q3 = _bu_agg["CTR"].quantile(0.75)
+                _bu_gc_q3 = _bu_agg["GC转化率"].quantile(0.75)
+                _bu_agg["CTR_norm"] = _piecewise(_bu_agg["CTR"], _bu_ctr_q3) if _bu_ctr_q3 > 0 else 50.0
+                _bu_agg["触达_norm"] = ((_bu_agg["触达"] / _bu_agg["触达"].max()) ** 0.3 * 100).round(2)
+                _bu_agg["GC_norm"] = _piecewise(_bu_agg["GC转化率"], _bu_gc_q3) if _bu_gc_q3 > 0 else 50.0
+
+                _bu_base = (
+                    _bu_agg["CTR_norm"] * 0.50
+                    + _bu_agg["触达_norm"] * 0.25
+                    + _bu_agg["GC_norm"] * 0.25
+                ).round(2)
+
+                # 置信度惩戒（与卡片排行榜一致）
+                _bu_penalty = pd.cut(
+                    _bu_agg["触达"].fillna(0),
+                    bins=[-1, 99, 499, 999, 4999, float("inf")],
+                    labels=[0.1, 0.3, 0.5, 0.8, 1.0],
+                ).astype(float)
+                _bu_agg["BU综合评分"] = (_bu_base * _bu_penalty).round(2)
+
+                _bu_agg = _bu_agg.sort_values("BU综合评分", ascending=False).reset_index(drop=True)
+                _bu_agg["排名"] = _bu_agg.index + 1
+
+                # ─── 卡片渲染 ─────────────────────────────────────
+                bu_html_parts = []
+                for row in _bu_agg.itertuples():
+                    rank = row.排名
+                    badge_class = {1: "rank-1", 2: "rank-2", 3: "rank-3"}.get(rank, "rank-other")
+                    score = row.BU综合评分
+                    if score >= 70:
+                        score_color = "#00A04A"
+                    elif score >= 40:
+                        score_color = "#C79200"
+                    else:
+                        score_color = "#DA291C"
+
+                    bu_name = str(getattr(row, _bu_col, '') or '')
+                    plan_cnt = int(getattr(row, '计划数量', 0) or 0)
+                    reach = int(getattr(row, '触达', 0) or 0)
+                    clicks = int(getattr(row, '点击', 0) or 0)
+                    ctr_val = float(getattr(row, 'CTR', 0) or 0)
+                    gc_val = int(getattr(row, 'GC', 0) or 0)
+                    sales_val = float(getattr(row, 'Sales', 0) or 0)
+                    gc_rate = float(getattr(row, 'GC转化率', 0) or 0)
+                    wavg = float(getattr(row, '均值综合评分', 0) or 0)
+
+                    # 归一化值 + 置信度惩戒（用于 tooltip）
+                    _ctr_norm = float(getattr(row, 'CTR_norm', 0) or 0)
+                    _reach_norm = float(getattr(row, '触达_norm', 0) or 0)
+                    _gc_norm = float(getattr(row, 'GC_norm', 0) or 0)
+                    _base = _ctr_norm * 0.50 + _reach_norm * 0.25 + _gc_norm * 0.25
+                    if reach <= 99:
+                        _penalty_coef, _penalty_label = 0.1, "置信度低(x0.1)"
+                    elif reach <= 499:
+                        _penalty_coef, _penalty_label = 0.3, "置信度低(x0.3)"
+                    elif reach <= 999:
+                        _penalty_coef, _penalty_label = 0.5, "置信度中(x0.5)"
+                    elif reach <= 4999:
+                        _penalty_coef, _penalty_label = 0.8, "置信度较高(x0.8)"
+                    else:
+                        _penalty_coef, _penalty_label = 1.0, "置信度高(x1.0)"
+                    _bu_tooltip = (
+                        f"CTR {ctr_val:.2f}% → {_ctr_norm:.1f} × 0.50 = {(_ctr_norm * 0.50):.1f}\n"
+                        f"触达 {reach:,} → {_reach_norm:.1f} × 0.25 = {(_reach_norm * 0.25):.1f}\n"
+                        f"GC转化率 {gc_rate:.2f}% → {_gc_norm:.1f} × 0.25 = {(_gc_norm * 0.25):.1f}\n"
+                        f"基础分 {_base:.1f} × {_penalty_coef} = {score:.1f}  [{_penalty_label}]\n"
+                        f"内容均值 = {wavg:.1f}"
+                    )
+                    _bu_tooltip_escaped = _html.escape(_bu_tooltip).replace("\n", "<br>")
+
+                    bu_html_parts.append(f"""
+                    <div class="content-card">
+                      <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                        <div style="flex:1;">
+                          <div style="display:flex; align-items:center; gap:8px;">
+                            <span class="rank-badge {badge_class}">{rank}</span>
+                            <div>
+                              <div style="font-size:14px; font-weight:600; color:#141413;">{bu_name}</div>
+                              <div style="font-size:12px; color:#6b6a64;">{plan_cnt} 个计划</div>
+                            </div>
+                          </div>
+                        </div>
+                        <div>
+                          <div style="display:flex;align-items:flex-start;justify-content:flex-end;gap:0;">
+                            <div class="card-score" style="color:{score_color};">{score:.1f}</div>
+                            <div class="score-info-wrap">
+                              <span class="info-icon">i</span>
+                              <div class="score-tooltip">{_bu_tooltip_escaped}</div>
+                            </div>
+                          </div>
+                          <div class="card-score-label">均值 {wavg:.1f}</div>
+                        </div>
+                      </div>
+                      <div class="card-meta" style="margin-top:14px;">
+                        <span>触达 {reach:,}</span>
+                        <span>点击 {clicks:,}</span>
+                        <span>CTR {ctr_val:.2f}%</span>
+                        <span>GC {gc_val:,}</span>
+                        <span>Sales {int(sales_val):,}</span>
+                        <span>GC转化率 {gc_rate:.2f}%</span>
+                      </div>
+                    </div>
+                    """)
+
+                bu_grid = '<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px;">' + "".join(bu_html_parts) + '</div>'
+                st.html(bu_grid)
+
+    # ═══════════════════════════════════════════════════════════
+    # Tab 2: 算法说明
+    # ═══════════════════════════════════════════════════════════
     with tab2:
         st.markdown('<div class="section-title">综合评分算法说明</div>', unsafe_allow_html=True)
-        stmd.st_mermaid("""
-flowchart TD
-    A[原始数据] --> B[计算衍生指标]
-    B --> C["CTR分 CTR_score"]
-    B --> D["GC分 GC_score"]
-    A --> G["触达分 = (触达/最大触达)^0.3 x 100"]
-    C --> E1{"CTR < 渠道Q3?"}
-    E1 -->|是| E2["100 x (CTR/Q3)^1.5"]
-    E1 -->|否| E3["100 饱和"]
-    D --> F1{"GC率 < 渠道Q3?"}
-    F1 -->|是| F2["100 x (GC率/Q3)^1.5"]
-    F1 -->|否| F3["100 饱和"]
-    G --> H["加权求和"]
-    E2 --> H
-    E3 --> H
-    F2 --> H
-    F3 --> H
-    H --> I["base = 触达 x0.2 + CTR x0.5 + GC x0.3"]
-    I --> J["置信度惩戒"]
-    J --> J1{"触达量"}
-    J1 -->|"< 100"| J2["x 0.1"]
-    J1 -->|"100~499"| J3["x 0.3"]
-    J1 -->|"500~999"| J4["x 0.5"]
-    J1 -->|"1000~4999"| J5["x 0.8"]
-    J1 -->|">=5000"| J6["x 1.0"]
-    J2 --> K["综合评分"]
-    J3 --> K
-    J4 --> K
-    J5 --> K
-    J6 --> K
-    style K fill:#DA291C,color:#fff,font-weight:bold
-    style I fill:#FFC000,color:#000
-    style H fill:#FFC000,color:#000
-""", height=650)
+        dot_src = r"""
+digraph G {
+    rankdir=TB;
+    graph [fontname="Microsoft YaHei,PingFang SC,sans-serif", bgcolor="transparent", pad="0.2"];
+    node  [fontname="Microsoft YaHei,PingFang SC,sans-serif", fontsize=11, style=filled, fillcolor="#F8F8F8", color="#CCCCCC", shape=box, penwidth=1.2, margin="0.15,0.08"];
+    edge  [fontname="Microsoft YaHei,PingFang SC,sans-serif", fontsize=9, color="#999999"];
+
+    A  [label="原始数据", fillcolor="#F0F0F0", color="#AAAAAA"];
+    B  [label="计算衍生指标"];
+    C  [label="CTR分\nCTR_score"];
+    D  [label="GC分\nGC_score"];
+    G  [label="触达分 =\n(触达/最大触达)^0.3 × 100"];
+    E1 [label="CTR < 渠道Q3?", shape=diamond, fillcolor="#FFF8F0", color="#FFC000"];
+    E2 [label="100 × (CTR/Q3)^1.5"];
+    E3 [label="100 饱和"];
+    F1 [label="GC率 < 渠道Q3?", shape=diamond, fillcolor="#FFF8F0", color="#FFC000"];
+    F2 [label="100 × (GC率/Q3)^1.5"];
+    F3 [label="100 饱和"];
+    H  [label="加权求和", fillcolor="#FFC000", color="#E0A800", fontcolor="#000000"];
+    I  [label="base =\n触达×0.25 + CTR×0.5 + GC×0.25", fillcolor="#FFC000", color="#E0A800", fontcolor="#000000"];
+    J  [label="置信度惩戒"];
+    J1 [label="触达量", shape=diamond, fillcolor="#FFF8F0", color="#FFC000"];
+    J2 [label="× 0.1"];
+    J3 [label="× 0.3"];
+    J4 [label="× 0.5"];
+    J5 [label="× 0.8"];
+    J6 [label="× 1.0"];
+    K  [label="综合评分", fillcolor="#DA291C", color="#B82015", fontcolor="#FFFFFF", penwidth=2];
+
+    A -> B;
+    A -> G;
+    B -> C;
+    B -> D;
+    C -> E1;
+    D -> F1;
+    E1 -> E2 [label="是"];
+    E1 -> E3 [label="否"];
+    F1 -> F2 [label="是"];
+    F1 -> F3 [label="否"];
+    E2 -> H;
+    E3 -> H;
+    F2 -> H;
+    F3 -> H;
+    G  -> H;
+    H  -> I;
+    I  -> J;
+    J  -> J1;
+    J1 -> J2 [label="< 100"];
+    J1 -> J3 [label="100~499"];
+    J1 -> J4 [label="500~999"];
+    J1 -> J5 [label="1000~4999"];
+    J1 -> J6 [label=">=5000"];
+    J2 -> K;
+    J3 -> K;
+    J4 -> K;
+    J5 -> K;
+    J6 -> K;
+}
+"""
+        st.graphviz_chart(dot_src, use_container_width=True)
 
         with st.expander("阈值与惩戒系数参考", expanded=False):
             st.markdown("""
@@ -1031,6 +749,9 @@ flowchart TD
 </div>
 """, unsafe_allow_html=True)
 
+    # ═══════════════════════════════════════════════════════════
+    # Tab 3: 数据表格
+    # ═══════════════════════════════════════════════════════════
     with tab3:
         title_col = "标题" if "标题" in dff.columns else "消息标题"
         owner_c = owner_col if owner_col in dff.columns else None
@@ -1039,7 +760,6 @@ flowchart TD
                          "触达成功", "点击人次", "CTR", "订单GC", "订单Sales", "订单GC转化率", "综合评分"]
         display_cols = [c for c in display_cols if c is not None]
         available = [c for c in display_cols if c in dff.columns]
-        # 格式化副本：CTR加%号、订单Sales变整数
         disp_df = dff[available].copy()
         if 'CTR' in disp_df.columns:
             disp_df['CTR'] = disp_df['CTR'].apply(lambda x: f"{x:.2f}%")
@@ -1059,5 +779,3 @@ flowchart TD
             "text/csv",
             use_container_width=True
         )
-
-    # ─── Tab 3: 可视化图表 ───────────────────────────────────
