@@ -13,7 +13,7 @@ from scoring import compute_derived_metrics, compute_full_scores, compute_filter
 from llm_service import analyze_content
 
 st.set_page_config(
-    page_title="麦当劳内容排行榜",
+    page_title="内容排行榜",
     page_icon="static/favicon.png",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -21,6 +21,28 @@ st.set_page_config(
 
 # ─── 注入样式 ─────────────────────────────────────────────────
 st.markdown(get_css(), unsafe_allow_html=True)
+
+# ─── 调整数据源模块位置 ───────────────────────────────────────
+st.markdown("""
+<script>
+// 等待页面加载完成
+window.addEventListener('load', function() {
+    // 延迟执行，确保 Streamlit 渲染完成
+    setTimeout(function() {
+        // 查找包含"数据源"的 expander 元素
+        const expanders = document.querySelectorAll('[data-testid="stExpander"]');
+        expanders.forEach(function(expander) {
+            const header = expander.querySelector('[data-testid="stExpanderHeader"]');
+            if (header && header.innerText.includes('数据源')) {
+                // 给数据源模块添加顶部间距
+                expander.style.marginTop = '20px';
+                console.log('已调整数据源模块位置');
+            }
+        });
+    }, 500);
+});
+</script>
+""", unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════════
 # 文件上传 + 清洗模式选择
@@ -56,6 +78,7 @@ if uploaded is not None:
         st.session_state.last_file_id = current_file_id
         st.session_state.ds_expanded = False
         st.balloons()
+        st.rerun()
 
     is_xlsx = uploaded.name.lower().endswith('.xlsx')
 
@@ -170,8 +193,11 @@ if df is not None:
                 value=st.session_state.get("ai_api_key", _default_key),
                 type="password", key="ai_api_key",
             )
-        if st.button("AI分析", use_container_width=True, key="ai_sidebar_btn"):
+        if st.button("内容分析", use_container_width=True, key="ai_sidebar_btn"):
             st.session_state.ai_page_clicked = True
+
+        if st.button("AI 总结", use_container_width=True, key="ai_summary_btn"):
+            st.session_state.ai_summary_clicked = True
 
         # ─── 配色主题 ──────────────────────────────────────────────
         st.markdown("---")
@@ -287,6 +313,69 @@ if df is not None:
     col2.metric("平均综合评分", f"{total_score:.2f}")
     col3.metric("最高综合评分", f"{top1_score:.2f}")
     col4.metric("平均 CTR", f"{avg_ctr:.2f}%")
+
+    # ─── AI 总结分析 ────────────────────────────────────────────
+    if st.session_state.pop("ai_summary_clicked", False):
+        if not ai_api_key:
+            st.warning("请先在侧边栏「AI配置」中填写 API Key")
+        else:
+            from llm_service import aggregate_channel_stats, aggregate_bu_stats, analyze_summary
+
+            # 获取历史数据（上个周期）
+            historical_channel = None
+            historical_bu = None
+
+            if date_range is not None and isinstance(date_range, (list, tuple)) and len(date_range) == 2:
+                start_dt, end_dt = date_range
+                if pd.notna(start_dt) and pd.notna(end_dt):
+                    # 计算日期范围长度
+                    delta = (end_dt - start_dt).days
+                    # 计算上个周期的日期范围
+                    hist_end = start_dt - timedelta(days=1)
+                    hist_start = hist_end - timedelta(days=delta)
+
+                    # 获取历史数据
+                    hist_df = df[
+                        (df[date_col] >= pd.to_datetime(hist_start)) &
+                        (df[date_col] <= pd.to_datetime(hist_end) + timedelta(days=1))
+                    ]
+
+                    # 应用其他筛选条件
+                    if selected_plan != "全部":
+                        hist_df = hist_df[hist_df["计划类型"] == selected_plan]
+                    if selected_channel != "全部":
+                        hist_df = hist_df[hist_df["渠道"] == selected_channel]
+                    if selected_owner != "全部":
+                        hist_df = hist_df[hist_df[owner_col] == selected_owner]
+                    if keyword:
+                        kw = keyword.lower()
+                        mask = pd.Series(False, index=hist_df.index)
+                        title_candidates = [c for c in ["标题", "消息标题"] if c in hist_df.columns]
+                        if title_candidates:
+                            mask |= hist_df[title_candidates[0]].astype(str).str.lower().str.contains(kw, na=False)
+                        if "内容" in hist_df.columns:
+                            mask |= hist_df["内容"].astype(str).str.lower().str.contains(kw, na=False)
+                        hist_df = hist_df[mask]
+
+                    if not hist_df.empty:
+                        # 计算历史数据的综合评分
+                        hist_df = compute_filtered_scores(hist_df, norm_reach, norm_ctr, norm_gc)
+                        historical_channel = aggregate_channel_stats(hist_df)
+                        historical_bu = aggregate_bu_stats(hist_df)
+
+            # 聚合当前数据
+            channel_stats = aggregate_channel_stats(dff)
+            bu_stats = aggregate_bu_stats(dff)
+
+            # 用 expander 包裹，可折叠
+            with st.expander("AI 总结分析", expanded=True):
+                with st.spinner("AI 正在分析..."):
+                    summary_result = analyze_summary(
+                        ai_api_key, ai_provider, ai_model,
+                        channel_stats, bu_stats,
+                        historical_channel, historical_bu
+                    )
+                st.markdown(summary_result)
 
     # ─── Tab 切换 ─────────────────────────────────────────────
     tab1, tab_bu, tab2, tab3 = st.tabs(["卡片排行榜", "BU排行榜", "算法说明", "数据表格"])
