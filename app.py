@@ -101,11 +101,8 @@ if df is not None:
 
     # ─── 侧边筛选 ─────────────────────────────────────────────
     with st.sidebar:
-        st.markdown(f"""
-<div style="margin-bottom:20px; padding-bottom:14px; border-bottom:1px solid #E8E8E8;">
-  <img src="static/mcdonalds_PNG20.png" style="height:28px;" />
-</div>
-""", unsafe_allow_html=True)
+        st.image("static/mcdonalds_PNG20.png", width=100)
+        st.markdown('<hr style="margin:0 0 20px 0;border:none;border-top:1px solid #E8E8E8;">', unsafe_allow_html=True)
 
         if date_col in df.columns and df[date_col].notna().any():
             min_dt = df[date_col].min().date()
