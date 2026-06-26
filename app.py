@@ -1,6 +1,7 @@
 """
 app.py - 麦当劳内容排行榜
 """
+from pathlib import Path
 import html as _html
 import streamlit as st
 import pandas as pd
@@ -61,15 +62,20 @@ if uploaded is not None:
 
     # ─── 读取数据 ───────────────────────────────────────────────
     if mode == "原始数据（含 JSON 列，需清洗）":
-        with st.spinner("正在运行数据清洗脚本..."):
-            try:
-                if is_xlsx:
-                    df = clean_raw_xlsx(uploaded)
-                else:
-                    df = clean_raw_csv(uploaded)
-            except ValueError as e:
-                st.error(str(e))
-                st.stop()
+        import base64
+        _gif_b64 = base64.b64encode((Path(__file__).parent / "static" / "loading.gif").read_bytes()).decode()
+        _loading = st.empty()
+        _loading.markdown(f'<div style="text-align:center;padding:24px 0;"><img src="data:image/gif;base64,{_gif_b64}" width="200" /></div>', unsafe_allow_html=True)
+        try:
+            if is_xlsx:
+                df = clean_raw_xlsx(uploaded)
+            else:
+                df = clean_raw_csv(uploaded)
+        except ValueError as e:
+            _loading.empty()
+            st.error(str(e))
+            st.stop()
+        _loading.empty()
     else:
         try:
             if is_xlsx:
@@ -101,8 +107,8 @@ if df is not None:
 
     # ─── 侧边筛选 ─────────────────────────────────────────────
     with st.sidebar:
-        st.image("static/mcdonalds_PNG20.png", width=100)
-        st.markdown('<hr style="margin:0 0 20px 0;border:none;border-top:1px solid #E8E8E8;">', unsafe_allow_html=True)
+        st.image(str(Path(__file__).parent / "static" / "mcdonalds.svg"), width=120)
+        st.markdown('<hr style="margin:0 0 24px 0; border:none; border-top:1px solid #E8E8E8;">', unsafe_allow_html=True)
 
         if date_col in df.columns and df[date_col].notna().any():
             min_dt = df[date_col].min().date()
