@@ -107,8 +107,9 @@ if df is not None:
 
     # ─── 侧边筛选 ─────────────────────────────────────────────
     with st.sidebar:
-        st.image(str(Path(__file__).parent / "static" / "mcdonalds.svg"), width=120)
-        st.markdown('<hr style="margin:0 0 24px 0; border:none; border-top:1px solid #E8E8E8;">', unsafe_allow_html=True)
+        import base64
+        _svg_b64 = base64.b64encode((Path(__file__).parent / "static" / "mcdonalds.svg").read_bytes()).decode()
+        st.markdown(f'<div style="text-align:center;padding:12px 0 16px 0;"><img src="data:image/svg+xml;base64,{_svg_b64}" width="120" /></div><hr style="margin:0 0 24px 0; border:none; border-top:1px solid #E8E8E8;">', unsafe_allow_html=True)
 
         if date_col in df.columns and df[date_col].notna().any():
             min_dt = df[date_col].min().date()
