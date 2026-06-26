@@ -13,21 +13,13 @@ from scoring import compute_derived_metrics, compute_full_scores, compute_filter
 from llm_service import analyze_content
 
 st.set_page_config(
-    page_title="麦当劳内容排行榜",
-    page_icon="🏆",
+    page_title="内容排行榜",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 # ─── 注入样式 ─────────────────────────────────────────────────
 st.markdown(get_css(), unsafe_allow_html=True)
-
-# ─── Header ───────────────────────────────────────────────────
-st.markdown(f"""
-<div class="mcd-header">
-  <h1>内容排行榜</h1>
-</div>
-""", unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════════
 # 文件上传 + 清洗模式选择
@@ -110,7 +102,7 @@ if df is not None:
     with st.sidebar:
         st.markdown(f"""
 <div style="margin-bottom:20px; padding-bottom:14px; border-bottom:1px solid #E8E8E8;">
-  <div style="font-size:14px; font-weight:700; color:{MCD_RED}; letter-spacing:-0.01em;">McDonald's</div>
+  <img src="static/mcdonalds_PNG20.png" style="height:28px;" />
 </div>
 """, unsafe_allow_html=True)
 
