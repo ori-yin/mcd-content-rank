@@ -28,7 +28,12 @@ def compute_derived_metrics(df: pd.DataFrame) -> pd.DataFrame:
     df["订单GC转化率"] = (df["订单GC"] / df["点击人次"] * 100).round(2)
     df["订单GC转化率"] = df["订单GC转化率"].replace([float("inf"), -float("inf")], 0).fillna(0)
 
-    df["触达_norm"] = ((df["触达成功"] / df["触达成功"].max()) ** 0.3) * 100
+    # 触达_max=0（全部触达为0）时 0/0=NaN，整列评分会变 NaN，这里兜底为 0
+    _reach_max = df["触达成功"].max()
+    if pd.isna(_reach_max) or _reach_max == 0:
+        df["触达_norm"] = 0.0
+    else:
+        df["触达_norm"] = ((df["触达成功"] / _reach_max) ** 0.3) * 100
     return df
 
 
