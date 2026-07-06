@@ -269,9 +269,9 @@ if df is not None:
         mask = pd.Series(False, index=dff.index)
         title_candidates = [c for c in ["标题", "消息标题"] if c in dff.columns]
         if title_candidates:
-            mask |= dff[title_candidates[0]].astype(str).str.lower().str.contains(kw, na=False)
+            mask |= dff[title_candidates[0]].astype(str).str.lower().str.contains(kw, na=False, regex=False)
         if "内容" in dff.columns:
-            mask |= dff["内容"].astype(str).str.lower().str.contains(kw, na=False)
+            mask |= dff["内容"].astype(str).str.lower().str.contains(kw, na=False, regex=False)
         dff = dff[mask]
 
     # ─── 计算筛选后的综合评分 ──────────────────────────────────
@@ -333,9 +333,9 @@ if df is not None:
                         mask = pd.Series(False, index=hist_df.index)
                         title_candidates = [c for c in ["标题", "消息标题"] if c in hist_df.columns]
                         if title_candidates:
-                            mask |= hist_df[title_candidates[0]].astype(str).str.lower().str.contains(kw, na=False)
+                            mask |= hist_df[title_candidates[0]].astype(str).str.lower().str.contains(kw, na=False, regex=False)
                         if "内容" in hist_df.columns:
-                            mask |= hist_df["内容"].astype(str).str.lower().str.contains(kw, na=False)
+                            mask |= hist_df["内容"].astype(str).str.lower().str.contains(kw, na=False, regex=False)
                         hist_df = hist_df[mask]
 
                     if not hist_df.empty:
@@ -380,6 +380,17 @@ if df is not None:
                 st.session_state.card_page = 1
             page = st.session_state.card_page
             page_cards = cards[(page-1)*PAGE_SIZE : page*PAGE_SIZE]
+
+            # AI 结果缓存指纹：文件/筛选/排序/权重 任一变化即清空，避免位置索引张冠李戴
+            _ai_dr = tuple(date_range) if isinstance(date_range, list) else date_range
+            _ai_fp = (
+                st.session_state.get("last_file_id"), mode, sort_order,
+                selected_plan, selected_channel, selected_owner, keyword, _ai_dr,
+                round(norm_reach, 4), round(norm_ctr, 4), round(norm_gc, 4),
+            )
+            if st.session_state.get("ai_results_fp") != _ai_fp:
+                st.session_state.ai_page_results = {}
+                st.session_state.ai_results_fp = _ai_fp
 
             # 合并渲染：拼成一个 HTML 字符串（CSS 内联到 iframe 内）
             _ai_results = st.session_state.get("ai_page_results", {})
@@ -565,9 +576,10 @@ div[data-testid="stHorizontalBlock"]:last-of-type .stNumberInput input {{
                     with st.status(f"AI 正在分析第 {page} 页（{_ai_page_end - _ai_page_start} 条）...", expanded=True) as _status:
                         _results = analyze_content(ai_api_key, ai_provider, ai_model, _page_items)
                         _status.update(label="AI 分析完成", state="complete", expanded=False)
-                    st.session_state.ai_page_results = {
-                        _ai_page_start + i: r for i, r in enumerate(_results)
-                    }
+                    # 用 update 合并而非覆盖：分析新页时保留其它页结果，翻回去不丢
+                    _prev_ai = st.session_state.get("ai_page_results", {})
+                    _prev_ai.update({_ai_page_start + i: r for i, r in enumerate(_results)})
+                    st.session_state.ai_page_results = _prev_ai
                     st.rerun()
 
     # ═══════════════════════════════════════════════════════════
