@@ -171,7 +171,10 @@ if df is not None:
         st.markdown("---")
         with st.expander("AI 配置", expanded=False):
             def _on_provider_change():
-                st.session_state["ai_api_key"] = API_PROVIDERS[st.session_state["ai_provider"]].get("api_key", "")
+                # 仅新 provider 有预填 key 时才覆盖，避免用户已输入的 key 被清空
+                _new_default = API_PROVIDERS[st.session_state["ai_provider"]].get("api_key", "")
+                if _new_default:
+                    st.session_state["ai_api_key"] = _new_default
 
             ai_provider = st.selectbox(
                 "API Provider", list(API_PROVIDERS.keys()), index=0,
