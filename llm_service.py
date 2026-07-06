@@ -92,7 +92,7 @@ def call_llm(api_key: str, provider: str, model: str, prompt: str) -> list:
             raw = re.sub(r',\s*]', ']', raw)  # 移除数组末尾逗号
             return json.loads(raw)
         except:
-            return []
+            return None
 
 
 def analyze_content(api_key: str, provider: str, model: str, items: list) -> list:
@@ -104,6 +104,8 @@ def analyze_content(api_key: str, provider: str, model: str, items: list) -> lis
 
     try:
         results = call_llm(api_key, provider, model, prompt)
+        if results is None:
+            return [{"error": "AI 返回内容解析失败，请重试"}] * len(items)
         if not isinstance(results, list):
             results = [results]
         # 补齐或截断
