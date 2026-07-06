@@ -45,7 +45,6 @@ set NEED_INSTALL=0
 python -c "import streamlit"   >nul 2>&1 || (echo       [X] streamlit   missing & set NEED_INSTALL=1)
 python -c "import pandas"      >nul 2>&1 || (echo       [X] pandas      missing & set NEED_INSTALL=1)
 python -c "import numpy"       >nul 2>&1 || (echo       [X] numpy       missing & set NEED_INSTALL=1)
-python -c "import plotly"      >nul 2>&1 || (echo       [X] plotly      missing & set NEED_INSTALL=1)
 python -c "import openai"      >nul 2>&1 || (echo       [X] openai      missing & set NEED_INSTALL=1)
 python -c "import openpyxl"    >nul 2>&1 || (echo       [X] openpyxl    missing & set NEED_INSTALL=1)
 

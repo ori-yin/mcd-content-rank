@@ -7,7 +7,7 @@ import streamlit as st
 import pandas as pd
 from datetime import timedelta
 
-from config import MCD_RED, MCD_GOLD, MCD_BG, OWNER_COL, API_PROVIDERS, PAGE_SIZE, DEFAULT_W_REACH, DEFAULT_W_CTR, DEFAULT_W_GC, THEMES
+from config import MCD_RED, MCD_GOLD, OWNER_COL, API_PROVIDERS, PAGE_SIZE, DEFAULT_W_REACH, DEFAULT_W_CTR, DEFAULT_W_GC, THEMES
 from styles import get_css
 from data_cleaning import clean_raw_csv, read_cleaned_csv, clean_raw_xlsx, read_cleaned_xlsx
 from scoring import compute_derived_metrics, compute_full_scores, compute_filtered_scores
