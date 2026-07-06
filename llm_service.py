@@ -115,8 +115,6 @@ def analyze_content(api_key: str, provider: str, model: str, items: list) -> lis
             for k, v in default.items():
                 r.setdefault(k, v)
         return results
-    except json.JSONDecodeError as e:
-        return [{"error": f"JSON解析失败: {str(e)[:50]}"}] * len(items)
     except Exception as e:
         return [{"error": f"API调用失败: {str(e)[:80]}"}] * len(items)
 
