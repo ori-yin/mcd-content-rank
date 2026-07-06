@@ -84,10 +84,10 @@ def parse_message(raw, strip_question_marks=False):
     title = title.replace('\r\n', '').replace('\n', '').replace('\r', '')
     text = text.replace('\r\n', '').replace('\n', '').replace('\r', '')
 
-    # CSV 路径：清理 GBK 编码残留的 ? 字符
+    # CSV 路径：清理 GBK 编码残留的连续 ? 字符（单个问号保留，避免吞掉合法问号）
     if strip_question_marks:
-        title = title.replace('?', '')
-        text = text.replace('?', '')
+        title = re.sub(r'\?{2,}', '', title)
+        text = re.sub(r'\?{2,}', '', text)
 
     return pd.Series({'标题': title, '内容': text})
 
