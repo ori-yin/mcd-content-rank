@@ -406,7 +406,6 @@ if df is not None:
             if st.session_state.get("card_total") != len(cards):
                 st.session_state.card_page = 1
                 st.session_state.card_total = len(cards)
-            PAGE_SIZE = 10
             total_pages = max(1, (len(cards) + PAGE_SIZE - 1) // PAGE_SIZE)
             if "card_page" not in st.session_state:
                 st.session_state.card_page = 1
