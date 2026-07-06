@@ -29,8 +29,8 @@ def build_analysis_prompt(items: list) -> str:
     lines = []
     for i, item in enumerate(items, 1):
         lines.append(
-            f"【{i}】标题：{item.get('标题') or item.get('消息标题') or ''}"
-            f"｜正文：{item.get('内容', '')}"
+            f"【{i}】标题：{item['标题']}"
+            f"｜正文：{item['内容']}"
             f"｜渠道：{item['渠道']}"
             f"｜触达：{item['触达成功']}"
             f"｜点击：{item['点击人次']}"
