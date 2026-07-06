@@ -306,6 +306,12 @@ if df is not None:
     col4.metric("平均 CTR", f"{avg_ctr:.2f}%")
 
     # ─── AI 总结分析 ────────────────────────────────────────────
+    _summary_dr = tuple(date_range) if isinstance(date_range, list) else date_range
+    _summary_fp = (
+        st.session_state.get("last_file_id"), mode, sort_order,
+        selected_plan, selected_channel, selected_owner, keyword, _summary_dr,
+        round(norm_reach, 4), round(norm_ctr, 4), round(norm_gc, 4),
+    )
     if st.session_state.pop("ai_summary_clicked", False):
         if not ai_api_key:
             st.warning("请先在侧边栏「AI配置」中填写 API Key")
@@ -366,7 +372,15 @@ if df is not None:
                         channel_stats, bu_stats,
                         historical_channel, historical_bu
                     )
+                st.session_state.ai_summary_result = summary_result
+                st.session_state.ai_summary_fp = _summary_fp
                 st.markdown(summary_result)
+    else:
+        # 未点击但缓存命中：直接显示，避免交互后总结消失、避免重复调 API
+        _cached = st.session_state.get("ai_summary_result")
+        if _cached is not None and st.session_state.get("ai_summary_fp") == _summary_fp:
+            with st.expander("AI 总结分析", expanded=True):
+                st.markdown(_cached)
 
     # ─── Tab 切换 ─────────────────────────────────────────────
     tab1, tab_bu, tab2, tab3 = st.tabs(["卡片排行榜", "BU排行榜", "算法说明", "数据表格"])
