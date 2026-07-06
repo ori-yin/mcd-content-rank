@@ -49,58 +49,68 @@ with st.expander("数据源", expanded=st.session_state.ds_expanded):
             help="CSV 支持 UTF-8/GBK 编码；XLSX 完整保留 emoji"
         )
 
-# 只在首次上传或文件变化时触发气球
+# 只在换文件/换模式/首次 时清洗+评分，其余 rerun 直接用缓存（避免每次交互全量重算）
 if uploaded is not None:
     current_file_id = uploaded.file_id
-    if st.session_state.get("last_file_id") != current_file_id:
-        st.session_state.last_file_id = current_file_id
-        st.session_state.ds_expanded = False
-        st.balloons()
-        st.rerun()
+    _cache_valid = (
+        "processed_df" in st.session_state
+        and st.session_state.get("last_file_id") == current_file_id
+        and st.session_state.get("last_mode") == mode
+    )
 
-    is_xlsx = uploaded.name.lower().endswith('.xlsx')
+    if not _cache_valid:
+        # 换文件：弹气球 + 清缓存 + rerun（清洗放到 rerun 后，与原行为一致）
+        if st.session_state.get("last_file_id") != current_file_id:
+            st.session_state.last_file_id = current_file_id
+            st.session_state.pop("processed_df", None)
+            st.session_state.ds_expanded = False
+            st.balloons()
+            st.rerun()
 
-    # ─── 读取数据 ───────────────────────────────────────────────
-    if mode == "原始数据（含 JSON 列，需清洗）":
-        import base64
-        _gif_b64 = base64.b64encode((Path(__file__).parent / "static" / "loading.gif").read_bytes()).decode()
-        _loading = st.empty()
-        _loading.markdown(f'<div style="text-align:center;padding:24px 0;"><img src="data:image/gif;base64,{_gif_b64}" width="200" /></div>', unsafe_allow_html=True)
-        try:
-            if is_xlsx:
-                df = clean_raw_xlsx(uploaded)
-            else:
-                df = clean_raw_csv(uploaded)
-        except ValueError as e:
+        is_xlsx = uploaded.name.lower().endswith('.xlsx')
+
+        # ─── 读取数据 ───────────────────────────────────────────────
+        if mode == "原始数据（含 JSON 列，需清洗）":
+            import base64
+            _gif_b64 = base64.b64encode((Path(__file__).parent / "static" / "loading.gif").read_bytes()).decode()
+            _loading = st.empty()
+            _loading.markdown(f'<div style="text-align:center;padding:24px 0;"><img src="data:image/gif;base64,{_gif_b64}" width="200" /></div>', unsafe_allow_html=True)
+            try:
+                if is_xlsx:
+                    df = clean_raw_xlsx(uploaded)
+                else:
+                    df = clean_raw_csv(uploaded)
+            except ValueError as e:
+                _loading.empty()
+                st.error(str(e))
+                st.stop()
             _loading.empty()
-            st.error(str(e))
-            st.stop()
-        _loading.empty()
-    else:
-        try:
-            if is_xlsx:
-                df = read_cleaned_xlsx(uploaded)
-            else:
-                df = read_cleaned_csv(uploaded)
-        except ValueError as e:
-            st.error(str(e))
-            st.stop()
-        except Exception as e:
-            st.error(f"文件读取失败：{e}")
-            st.stop()
+        else:
+            try:
+                if is_xlsx:
+                    df = read_cleaned_xlsx(uploaded)
+                else:
+                    df = read_cleaned_csv(uploaded)
+            except ValueError as e:
+                st.error(str(e))
+                st.stop()
+            except Exception as e:
+                st.error(f"文件读取失败：{e}")
+                st.stop()
 
-    # ─── 解析日期列 ────────────────────────────────────────────
-    if date_col in df.columns:
-        df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
+        # ─── 解析日期列 ────────────────────────────────────────────
+        if date_col in df.columns:
+            df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
 
-    # ─── 计算衍生指标 ─────────────────────────────────────────
-    df = compute_derived_metrics(df)
+        # ─── 计算衍生指标 ─────────────────────────────────────────
+        df = compute_derived_metrics(df)
 
-    # ─── 计算全量综合评分（用于渠道均值）─────────────────────────
-    df = compute_full_scores(df)
+        # ─── 计算全量综合评分（用于渠道均值）─────────────────────────
+        df = compute_full_scores(df)
 
-    # 存入 session_state，页面 reload 后可直接恢复
-    st.session_state.processed_df = df
+        # 清洗成功后才更新指纹 + 缓存（失败时 last_mode 不变，便于重试）
+        st.session_state.last_mode = mode
+        st.session_state.processed_df = df
 
 if df is not None:
     channel_avg_score = df.groupby("渠道")["综合评分_full"].mean().to_dict() if "渠道" in df.columns else {}
