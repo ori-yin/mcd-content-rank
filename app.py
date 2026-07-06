@@ -531,8 +531,8 @@ if df is not None:
                   <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                     <div style="flex:1;">
                       <span class="rank-badge {badge_class}">{rank}</span>
-                      <span style="font-size:12px; color:#888; background:#F5F5F5; padding:2px 8px; border-radius:12px;">{channel_short}</span>
-                      <span style="font-size:12px; color:#AAA;"> · {owner_short} · {plan_type_short} · {date_str}</span>
+                      <span style="font-size:12px; color:#888; background:#F5F5F5; padding:2px 8px; border-radius:12px;">{_html.escape(channel_short)}</span>
+                      <span style="font-size:12px; color:#AAA;"> · {_html.escape(owner_short)} · {_html.escape(plan_type_short)} · {_html.escape(date_str)}</span>
                     </div>
                     <div>
                       <div style="display:flex;align-items:flex-start;justify-content:flex-end;gap:0;">
@@ -545,8 +545,8 @@ if df is not None:
                       <div class="card-score-label">均值 {channel_avg:.2f}</div>
                     </div>
                   </div>
-                  <div class="card-title">{title[:80]}{'...' if len(title) > 80 else ''}</div>
-                  <div class="card-content">{content[:200]}{'...' if len(content) > 200 else ''}</div>
+                  <div class="card-title">{_html.escape(title[:80])}{'...' if len(title) > 80 else ''}</div>
+                  <div class="card-content">{_html.escape(content[:200])}{'...' if len(content) > 200 else ''}</div>
                   <div class="card-meta">
                     <span>触达 {reach:,}</span>
                     <span>点击 {clicks_val:,}</span>
@@ -726,7 +726,7 @@ div[data-testid="stHorizontalBlock"]:last-of-type .stNumberInput input {{
                           <div style="display:flex; align-items:center; gap:8px;">
                             <span class="rank-badge {badge_class}">{rank}</span>
                             <div>
-                              <div style="font-size:14px; font-weight:600; color:#141413;">{bu_name}</div>
+                              <div style="font-size:14px; font-weight:600; color:#141413;">{_html.escape(bu_name)}</div>
                               <div style="font-size:12px; color:#6b6a64;">{plan_cnt} 个计划</div>
                             </div>
                           </div>
