@@ -339,10 +339,10 @@ if df is not None:
                     hist_end = start_dt - timedelta(days=1)
                     hist_start = hist_end - timedelta(days=delta)
 
-                    # 获取历史数据
+                    # 获取历史数据（上界 < start，避免与当前窗口在 start 00:00 重叠）
                     hist_df = df[
                         (df[date_col] >= pd.to_datetime(hist_start)) &
-                        (df[date_col] <= pd.to_datetime(hist_end) + timedelta(days=1))
+                        (df[date_col] < pd.to_datetime(start_dt))
                     ]
 
                     # 应用其他筛选条件
