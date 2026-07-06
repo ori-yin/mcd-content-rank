@@ -262,11 +262,16 @@ if df is not None:
     if date_range is not None:
         if isinstance(date_range, (list, tuple)) and len(date_range) == 2:
             start_dt, end_dt = date_range
-            if pd.notna(start_dt) and pd.notna(end_dt):
-                dff = dff[
-                    (dff[date_col] >= pd.to_datetime(start_dt)) &
-                    (dff[date_col] <= pd.to_datetime(end_dt) + timedelta(days=1))
-                ]
+        elif not isinstance(date_range, (list, tuple)):
+            # 单日期选择：按当天过滤
+            start_dt = end_dt = date_range
+        else:
+            start_dt = end_dt = None
+        if start_dt is not None and pd.notna(start_dt) and pd.notna(end_dt):
+            dff = dff[
+                (dff[date_col] >= pd.to_datetime(start_dt)) &
+                (dff[date_col] <= pd.to_datetime(end_dt) + timedelta(days=1))
+            ]
 
     if selected_plan != "全部":
         dff = dff[dff["计划类型"] == selected_plan]
