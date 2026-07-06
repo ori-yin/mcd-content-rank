@@ -135,8 +135,8 @@ def aggregate_channel_stats(df: pd.DataFrame) -> pd.DataFrame:
         计划数量=('综合评分', 'size')
     ).reset_index()
 
-    agg['CTR'] = (agg['点击'] / agg['触达'] * 100).round(2).fillna(0)
-    agg['GC转化率'] = (agg['GC'] / agg['点击'] * 100).round(2).fillna(0)
+    agg['CTR'] = (agg['点击'] / agg['触达'] * 100).replace([float('inf'), float('-inf')], 0).round(2).fillna(0)
+    agg['GC转化率'] = (agg['GC'] / agg['点击'] * 100).replace([float('inf'), float('-inf')], 0).round(2).fillna(0)
 
     return agg
 
@@ -154,8 +154,8 @@ def aggregate_bu_stats(df: pd.DataFrame) -> pd.DataFrame:
         均值综合评分=('综合评分', 'mean')
     ).reset_index()
 
-    agg['CTR'] = (agg['点击'] / agg['触达'] * 100).round(2).fillna(0)
-    agg['GC转化率'] = (agg['GC'] / agg['点击'] * 100).round(2).fillna(0)
+    agg['CTR'] = (agg['点击'] / agg['触达'] * 100).replace([float('inf'), float('-inf')], 0).round(2).fillna(0)
+    agg['GC转化率'] = (agg['GC'] / agg['点击'] * 100).replace([float('inf'), float('-inf')], 0).round(2).fillna(0)
 
     return agg
 

@@ -627,8 +627,8 @@ div[data-testid="stHorizontalBlock"]:last-of-type .stNumberInput input {{
                     均值综合评分=("综合评分", "mean"),
                 ).reset_index()
 
-                _bu_agg["CTR"] = (_bu_agg["点击"] / _bu_agg["触达"] * 100).round(2).fillna(0)
-                _bu_agg["GC转化率"] = (_bu_agg["GC"] / _bu_agg["点击"] * 100).round(2).fillna(0)
+                _bu_agg["CTR"] = (_bu_agg["点击"] / _bu_agg["触达"] * 100).replace([float('inf'), float('-inf')], 0).round(2).fillna(0)
+                _bu_agg["GC转化率"] = (_bu_agg["GC"] / _bu_agg["点击"] * 100).replace([float('inf'), float('-inf')], 0).round(2).fillna(0)
 
                 # ─── BU 综合评分（min-max 归一化 × 权重 + 置信度惩戒）──
                 def _norm(s):
