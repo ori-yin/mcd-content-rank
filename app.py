@@ -9,7 +9,7 @@ from datetime import timedelta
 
 from config import MCD_RED, MCD_GOLD, OWNER_COL, API_PROVIDERS, PAGE_SIZE, DEFAULT_W_REACH, DEFAULT_W_CTR, DEFAULT_W_GC, THEMES
 from styles import get_css
-from data_cleaning import clean_raw_csv, read_cleaned_csv, clean_raw_xlsx, read_cleaned_xlsx
+from data_cleaning import clean_raw_csv, read_cleaned_csv, clean_raw_xlsx, read_cleaned_xlsx, _parse_date_column, DATE_COL
 from scoring import compute_derived_metrics, compute_full_scores, compute_filtered_scores
 from llm_service import analyze_content
 
@@ -31,7 +31,8 @@ if "ds_expanded" not in st.session_state:
 
 # 优先从 session_state 恢复已处理的数据（避免页面 reload 后丢失）
 df = st.session_state.get("processed_df")
-date_col = "发送日期"
+# 日期列常量统一用 data_cleaning.DATE_COL（已支持列名模糊映射）
+date_col = DATE_COL
 
 with st.expander("数据源", expanded=st.session_state.ds_expanded):
     col_left, col_right = st.columns([1, 1])
@@ -98,9 +99,9 @@ if uploaded is not None:
                 st.error(f"文件读取失败：{e}")
                 st.stop()
 
-        # ─── 解析日期列 ────────────────────────────────────────────
-        if date_col in df.columns:
-            df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
+        # ─── 解析日期列（4 个 load 函数内已做智能解析；此处保留兜底，处理未来新增路径）──
+        if date_col in df.columns and not pd.api.types.is_datetime64_any_dtype(df[date_col]):
+            df[date_col] = _parse_date_column(df[date_col])
 
         # ─── 计算衍生指标 ─────────────────────────────────────────
         df = compute_derived_metrics(df)

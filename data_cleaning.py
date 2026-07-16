@@ -5,10 +5,100 @@ data_cleaning.py - 麦当劳内容排行榜：数据清洗
 import json
 import logging
 import re
+import datetime
+import numpy as np
 import pandas as pd
 from io import BytesIO
 
 logger = logging.getLogger(__name__)
+
+# ═══════════════════════════════════════════════════════════════
+# 列名常量（参考 mcd-reach-trend/data.py，便于跨源文件兼容）
+# ═══════════════════════════════════════════════════════════════
+DATE_COL = "发送日期"
+COL_ALIASES = {
+    DATE_COL: ["日期", "send", "date", "send_date", "send time", "sendtime"],
+    "渠道": ["渠道", "channel"],
+    "计划类型": ["计划类型", "plan_type", "plan type"],
+    "plan_id": ["plan_id", "plan id", "planid"],
+    "plan名称": ["plan名称", "plan_name", "plan name"],
+    "owner": ["owner", "预算owner", "预算 owner", "预算_owner", "bu"],
+    "是否用券": ["是否用券", "coupon"],
+    "预计触达": ["预计触达", "exp_reach", "expected reach"],
+    "触达成功": ["触达成功", "reach", "reach_success"],
+    "点击人次": ["点击人次", "click"],
+    "点击后下单人次": ["点击后下单", "post_click"],
+    "订单GC": ["gc", "订单gc", "order_gc"],
+    "订单Sales": ["sales", "订单sales", "order_sales"],
+}
+
+# Excel 日期序列号识别范围：1~80000 覆盖 1900~2119 年
+_EXCEL_SERIAL_MIN = 1
+_EXCEL_SERIAL_MAX = 80000
+
+
+def _map_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """列名模糊匹配：把源列名映射到标准中文列名（提升跨源文件兼容性）"""
+    if df.columns.empty:
+        return df
+    existing = set(df.columns)
+    rename = {}
+    for target, keys in COL_ALIASES.items():
+        if target in existing:
+            continue  # 已有标准列名，不重复映射
+        for c in df.columns:
+            if c in rename:
+                continue
+            cl = str(c).lower().strip().replace(" ", "").replace("_", "")
+            for k in keys:
+                kl = str(k).lower().replace(" ", "").replace("_", "")
+                if kl in cl:
+                    rename[c] = target
+                    break
+    if rename:
+        df = df.rename(columns=rename)
+    return df
+
+
+def _parse_date_column(series: pd.Series) -> pd.Series:
+    """智能解析日期列：datetime 对象 / 字符串 / Excel 数字序列号三种情况都能转。
+    字符串会做多格式 fallback（ISO / 斜杠 / 点号 / 中文年月日 等）。"""
+    if series is None or len(series) == 0:
+        return series
+    # 已经是 datetime64，直接返回
+    if pd.api.types.is_datetime64_any_dtype(series):
+        return series
+    # 取第一个非空样本判断类型
+    non_null = series.dropna()
+    if non_null.empty:
+        return series
+    sample = non_null.iloc[0]
+    # 1) datetime 对象（Excel 单元格为日期格式 → openpyxl 读出 Timestamp/datetime）
+    if isinstance(sample, (pd.Timestamp, datetime.datetime, datetime.date)):
+        return pd.to_datetime(series, errors="coerce")
+    # 2) 数字（Excel 日期序列号：1900-01-01=1，1899-12-30 起点可绕过 Excel 1900 闰年 bug）
+    if isinstance(sample, (int, float, np.integer, np.floating)) and not isinstance(sample, bool):
+        if _EXCEL_SERIAL_MIN <= float(sample) <= _EXCEL_SERIAL_MAX:
+            return pd.to_datetime(series, unit="D", origin="1899-12-30", errors="coerce")
+        return series
+    # 3) 字符串 - 先试默认 to_datetime，失败/缺失多则 fallback 显式格式
+    parsed = pd.to_datetime(series, errors="coerce", format="mixed")
+    if parsed.notna().sum() < non_null.shape[0]:
+        # 默认解析器未能覆盖全部，尝试常见中文/Excel 日期格式
+        for fmt in (
+            "%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d",
+            "%Y年%m月%d日", "%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M:%S",
+            "%d/%m/%Y", "%m/%d/%Y",
+        ):
+            try:
+                fallback = pd.to_datetime(series, errors="coerce", format=fmt)
+                # 优先保留首次 fallback 能解析的值
+                parsed = parsed.fillna(fallback)
+                if parsed.notna().sum() >= non_null.shape[0]:
+                    break
+            except Exception:
+                continue
+    return parsed
 
 
 def extract_title_from_forms(forms):
@@ -115,6 +205,9 @@ def clean_raw_csv(uploaded_file) -> pd.DataFrame:
     if df is None:
         raise ValueError("无法读取 CSV 文件，请检查文件格式")
 
+    # 列名模糊匹配（如 send_date → 发送日期），提升跨源兼容性
+    df = _map_columns(df)
+
     # 检查是否有至少 15 列
     if df.shape[1] < 15:
         raise ValueError(f"CSV 只有 {df.shape[1]} 列，第 15 列（O列）不存在")
@@ -130,6 +223,10 @@ def clean_raw_csv(uploaded_file) -> pd.DataFrame:
     df['内容'] = parsed_df['内容']
     df = df.drop(df.columns[14], axis=1)
 
+    # 日期列智能解析（字符串/数字序列号/ datetime 对象 都能识别）
+    if DATE_COL in df.columns:
+        df[DATE_COL] = _parse_date_column(df[DATE_COL])
+
     return df
 
 
@@ -138,15 +235,24 @@ def read_cleaned_csv(uploaded_file) -> pd.DataFrame:
     bytes_data = uploaded_file.read()
     for enc in ['utf-8', 'utf-8-sig', 'gbk']:
         try:
-            return pd.read_csv(BytesIO(bytes_data), encoding=enc)
+            df = pd.read_csv(BytesIO(bytes_data), encoding=enc)
+            df = _map_columns(df)
+            if DATE_COL in df.columns:
+                df[DATE_COL] = _parse_date_column(df[DATE_COL])
+            return df
         except Exception:
             continue
     raise ValueError("无法读取 CSV 文件，请检查编码格式")
 
 
-def _coerce_numeric_columns(df: pd.DataFrame) -> pd.DataFrame:
-    """将数值列统一转为 float64（xlsx 可能读出 str、object、int64 或 Arrow 类型）"""
+def _coerce_numeric_columns(df: pd.DataFrame, skip_cols: list = None) -> pd.DataFrame:
+    """将数值列统一转为 float64（xlsx 可能读出 str、object、int64 或 Arrow 类型）。
+    skip_cols 中的列跳过，避免误把日期列、计划 ID 列等转成数值。"""
+    skip = set(skip_cols or [])
+    skip.add(DATE_COL)  # 日期列永远不参与数值转换
     for col in df.columns:
+        if col in skip:
+            continue
         if pd.api.types.is_numeric_dtype(df[col]):
             df[col] = df[col].astype('float64')
         else:
@@ -179,6 +285,12 @@ def clean_raw_xlsx(uploaded_file) -> pd.DataFrame:
     data_rows = rows[1:]
 
     df = pd.DataFrame(data_rows, columns=headers)
+    # 列名模糊匹配（兼容 send_date 等非标准列名）
+    df = _map_columns(df)
+    # 日期列必须先解析，再让 _coerce_numeric_columns 转换其他列
+    # —— 否则 Excel 日期序列号（如 45292）会被当成 float 误转
+    if DATE_COL in df.columns:
+        df[DATE_COL] = _parse_date_column(df[DATE_COL])
     df = _coerce_numeric_columns(df)
 
     if df.shape[1] < 15:
@@ -219,6 +331,10 @@ def read_cleaned_xlsx(uploaded_file) -> pd.DataFrame:
     data_rows = rows[1:]
 
     df = pd.DataFrame(data_rows, columns=headers)
+    # 列名模糊匹配 + 日期智能解析（必须先于 _coerce_numeric_columns）
+    df = _map_columns(df)
+    if DATE_COL in df.columns:
+        df[DATE_COL] = _parse_date_column(df[DATE_COL])
     df = _coerce_numeric_columns(df)
 
     return df
