@@ -424,16 +424,8 @@ if df is not None:
                 st.session_state.ai_page_results = {}
                 st.session_state.ai_results_fp = _ai_fp
 
-            # 合并渲染：拼成一个 HTML 字符串（CSS 内联到 iframe 内）
+            # 合并渲染：拼成一个 HTML 字符串（AI 标签/tooltip 样式由 styles.py 统一管理）
             _ai_results = st.session_state.get("ai_page_results", {})
-            _ai_css = f"""<style>
-.ai-tag-btn {{ background:#F8F7F5; color:{MCD_RED}; font-size:12px; font-weight:600; padding:3px 10px; border-radius:6px; border:none; display:inline-block; }}
-.ai-tag-btn:hover {{ background:{MCD_RED}; color:#FFF; border-color:{MCD_RED}; }}
-.ai-has-tip {{ position:relative; cursor:help; display:inline-block; }}
-.ai-tip {{ visibility:hidden; opacity:0; position:absolute; bottom:calc(100% + 10px); left:50%; transform:translateX(-50%); background:rgba(30,30,30,0.95); color:#FFF; border-radius:10px; padding:12px 16px; font-size:12px; font-weight:400; line-height:1.8; min-width:260px; max-width:360px; box-shadow:0 4px 20px rgba(0,0,0,0.25); z-index:9999; pointer-events:none; transition:opacity 0.15s; }}
-.ai-tip::after {{ content:''; position:absolute; top:100%; left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(30,30,30,0.95); }}
-.ai-has-tip:hover .ai-tip {{ visibility:visible; opacity:1; }}
-</style>"""
             html_parts = []
             for _gi, row in enumerate(page_cards):
                 rank = row.排名
@@ -441,11 +433,11 @@ if df is not None:
 
                 score = row.综合评分
                 if score >= 70:
-                    score_color = "#00A04A"
+                    score_color = _t["score_high"]
                 elif score >= 40:
-                    score_color = "#FFC000"
+                    score_color = _t["score_med"]
                 else:
-                    score_color = "#DA291C"
+                    score_color = _t["score_low"]
 
                 # tooltip
                 reach_raw_t = int(getattr(row, '触达成功', 0) or 0)
@@ -559,7 +551,7 @@ if df is not None:
                 </div>
                 """)
 
-            grid_html = _ai_css + '<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">' + "".join(html_parts) + '</div>'
+            grid_html = '<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">' + "".join(html_parts) + '</div>'
             st.html(grid_html)
 
             # ─── 底部翻页 ───────────────────────────────────────────
@@ -679,11 +671,11 @@ div[data-testid="stHorizontalBlock"]:last-of-type .stNumberInput input {{
                     badge_class = {1: "rank-1", 2: "rank-2", 3: "rank-3"}.get(rank, "rank-other")
                     score = row.BU综合评分
                     if score >= 70:
-                        score_color = "#00A04A"
+                        score_color = _t["score_high"]
                     elif score >= 40:
-                        score_color = "#C79200"
+                        score_color = _t["score_med"]
                     else:
-                        score_color = "#DA291C"
+                        score_color = _t["score_low"]
 
                     bu_name = str(getattr(row, _bu_col, '') or '')
                     plan_cnt = int(getattr(row, '计划数量', 0) or 0)

@@ -429,13 +429,14 @@ def get_css() -> str:
 
   /* ─── 卡片 AI 标签按钮 ─── */
   .ai-tag-btn {{
-    background: #FFF0F0;
+    background: #F8F7F5;
     color: {MCD_RED};
     font-size: 12px;
     font-weight: 600;
-    padding: 4px 10px;
-    border-radius: 20px;
-    border: 1px solid #FFDADA;
+    padding: 3px 10px;
+    border-radius: 6px;
+    border: none;
+    display: inline-block;
     cursor: default;
     transition: all 0.15s ease;
   }}
