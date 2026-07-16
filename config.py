@@ -85,7 +85,9 @@ THEMES = {
 }
 
 # ─── 列名常量 ──────────────────────────────────────────────────
-OWNER_COL = "预算owner"
+# 注：data_cleaning._map_columns 把 "预算owner"/"owner"/"bu" 等统一 rename 成 "owner"
+# 所以这里必须用 "owner"，否则 app.py 的侧栏/BU tab/AI 总结都查不到列
+OWNER_COL = "owner"
 
 # ─── API 配置 ──────────────────────────────────────────────────
 API_PROVIDERS = {

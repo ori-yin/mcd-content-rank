@@ -479,7 +479,7 @@ if df is not None:
                 date_val = getattr(row, '发送日期', None)
                 date_str = str(date_val)[:10] if date_val is not None and not (isinstance(date_val, float) and date_val != date_val) else ""
                 channel_short = str(getattr(row, '渠道', '') or '')
-                owner_short = str(getattr(row, '预算owner', '') or '') if hasattr(row, '预算owner') else ''
+                owner_short = str(getattr(row, OWNER_COL, '') or '') if hasattr(row, OWNER_COL) else ''
                 plan_type_short = str(getattr(row, '计划类型', '') or '')
                 title = str(getattr(row, '标题', '') or '')
                 if not title:
