@@ -200,11 +200,11 @@
       <text x="480" y="162" fill="#141413" font-size="14" font-weight="500" text-anchor="middle">CTR 评分</text>
     </g>
 
-    <!-- ════════ BRANCH 3: GC 转化评分 ════════ -->
+    <!-- ════════ BRANCH 3: 下单转化评分 ════════ -->
     <g class="node" data-detail="gc" style="cursor:pointer" filter="url(#glow-green)">
       <rect x="720" y="124" width="144" height="56" rx="6" fill="#E6F5EC" stroke="#00A04A" stroke-width="1.2"/>
       <text x="738" y="140" fill="#00A04A" font-size="7" font-family="var(--mono)" letter-spacing=".15em">25%</text>
-      <text x="800" y="162" fill="#141413" font-size="14" font-weight="500" text-anchor="middle">GC 转化评分</text>
+      <text x="800" y="162" fill="#141413" font-size="14" font-weight="500" text-anchor="middle">下单转化评分</text>
     </g>
 
     <!-- ════════ 加权求和 ════════ -->
@@ -264,6 +264,7 @@
         <tr class="hl-row"><td>触达成功</td><td class="val">8,000 人</td><td>实际送达的用户数</td></tr>
         <tr><td>点击人次</td><td class="val">24 人</td><td>点击了内容的用户数</td></tr>
         <tr><td>订单 GC</td><td class="val">15 单</td><td>领券/下单的用户数</td></tr>
+        <tr><td>点击后下单人次</td><td class="val">15 人</td><td>点击本内容后实际下单的人数（用于计算"下单转化率"）</td></tr>
         <tr><td>全场最大触达</td><td class="val">100,000</td><td>所有内容中最大的触达量</td></tr>
         <tr><td>渠道</td><td class="val">APP Push</td><td>决定 Q3 基准</td></tr>
       </table>
@@ -280,7 +281,7 @@
           <div class="calc-box">
 CTR = 点击 ÷ 触达 × 100%<br>
 &nbsp;&nbsp;&nbsp;&nbsp;= <span class="v">24</span> ÷ <span class="v">8,000</span> × 100% = <span class="ctr">0.30%</span><br><br>
-GC 转化率 = 订单GC ÷ 点击 × 100%<br>
+下单转化率 = 点击后下单人次 ÷ 点击人次 × 100%<br>
 &nbsp;&nbsp;&nbsp;&nbsp;= <span class="v">15</span> ÷ <span class="v">24</span> × 100% = <span class="gc">62.50%</span>
           </div>
         </div>
@@ -319,14 +320,14 @@ CTR 分 = 100 × (0.30 ÷ 0.31)<sup>1.5</sup><br>
       <div class="ex-step">
         <div class="ex-step-num" style="background:var(--mcd-green)">4</div>
         <div class="ex-step-body" style="border-left-color:var(--mcd-green)">
-          <div class="ex-sl" style="color:var(--mcd-green)">STEP 04 · GC 转化分</div>
+          <div class="ex-sl" style="color:var(--mcd-green)">STEP 04 · 下单转化分</div>
           <h3>同样跟渠道基准比较</h3>
-          <div class="ex-benchmark"><span class="b-tag">APP Push Q3 = <strong>69.5%</strong></span></div>
+          <div class="ex-benchmark"><span class="b-tag">APP Push Q3 = <strong>14.21%</strong></span></div>
           <div class="calc-box" style="margin-top:10px">
-GC 转化率 = <span class="v">62.50%</span>，Q3 = <span class="v">69.5%</span><br>
-<span class="fail">62.50% &lt; 69.5% → 未达标</span><br><br>
-GC 分 = 100 × (62.50 ÷ 69.5)<sup>1.5</sup><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= <span class="r">85.3 分</span>
+下单转化率 = <span class="v">62.50%</span>，Q3 = <span class="v">14.21%</span><br>
+<span class="pass">62.50% ≥ 14.21% → 达标 ✓</span><br><br>
+下单转化分 = 100 分（饱和）<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= <span class="r">100 分</span>
           </div>
         </div>
       </div>
@@ -399,6 +400,7 @@ const DETAILS = {
 <span style="font-size:.78rem;font-weight:600;padding:4px 12px;border-radius:20px;background:var(--mcd-red-tint);color:var(--mcd-red)">触达成功</span>
 <span style="font-size:.78rem;font-weight:600;padding:4px 12px;border-radius:20px;background:var(--mcd-gold-tint);color:#C79200">点击人次</span>
 <span style="font-size:.78rem;font-weight:600;padding:4px 12px;border-radius:20px;background:var(--mcd-green-tint);color:var(--mcd-green)">订单GC</span>
+<span style="font-size:.78rem;font-weight:600;padding:4px 12px;border-radius:20px;background:#E6F5EC;color:#1B7A40;border:1px solid #B5E0C5">点击后下单人次</span>
 </div>
 <div style="margin-top:10px">这些是渠道后台直接导出的原始字段，不需要额外计算。</div>`
   },
@@ -430,26 +432,26 @@ CTR ≥ 渠道 Q3 → <span class="hl-ctr">100 分（饱和）</span>`,
 · CTR = 0.35% → <span class="pass">达到基准 ✓</span>，直接得 <span class="res">100 分</span>`
   },
   gc: {
-    label: 'GC 转化评分 · 权重 25%',
-    title: 'GC 转化评分 · 跟渠道基准比较',
+    label: '下单转化率评分 · 权重 25%',
+    title: '下单转化率评分 · 跟渠道基准比较',
     chart: 'gc',
-    formula: `GC 转化率 = 订单 GC ÷ 点击人次 × 100%<br><br>
-GC率 < 渠道 Q3 → <span class="hl-gc">100 × (GC率 ÷ Q3)<sup>1.5</sup></span><br>
-GC率 ≥ 渠道 Q3 → <span class="hl-gc">100 分（饱和）</span>`,
-    note: `GC 转化率衡量内容带来实际转化的能力。不同渠道基准差异大（APP Push 69.5% vs 企微 18.5%），按渠道分别比较。`,
+    formula: `下单转化率 = 点击后下单人次 ÷ 点击人次 × 100%<br><br>
+下单转化率 < 渠道 Q3 → <span class="hl-gc">100 × (下单转化率 ÷ Q3)<sup>1.5</sup></span><br>
+下单转化率 ≥ 渠道 Q3 → <span class="hl-gc">100 分（饱和）</span>`,
+    note: `下单转化率衡量点击行为转化为实际下单的能力。不同渠道基准差异大（APP Push 14.21% vs 企微 14.29%），按渠道分别比较。`,
     benchmark: [
-      {ch:'APP Push', val:'69.5%'},{ch:'企微 1v1', val:'18.5%'},
-      {ch:'小程序订阅', val:'41.0%'},{ch:'短信', val:'26.7%'}
+      {ch:'APP Push', val:'14.21%'},{ch:'企微 1v1', val:'14.29%'},
+      {ch:'短信', val:'13.13%'}
     ],
-    example: `渠道企微 1v1，Q3 = 18.5%<br>
-· GC 转化率 = 12% → <span class="fail">低于基准</span>，得分 = 100×(12÷18.5)^1.5 = <span class="res">52.9 分</span><br>
-· GC 转化率 = 20% → <span class="pass">达到基准 ✓</span>，直接得 <span class="res">100 分</span>`
+    example: `渠道企微 1v1，Q3 = 14.29%<br>
+· 下单转化率 = 10% → <span class="fail">低于基准</span>，得分 = 100×(10÷14.29)^1.5 = <span class="res">62.5 分</span><br>
+· 下单转化率 = 16% → <span class="pass">达到基准 ✓</span>，直接得 <span class="res">100 分</span>`
   },
   merge: {
     label: 'MERGE · 加权求和',
     title: '加权求和公式',
-    formula: `<span class="hl-reach">触达评分 × 0.25</span> + <span class="hl-ctr">CTR评分 × 0.50</span> + <span class="hl-gc">GC转化评分 × 0.25</span>`,
-    note: `CTR 权重最高（50%），因为点击率最能反映内容质量。触达和 GC 各占 25%，平衡曝光量与转化效果。`
+    formula: `<span class="hl-reach">触达评分 × 0.25</span> + <span class="hl-ctr">CTR评分 × 0.50</span> + <span class="hl-gc">下单转化率评分 × 0.25</span>`,
+    note: `CTR 权重最高（50%），因为点击率最能反映内容质量。触达和下单转化率各占 25%，平衡曝光量与转化效果。`
   },
   base: {
     label: 'SCORE · 基础评分',
@@ -576,7 +578,7 @@ function renderDetail(key) {
   html += `<div style="background:var(--parchment);border:1px solid var(--border);border-radius:6px;padding:14px 16px;font-family:var(--mono);font-size:.82rem;line-height:1.9;margin-bottom:1rem;overflow-x:auto">${d.formula}</div>`;
   if (d.chart === 'reach') html += makeReachChart();
   if (d.chart === 'ctr') html += makePiecewiseChart(0.31, 3, 'CTR (%)', [0,0.5,1,1.5,2,2.5,3], ['0','0.5','1','1.5','2','2.5','3'], '#C79200');
-  if (d.chart === 'gc') html += makePiecewiseChart(69.5, 100, 'GC 转化率 (%)', [0,10,20,30,40,50,60,70,80,90,100], ['0','10','20','30','40','50','60','70','80','90','100'], '#00A04A');
+  if (d.chart === 'gc') html += makePiecewiseChart(14.21, 100, '下单转化率 (%)', [0,2,4,6,8,10,12,14,16,18,20], ['0','2','4','6','8','10','12','14','16','18','20'], '#00A04A');
   if (d.note) html += `<div style="font-size:.88rem;color:var(--olive);line-height:1.7;max-width:60ch">${d.note}</div>`;
   if (d.benchmark) {
     html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0">';

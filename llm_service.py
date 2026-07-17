@@ -7,19 +7,21 @@ import re
 import openai
 import pandas as pd
 from config import API_PROVIDERS, OWNER_COL
+from scoring import safe_pct_rate
 
 
+# 注：本组定性特征基于历史"订单 GC 转化率"分析；2026-07 切换"下单转化率"后需复测。
 CHANNEL_GUIDE = """【各渠道高转化文案特征（基于历史4848条数据分析）】
-企微1v1（基准CTR 2.62%，GC转化率 18.5%）：
+企微1v1（基准CTR 2.62%，下单转化率 14.29%）：
 - 高CTR标题短(15字)、98%含利益点("领券""免费""任务")、内容1行、触达偏精准(median 1.3万)
 - 低CTR标题长(17字)、仅5%含利益点、直接报价格("39.9元任选5")
-APP Push（基准CTR 0.31%，GC转化率 69.5%）：
+APP Push（基准CTR 0.31%，下单转化率 14.21%）：
 - 高CTR标题短(16字)、情感化("暖冬""一年一度""回归")、触达量大(median 9.4万)
 - 低CTR标题长(15字)、产品描述型("鳞魂炸鸡""超满足4件套")
-微信小程序订阅消息（基准CTR 4.01%，GC转化率 41.0%）：
+微信小程序订阅消息（基准CTR 4.01%，下单转化率 14.34% — 样本不足降级全量 P75）：
 - 高CTR标题极短(9字)、44%含利益点、直接说优惠("3元脆薯饼券")
 - 低CTR标题11字、仅7%含利益点、报套餐价("22.9元堡卷小食套餐")
-短信（基准CTR 0.53%，GC转化率 26.7%）：
+短信（基准CTR 0.53%，下单转化率 13.13%）：
 - 高CTR偏提醒型("核销提醒""用券提醒")
 - 低CTR偏拉新型("早餐9.9拉新")"""
 
@@ -36,7 +38,7 @@ def build_analysis_prompt(items: list) -> str:
             f"｜点击：{item['点击人次']}"
             f"｜CTR：{item['CTR']:.2f}%"
             f"｜GC：{item['订单GC']}"
-            f"｜GC转化率：{item['订单GC转化率']:.2f}%"
+            f"｜下单转化率：{item['下单转化']:.2f}%"
             f"｜综合评分：{item['综合评分']:.2f}"
             f"｜排名：第{item['排名']}名"
         )
@@ -131,12 +133,13 @@ def aggregate_channel_stats(df: pd.DataFrame) -> pd.DataFrame:
     agg = df.groupby('渠道').agg(
         触达=('触达成功', 'sum'),
         点击=('点击人次', 'sum'),
-        GC=('订单GC', 'sum'),
+        点击后下单=('点击后下单人次', 'sum'),
+        订单GC=('订单GC', 'sum'),
         计划数量=('综合评分', 'size')
     ).reset_index()
 
-    agg['CTR'] = (agg['点击'] / agg['触达'] * 100).replace([float('inf'), float('-inf')], 0).round(2).fillna(0)
-    agg['GC转化率'] = (agg['GC'] / agg['点击'] * 100).replace([float('inf'), float('-inf')], 0).round(2).fillna(0)
+    agg['CTR'] = safe_pct_rate(agg['点击'], agg['触达'])
+    agg['下单转化'] = safe_pct_rate(agg['点击后下单'], agg['点击'])
 
     return agg
 
@@ -150,12 +153,13 @@ def aggregate_bu_stats(df: pd.DataFrame) -> pd.DataFrame:
         计划数量=('综合评分', 'size'),
         触达=('触达成功', 'sum'),
         点击=('点击人次', 'sum'),
-        GC=('订单GC', 'sum'),
+        点击后下单=('点击后下单人次', 'sum'),
+        订单GC=('订单GC', 'sum'),
         均值综合评分=('综合评分', 'mean')
     ).reset_index()
 
-    agg['CTR'] = (agg['点击'] / agg['触达'] * 100).replace([float('inf'), float('-inf')], 0).round(2).fillna(0)
-    agg['GC转化率'] = (agg['GC'] / agg['点击'] * 100).replace([float('inf'), float('-inf')], 0).round(2).fillna(0)
+    agg['CTR'] = safe_pct_rate(agg['点击'], agg['触达'])
+    agg['下单转化'] = safe_pct_rate(agg['点击后下单'], agg['点击'])
 
     return agg
 
@@ -167,7 +171,7 @@ def format_channel_stats_for_prompt(stats: pd.DataFrame, historical_stats: pd.Da
     if historical_stats is not None and not historical_stats.empty:
         lines.append("【当前周期渠道数据】")
     for _, row in stats.iterrows():
-        line = f"- {row['渠道']}：计划 {row['计划数量']}个，触达 {row['触达']}，点击 {row['点击']}，CTR {row['CTR']}%，GC转化率 {row['GC转化率']}%"
+        line = f"- {row['渠道']}：计划 {row['计划数量']}个，触达 {row['触达']}，点击 {row['点击']}，CTR {row['CTR']}%，下单转化率 {row['下单转化']}%"
         if historical_stats is not None and not historical_stats.empty:
             hist = historical_stats[historical_stats['渠道'] == row['渠道']]
             if not hist.empty:
@@ -182,7 +186,7 @@ def format_channel_stats_for_prompt(stats: pd.DataFrame, historical_stats: pd.Da
         lines.append("")
         lines.append("【上周期渠道数据】")
         for _, row in historical_stats.iterrows():
-            lines.append(f"- {row['渠道']}：计划 {row['计划数量']}个，触达 {row['触达']}，点击 {row['点击']}，CTR {row['CTR']}%，GC转化率 {row['GC转化率']}%")
+            lines.append(f"- {row['渠道']}：计划 {row['计划数量']}个，触达 {row['触达']}，点击 {row['点击']}，CTR {row['CTR']}%，下单转化率 {row['下单转化']}%")
 
     return "\n".join(lines)
 
@@ -194,7 +198,7 @@ def format_bu_stats_for_prompt(stats: pd.DataFrame, historical_stats: pd.DataFra
     if historical_stats is not None and not historical_stats.empty:
         lines.append("【当前周期 BU 数据】")
     for _, row in stats.iterrows():
-        line = f"- {row[OWNER_COL]}：计划 {row['计划数量']}个，触达 {row['触达']}，点击 {row['点击']}，CTR {row['CTR']}%，GC转化率 {row['GC转化率']}%，均值评分 {row['均值综合评分']:.2f}"
+        line = f"- {row[OWNER_COL]}：计划 {row['计划数量']}个，触达 {row['触达']}，点击 {row['点击']}，CTR {row['CTR']}%，下单转化率 {row['下单转化']}%，均值评分 {row['均值综合评分']:.2f}"
         if historical_stats is not None and not historical_stats.empty:
             hist = historical_stats[historical_stats[OWNER_COL] == row[OWNER_COL]]
             if not hist.empty:
@@ -209,7 +213,7 @@ def format_bu_stats_for_prompt(stats: pd.DataFrame, historical_stats: pd.DataFra
         lines.append("")
         lines.append("【上周期 BU 数据】")
         for _, row in historical_stats.iterrows():
-            lines.append(f"- {row[OWNER_COL]}：计划 {row['计划数量']}个，触达 {row['触达']}，点击 {row['点击']}，CTR {row['CTR']}%，GC转化率 {row['GC转化率']}%，均值评分 {row['均值综合评分']:.2f}")
+            lines.append(f"- {row[OWNER_COL]}：计划 {row['计划数量']}个，触达 {row['触达']}，点击 {row['点击']}，CTR {row['CTR']}%，下单转化率 {row['下单转化']}%，均值评分 {row['均值综合评分']:.2f}")
 
     return "\n".join(lines)
 

@@ -5,8 +5,8 @@ scoring.py - 麦当劳内容排行榜：评分算法
 import numpy as np
 import pandas as pd
 from config import (
-    CTR_THRESHOLDS, GC_THRESHOLDS,
-    CTR_UNKNOWN_THRESHOLD, GC_UNKNOWN_THRESHOLD, EXP,
+    CTR_THRESHOLDS, CVR_THRESHOLDS,
+    CTR_UNKNOWN_THRESHOLD, CVR_UNKNOWN_THRESHOLD, EXP,
     DEFAULT_W_REACH, DEFAULT_W_CTR, DEFAULT_W_GC,
 )
 
@@ -20,13 +20,19 @@ def piecewise_score_vec(G_col, threshold_col):
     return np.where(ratio >= 1, 100.0, 100.0 * ratio ** EXP)
 
 
+def safe_pct_rate(num, denom):
+    """聚合安全百分比：sum(分子) / sum(分母) × 100，处理 0/0 情况"""
+    return (num / denom * 100).replace([float("inf"), -float("inf")], 0).round(2).fillna(0)
+
+
 def compute_derived_metrics(df: pd.DataFrame) -> pd.DataFrame:
-    """计算 CTR、订单GC转化率、触达归一化"""
+    """计算 CTR、下单转化、触达归一化"""
     df["CTR"] = (df["点击人次"] / df["触达成功"] * 100).round(2)
     df["CTR"] = df["CTR"].replace([float("inf"), -float("inf")], 0).fillna(0)
 
-    df["订单GC转化率"] = (df["订单GC"] / df["点击人次"] * 100).round(2)
-    df["订单GC转化率"] = df["订单GC转化率"].replace([float("inf"), -float("inf")], 0).fillna(0)
+    # 缺"点击后下单人次"列时按 0 处理（旧 CSV 容错）；df.get 返回 0 标量 → 全 0 Series
+    df["下单转化"] = (df.get("点击后下单人次", 0) / df["点击人次"] * 100).round(2)
+    df["下单转化"] = df["下单转化"].replace([float("inf"), -float("inf")], 0).fillna(0)
 
     # 触达_max=0（全部触达为0）时 0/0=NaN，整列评分会变 NaN，这里兜底为 0
     _reach_max = df["触达成功"].max()
@@ -42,8 +48,8 @@ def compute_full_scores(df: pd.DataFrame) -> pd.DataFrame:
     _ctr_thresh = df["渠道"].astype(str).map(CTR_THRESHOLDS).fillna(CTR_UNKNOWN_THRESHOLD)
     df["CTR_score_full"] = piecewise_score_vec(df["CTR"], _ctr_thresh)
 
-    _gc_thresh = df["渠道"].astype(str).map(GC_THRESHOLDS).fillna(GC_UNKNOWN_THRESHOLD)
-    df["GC_score_full"] = piecewise_score_vec(df["订单GC转化率"], _gc_thresh)
+    _cvr_thresh = df["渠道"].astype(str).map(CVR_THRESHOLDS).fillna(CVR_UNKNOWN_THRESHOLD)
+    df["GC_score_full"] = piecewise_score_vec(df["下单转化"], _cvr_thresh)
 
     df["综合评分_full"] = (
         df["触达_norm"] * DEFAULT_W_REACH + df["CTR_score_full"] * DEFAULT_W_CTR + df["GC_score_full"] * DEFAULT_W_GC
@@ -60,8 +66,8 @@ def compute_filtered_scores(dff: pd.DataFrame, w_reach: float, w_ctr: float, w_g
     _dff_ctr_thresh = dff["渠道"].astype(str).map(CTR_THRESHOLDS).fillna(CTR_UNKNOWN_THRESHOLD)
     dff["CTR_score"] = piecewise_score_vec(dff["CTR"], _dff_ctr_thresh)
 
-    _dff_gc_thresh = dff["渠道"].astype(str).map(GC_THRESHOLDS).fillna(GC_UNKNOWN_THRESHOLD)
-    dff["GC_score"] = piecewise_score_vec(dff["订单GC转化率"], _dff_gc_thresh)
+    _dff_cvr_thresh = dff["渠道"].astype(str).map(CVR_THRESHOLDS).fillna(CVR_UNKNOWN_THRESHOLD)
+    dff["GC_score"] = piecewise_score_vec(dff["下单转化"], _dff_cvr_thresh)
 
     base_score = (
         dff["触达_norm"] * w_reach

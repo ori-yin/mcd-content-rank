@@ -27,7 +27,7 @@ COL_ALIASES = {
     "预计触达": ["预计触达", "exp_reach", "expected reach"],
     "触达成功": ["触达成功", "reach", "reach_success"],
     "点击人次": ["点击人次", "click"],
-    "点击后下单人次": ["点击后下单", "post_click"],
+    "点击后下单人次": ["点击后下单", "点击后下单人次", "post_click", "下单人次", "order_conv"],
     "订单GC": ["gc", "订单gc", "order_gc"],
     "订单Sales": ["sales", "订单sales", "order_sales"],
 }

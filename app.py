@@ -7,10 +7,10 @@ import streamlit as st
 import pandas as pd
 from datetime import timedelta
 
-from config import MCD_RED, MCD_GOLD, OWNER_COL, API_PROVIDERS, PAGE_SIZE, DEFAULT_W_REACH, DEFAULT_W_CTR, DEFAULT_W_GC, THEMES
+from config import MCD_RED, MCD_GOLD, OWNER_COL, API_PROVIDERS, PAGE_SIZE, DEFAULT_W_REACH, DEFAULT_W_CTR, DEFAULT_W_GC, CTR_THRESHOLDS, CVR_THRESHOLDS, THEMES
 from styles import get_css
 from data_cleaning import clean_raw_csv, read_cleaned_csv, clean_raw_xlsx, read_cleaned_xlsx, _parse_date_column, DATE_COL
-from scoring import compute_derived_metrics, compute_full_scores, compute_filtered_scores
+from scoring import compute_derived_metrics, compute_full_scores, compute_filtered_scores, safe_pct_rate, piecewise_score_vec
 from llm_service import analyze_content
 
 st.set_page_config(
@@ -112,9 +112,13 @@ if uploaded is not None:
         # 清洗成功后才更新指纹 + 缓存（失败时 last_mode 不变，便于重试）
         st.session_state.last_mode = mode
         st.session_state.processed_df = df
+        # 渠道均值缓存到 session（依赖文件，不随 rerun 重算）
+        st.session_state.channel_avg_score = (
+            df.groupby("渠道")["综合评分_full"].mean().to_dict() if "渠道" in df.columns else {}
+        )
 
 if df is not None:
-    channel_avg_score = df.groupby("渠道")["综合评分_full"].mean().to_dict() if "渠道" in df.columns else {}
+    channel_avg_score = st.session_state.get("channel_avg_score", {})
 
     # ─── 侧边筛选 ─────────────────────────────────────────────
     with st.sidebar:
@@ -154,7 +158,7 @@ if df is not None:
         with st.expander("权重配置", expanded=False):
             w_reach = st.slider("触达权重", 0.0, 1.0, DEFAULT_W_REACH, 0.05)
             w_ctr = st.slider("CTR权重", 0.0, 1.0, DEFAULT_W_CTR, 0.05)
-            w_gc = st.slider("GC转化率权重", 0.0, 1.0, DEFAULT_W_GC, 0.05)
+            w_gc = st.slider("下单转化率权重", 0.0, 1.0, DEFAULT_W_GC, 0.05)
 
         # ─── 排序 ────────────────────────────────────────────────
         sort_order = st.radio("排序", ["降序", "升序"], index=0, horizontal=True)
@@ -466,9 +470,9 @@ if df is not None:
                 elif ctr_score_t > 67:
                     impact_parts.append("CTR偏高({:.1f})".format(ctr_score_t))
                 if gc_score_t < 33:
-                    impact_parts.append("GC转化率偏低({:.1f})".format(gc_score_t))
+                    impact_parts.append("下单转化率偏低({:.1f})".format(gc_score_t))
                 elif gc_score_t > 67:
-                    impact_parts.append("GC转化率偏高({:.1f})".format(gc_score_t))
+                    impact_parts.append("下单转化率偏高({:.1f})".format(gc_score_t))
                 impact = " / ".join(impact_parts) if impact_parts else "各项均衡"
                 formula = "({:.1f}x{:.2f} + {:.1f}x{:.2f} + {:.1f}x{:.2f}) x {:.1f} = {:.2f}  [{}]".format(
                     reach_norm, norm_reach, ctr_score_t, norm_ctr, gc_score_t, norm_gc,
@@ -497,8 +501,8 @@ if df is not None:
                 except: gc_val = 0
                 try: sales_val = float(getattr(row, '订单Sales', 0))
                 except: sales_val = 0.0
-                try: gc_rate_val = float(getattr(row, '订单GC转化率', 0))
-                except: gc_rate_val = 0.0
+                try: cvr_rate = float(getattr(row, '下单转化', 0))
+                except: cvr_rate = 0.0
 
                 channel_avg = channel_avg_score.get(channel_short, 0)
 
@@ -541,13 +545,13 @@ if df is not None:
                   <div class="card-title">{_html.escape(title[:80])}{'...' if len(title) > 80 else ''}</div>
                   <div class="card-content">{_html.escape(content[:200])}{'...' if len(content) > 200 else ''}</div>
                   <div class="card-meta">
-                    {f'<span style="color:{_t["text_muted"]};">{_html.escape(plan_id_short)}</span>' if plan_id_short else ''}
                     <span>触达 {reach:,}</span>
                     <span>点击 {clicks_val:,}</span>
                     <span>CTR {ctr_val:.2f}%</span>
                     <span>GC {gc_val:,}</span>
                     <span>Sales {int(sales_val):,}</span>
-                    <span>GC转化率 {gc_rate_val:.2f}%</span>
+                    <span>下单转化率 {cvr_rate:.2f}%</span>
+                    {f'<span style="color:{_t["text_muted"]};">{_html.escape(plan_id_short)}</span>' if plan_id_short else ''}
                     {_ai_tag_html}
                   </div>
                 </div>
@@ -624,35 +628,34 @@ div[data-testid="stHorizontalBlock"]:last-of-type .stNumberInput input {{
                     计划数量=("综合评分", "size"),
                     触达=("触达成功", "sum"),
                     点击=("点击人次", "sum"),
+                    点击后下单=("点击后下单人次", "sum"),
                     GC=("订单GC", "sum"),
                     Sales=("订单Sales", "sum"),
                     均值综合评分=("综合评分", "mean"),
                 ).reset_index()
 
-                _bu_agg["CTR"] = (_bu_agg["点击"] / _bu_agg["触达"] * 100).replace([float('inf'), float('-inf')], 0).round(2).fillna(0)
-                _bu_agg["GC转化率"] = (_bu_agg["GC"] / _bu_agg["点击"] * 100).replace([float('inf'), float('-inf')], 0).round(2).fillna(0)
+                _bu_agg["CTR"] = safe_pct_rate(_bu_agg["点击"], _bu_agg["触达"])
+                _bu_agg["下单转化"] = safe_pct_rate(_bu_agg["点击后下单"], _bu_agg["点击"])
 
                 # ─── BU 综合评分（min-max 归一化 × 权重 + 置信度惩戒）──
                 def _norm(s):
                     _min, _max = s.min(), s.max()
                     return ((s - _min) / (_max - _min) * 100).round(2) if _max > _min else pd.Series(50, index=s.index)
 
-                # 分段评分：低于 Q3 → 100×(值/Q3)^1.5，达标 → 100 饱和
+                # 分段评分：低于 Q3 → 100×(值/Q3)^1.5，达标 → 100 饱和（复用 scoring.piecewise_score_vec，自动用 config.EXP）
                 def _piecewise(series, q3):
-                    ratio = series / q3
-                    score = (ratio.clip(upper=1) ** 1.5 * 100).round(2)
-                    return score.where(series.notna() & (series < q3), 100.0).where(series.notna())
+                    return piecewise_score_vec(series, q3)
 
                 _bu_ctr_q3 = _bu_agg["CTR"].quantile(0.75)
-                _bu_gc_q3 = _bu_agg["GC转化率"].quantile(0.75)
+                _bu_cvr_q3 = _bu_agg["下单转化"].quantile(0.75)
                 _bu_agg["CTR_norm"] = _piecewise(_bu_agg["CTR"], _bu_ctr_q3) if _bu_ctr_q3 > 0 else 50.0
                 _bu_agg["触达_norm"] = ((_bu_agg["触达"] / _bu_agg["触达"].max()) ** 0.3 * 100).round(2)
-                _bu_agg["GC_norm"] = _piecewise(_bu_agg["GC转化率"], _bu_gc_q3) if _bu_gc_q3 > 0 else 50.0
+                _bu_agg["下单转化_norm"] = _piecewise(_bu_agg["下单转化"], _bu_cvr_q3) if _bu_cvr_q3 > 0 else 50.0
 
                 _bu_base = (
                     _bu_agg["CTR_norm"] * 0.50
                     + _bu_agg["触达_norm"] * 0.25
-                    + _bu_agg["GC_norm"] * 0.25
+                    + _bu_agg["下单转化_norm"] * 0.25
                 ).round(2)
 
                 # 置信度惩戒（与卡片排行榜一致）
@@ -686,14 +689,14 @@ div[data-testid="stHorizontalBlock"]:last-of-type .stNumberInput input {{
                     ctr_val = float(getattr(row, 'CTR', 0) or 0)
                     gc_val = int(getattr(row, 'GC', 0) or 0)
                     sales_val = float(getattr(row, 'Sales', 0) or 0)
-                    gc_rate = float(getattr(row, 'GC转化率', 0) or 0)
+                    cvr_rate = float(getattr(row, '下单转化', 0) or 0)
                     wavg = float(getattr(row, '均值综合评分', 0) or 0)
 
                     # 归一化值 + 置信度惩戒（用于 tooltip）
                     _ctr_norm = float(getattr(row, 'CTR_norm', 0) or 0)
                     _reach_norm = float(getattr(row, '触达_norm', 0) or 0)
-                    _gc_norm = float(getattr(row, 'GC_norm', 0) or 0)
-                    _base = _ctr_norm * 0.50 + _reach_norm * 0.25 + _gc_norm * 0.25
+                    _cvr_norm = float(getattr(row, '下单转化_norm', 0) or 0)
+                    _base = _ctr_norm * 0.50 + _reach_norm * 0.25 + _cvr_norm * 0.25
                     if reach <= 99:
                         _penalty_coef, _penalty_label = 0.1, "置信度低(x0.1)"
                     elif reach <= 499:
@@ -707,7 +710,7 @@ div[data-testid="stHorizontalBlock"]:last-of-type .stNumberInput input {{
                     _bu_tooltip = (
                         f"CTR {ctr_val:.2f}% → {_ctr_norm:.1f} × 0.50 = {(_ctr_norm * 0.50):.1f}\n"
                         f"触达 {reach:,} → {_reach_norm:.1f} × 0.25 = {(_reach_norm * 0.25):.1f}\n"
-                        f"GC转化率 {gc_rate:.2f}% → {_gc_norm:.1f} × 0.25 = {(_gc_norm * 0.25):.1f}\n"
+                        f"下单转化率 {cvr_rate:.2f}% → {_cvr_norm:.1f} × 0.25 = {(_cvr_norm * 0.25):.1f}\n"
                         f"基础分 {_base:.1f} × {_penalty_coef} = {score:.1f}  [{_penalty_label}]\n"
                         f"内容均值 = {wavg:.1f}"
                     )
@@ -742,7 +745,7 @@ div[data-testid="stHorizontalBlock"]:last-of-type .stNumberInput input {{
                         <span>CTR {ctr_val:.2f}%</span>
                         <span>GC {gc_val:,}</span>
                         <span>Sales {int(sales_val):,}</span>
-                        <span>GC转化率 {gc_rate:.2f}%</span>
+                        <span>下单转化率 {cvr_rate:.2f}%</span>
                       </div>
                     </div>
                     """)
@@ -765,16 +768,16 @@ digraph G {
     A  [label="原始数据", fillcolor="#F0F0F0", color="#AAAAAA"];
     B  [label="计算衍生指标"];
     C  [label="CTR分\nCTR_score"];
-    D  [label="GC分\nGC_score"];
+    D  [label="下单转化分\n下单转化_score"];
     G  [label="触达分 =\n(触达/最大触达)^0.3 × 100"];
     E1 [label="CTR < 渠道Q3?", shape=diamond, fillcolor="#FFF8F0", color="#FFC000"];
     E2 [label="100 × (CTR/Q3)^1.5"];
     E3 [label="100 饱和"];
-    F1 [label="GC率 < 渠道Q3?", shape=diamond, fillcolor="#FFF8F0", color="#FFC000"];
-    F2 [label="100 × (GC率/Q3)^1.5"];
+    F1 [label="下单转化率 < 渠道Q3?", shape=diamond, fillcolor="#FFF8F0", color="#FFC000"];
+    F2 [label="100 × (下单转化率/Q3)^1.5"];
     F3 [label="100 饱和"];
     H  [label="加权求和", fillcolor="#FFC000", color="#E0A800", fontcolor="#000000"];
-    I  [label="base =\n触达×0.25 + CTR×0.5 + GC×0.25", fillcolor="#FFC000", color="#E0A800", fontcolor="#000000"];
+    I  [label="base =\n触达×0.25 + CTR×0.5 + 下单转化率×0.25", fillcolor="#FFC000", color="#E0A800", fontcolor="#000000"];
     J  [label="置信度惩戒"];
     J1 [label="触达量", shape=diamond, fillcolor="#FFF8F0", color="#FFC000"];
     J2 [label="× 0.1"];
@@ -817,24 +820,30 @@ digraph G {
         st.graphviz_chart(dot_src, use_container_width=True)
 
         with st.expander("阈值与惩戒系数参考", expanded=False):
-            st.markdown("""
+            _ctr_rows = "".join(
+                f'<tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:6px 4px; color:#888;">{ch}</td><td style="padding:6px 4px; text-align:right; font-weight:600;">{v}%</td></tr>'
+                if i < len(CTR_THRESHOLDS) - 1 else
+                f'<tr><td style="padding:6px 4px; color:#888;">{ch}</td><td style="padding:6px 4px; text-align:right; font-weight:600;">{v}%</td></tr>'
+                for i, (ch, v) in enumerate(CTR_THRESHOLDS.items())
+            )
+            _cvr_rows = "".join(
+                f'<tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:6px 4px; color:#888;">{ch}</td><td style="padding:6px 4px; text-align:right; font-weight:600;">{v}%</td></tr>'
+                if i < len(CVR_THRESHOLDS) - 1 else
+                f'<tr><td style="padding:6px 4px; color:#888;">{ch}</td><td style="padding:6px 4px; text-align:right; font-weight:600;">{v}%</td></tr>'
+                for i, (ch, v) in enumerate(CVR_THRESHOLDS.items())
+            )
+            st.markdown(f"""
 <div style="display:flex; gap:16px; flex-wrap:wrap; margin-top:8px;">
   <div style="flex:1; min-width:180px; background:#fff; border:1px solid #EFEFEF; border-radius:12px; padding:16px 20px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
     <div style="font-size:12px; font-weight:700; color:#DA291C; letter-spacing:0.04em; text-transform:uppercase; margin-bottom:10px;">渠道 CTR Q3 阈值</div>
     <table style="width:100%; border-collapse:collapse; font-size:13px;">
-      <tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:6px 4px; color:#888;">APP Push</td><td style="padding:6px 4px; text-align:right; font-weight:600;">0.31%</td></tr>
-      <tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:6px 4px; color:#888;">企微1v1</td><td style="padding:6px 4px; text-align:right; font-weight:600;">2.62%</td></tr>
-      <tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:6px 4px; color:#888;">小程序订阅消息</td><td style="padding:6px 4px; text-align:right; font-weight:600;">4.01%</td></tr>
-      <tr><td style="padding:6px 4px; color:#888;">短信</td><td style="padding:6px 4px; text-align:right; font-weight:600;">0.53%</td></tr>
+      {_ctr_rows}
     </table>
   </div>
   <div style="flex:1; min-width:180px; background:#fff; border:1px solid #EFEFEF; border-radius:12px; padding:16px 20px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-    <div style="font-size:12px; font-weight:700; color:#DA291C; letter-spacing:0.04em; text-transform:uppercase; margin-bottom:10px;">渠道 GC转化率 Q3 阈值</div>
+    <div style="font-size:12px; font-weight:700; color:#DA291C; letter-spacing:0.04em; text-transform:uppercase; margin-bottom:10px;">渠道 下单转化率 Q3 阈值</div>
     <table style="width:100%; border-collapse:collapse; font-size:13px;">
-      <tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:6px 4px; color:#888;">APP Push</td><td style="padding:6px 4px; text-align:right; font-weight:600;">69.5%</td></tr>
-      <tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:6px 4px; color:#888;">企微1v1</td><td style="padding:6px 4px; text-align:right; font-weight:600;">18.5%</td></tr>
-      <tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:6px 4px; color:#888;">小程序订阅消息</td><td style="padding:6px 4px; text-align:right; font-weight:600;">41.0%</td></tr>
-      <tr><td style="padding:6px 4px; color:#888;">短信</td><td style="padding:6px 4px; text-align:right; font-weight:600;">26.7%</td></tr>
+      {_cvr_rows}
     </table>
   </div>
   <div style="flex:1; min-width:180px; background:#fff; border:1px solid #EFEFEF; border-radius:12px; padding:16px 20px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
@@ -858,7 +867,7 @@ digraph G {
         owner_c = owner_col if owner_col in dff.columns else None
         display_cols = ["排名", title_col, "内容", "计划类型", "渠道",
                          date_col, owner_c,
-                         "触达成功", "点击人次", "CTR", "订单GC", "订单Sales", "订单GC转化率", "综合评分"]
+                         "触达成功", "点击人次", "CTR", "订单GC", "订单Sales", "下单转化", "综合评分"]
         display_cols = [c for c in display_cols if c is not None]
         available = [c for c in display_cols if c in dff.columns]
         disp_df = dff[available].copy()
