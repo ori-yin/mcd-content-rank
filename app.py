@@ -481,6 +481,7 @@ if df is not None:
                 channel_short = str(getattr(row, '渠道', '') or '')
                 owner_short = str(getattr(row, OWNER_COL, '') or '') if hasattr(row, OWNER_COL) else ''
                 plan_type_short = str(getattr(row, '计划类型', '') or '')
+                plan_id_short = str(getattr(row, 'plan_id', '') or '') if hasattr(row, 'plan_id') else ''
                 title = str(getattr(row, '标题', '') or '')
                 if not title:
                     title = str(getattr(row, '消息标题', '') or '')
@@ -540,6 +541,7 @@ if df is not None:
                   <div class="card-title">{_html.escape(title[:80])}{'...' if len(title) > 80 else ''}</div>
                   <div class="card-content">{_html.escape(content[:200])}{'...' if len(content) > 200 else ''}</div>
                   <div class="card-meta">
+                    {f'<span style="color:{_t["text_muted"]};">{_html.escape(plan_id_short)}</span>' if plan_id_short else ''}
                     <span>触达 {reach:,}</span>
                     <span>点击 {clicks_val:,}</span>
                     <span>CTR {ctr_val:.2f}%</span>
