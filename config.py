@@ -124,7 +124,7 @@ API_PROVIDERS = {
 
 # ─── 默认权重 ──────────────────────────────────────────────────
 DEFAULT_W_REACH = 0.25
-DEFAULT_W_CTR = 0.50
-DEFAULT_W_GC = 0.25
+DEFAULT_W_CTR = 0.55
+DEFAULT_W_GC = 0.20
 
 PAGE_SIZE = 10

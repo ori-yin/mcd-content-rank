@@ -436,10 +436,8 @@ if df is not None:
                 badge_class = {1: "rank-1", 2: "rank-2", 3: "rank-3"}.get(rank, "rank-other")
 
                 score = row.综合评分
-                if score >= 70:
+                if score >= 60:
                     score_color = _t["score_high"]
-                elif score >= 40:
-                    score_color = _t["score_med"]
                 else:
                     score_color = _t["score_low"]
 
