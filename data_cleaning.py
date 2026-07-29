@@ -21,6 +21,8 @@ COL_ALIASES = {
     "渠道": ["渠道", "channel"],
     "计划类型": ["计划类型", "plan_type", "plan type"],
     "plan_id": ["plan_id", "plan id", "planid"],
+    "unit_id": ["unit_id", "unit id", "unitid"],
+    "message_id": ["message_id", "message id", "messageid", "msg_id"],
     "plan名称": ["plan名称", "plan_name", "plan name"],
     "owner": ["owner", "预算owner", "预算 owner", "预算_owner", "bu"],
     "是否用券": ["是否用券", "coupon"],
@@ -30,11 +32,45 @@ COL_ALIASES = {
     "点击后下单人次": ["点击后下单", "点击后下单人次", "post_click", "下单人次", "order_conv"],
     "订单GC": ["gc", "订单gc", "order_gc"],
     "订单Sales": ["sales", "订单sales", "order_sales"],
+    # 消息 JSON 列：上游可能叫「消息内容」或英文别名，2026-07 数据源在 O 列
+    # 新增了 Message ID，改靠列名别名而非 iloc[:, 14] 定位
+    "消息内容": ["消息内容", "message_content", "msg_content", "content_json"],
 }
 
 # Excel 日期序列号识别范围：1~80000 覆盖 1900~2119 年
 _EXCEL_SERIAL_MIN = 1
 _EXCEL_SERIAL_MAX = 80000
+
+# ID 列：必须按字符串处理
+#   Message ID 是 18 位数字（如 592304644657221633），超出 float64 的 2^53 安全整数范围，
+#   一旦被当数值转换，不同 ID 会舍入成同一个值，聚合时撞车
+#   Unit ID 的 204/1054 ≈ 20% 行是字符串 "[NULL]" 占位 —— 业务上等同空值
+#   （没有 Unit 的旧式 Plan），按 Unit 数去重时忽略。判断见
+#   scoring._normalize_unit_ids（统一成 NaN 后 dropna 默认行为）
+ID_COLS = ("plan_id", "unit_id", "message_id")
+
+# JSON 消息列的标准名（_map_columns 会把别名归一成这个；找不到则读不到 JSON）
+MSG_COL = "消息内容"
+
+
+def _normalize_id_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """ID 列统一为字符串并去掉首尾空白（上游 Message ID 带尾部制表符）"""
+    for col in ID_COLS:
+        if col in df.columns:
+            s = df[col].astype(str).str.strip()
+            df[col] = s.mask(s.isin(["nan", "None", "NaT", "<NA>"]), "")
+    return df
+
+
+def _locate_message_col(df: pd.DataFrame):
+    """定位 JSON 消息列（_map_columns 已把别名归一成标准名），找不到返回 None。
+
+    历史实现写死 iloc[:, 14]（O 列），上游一旦插列就会读错列且不报错。
+    现在依赖 COL_ALIASES 里的别名映射：如果上游将来再用新名字，加进
+    「消息内容」别名即可，无需再改这里。
+    """
+    return MSG_COL if MSG_COL in df.columns else None
+
 
 
 def _map_columns(df: pd.DataFrame) -> pd.DataFrame:
@@ -185,8 +221,8 @@ def parse_message(raw, strip_question_marks=False):
 def clean_raw_csv(uploaded_file) -> pd.DataFrame:
     """
     1. 尝试多种编码读取原始 CSV
-    2. 检查是否有至少 15 列
-    3. 读取第 O 列（索引 14，即第 15 列）
+    2. 列名映射 + ID 列定型
+    3. 按列名定位 JSON 消息列（「消息内容」）
     4. 解析 JSON，提取标题和内容
     5. 合并回原 DataFrame，删除原始 JSON 列
     """
@@ -207,21 +243,20 @@ def clean_raw_csv(uploaded_file) -> pd.DataFrame:
 
     # 列名模糊匹配（如 send_date → 发送日期），提升跨源兼容性
     df = _map_columns(df)
+    df = _normalize_id_columns(df)
 
-    # 检查是否有至少 15 列
-    if df.shape[1] < 15:
-        raise ValueError(f"CSV 只有 {df.shape[1]} 列，第 15 列（O列）不存在")
-
-    # 读取第 O 列（索引 14）
-    o_col = df.iloc[:, 14]
+    # 按列名定位 JSON 消息列（不再依赖固定位置，上游插列也不会错位）
+    msg_col = _locate_message_col(df)
+    if msg_col is None:
+        raise ValueError("找不到 JSON 消息列，请确认文件中包含「消息内容」列")
 
     # 执行解析（CSV 路径需要清理 GBK 编码残留的 ?）
-    parsed_df = o_col.apply(lambda x: parse_message(x, strip_question_marks=True))
+    parsed_df = df[msg_col].apply(lambda x: parse_message(x, strip_question_marks=True))
 
     # 合并回原 DataFrame，删除原始 JSON 列
     df['标题'] = parsed_df['标题']
     df['内容'] = parsed_df['内容']
-    df = df.drop(df.columns[14], axis=1)
+    df = df.drop(columns=[msg_col])
 
     # 日期列智能解析（字符串/数字序列号/ datetime 对象 都能识别）
     if DATE_COL in df.columns:
@@ -237,6 +272,7 @@ def read_cleaned_csv(uploaded_file) -> pd.DataFrame:
         try:
             df = pd.read_csv(BytesIO(bytes_data), encoding=enc)
             df = _map_columns(df)
+            df = _normalize_id_columns(df)
             if DATE_COL in df.columns:
                 df[DATE_COL] = _parse_date_column(df[DATE_COL])
             return df
@@ -250,6 +286,7 @@ def _coerce_numeric_columns(df: pd.DataFrame, skip_cols: list = None) -> pd.Data
     skip_cols 中的列跳过，避免误把日期列、计划 ID 列等转成数值。"""
     skip = set(skip_cols or [])
     skip.add(DATE_COL)  # 日期列永远不参与数值转换
+    skip.update(ID_COLS)  # ID 列保持字符串，避免 18 位 Message ID 转 float64 丢精度
     for col in df.columns:
         if col in skip:
             continue
@@ -287,22 +324,24 @@ def clean_raw_xlsx(uploaded_file) -> pd.DataFrame:
     df = pd.DataFrame(data_rows, columns=headers)
     # 列名模糊匹配（兼容 send_date 等非标准列名）
     df = _map_columns(df)
+    # ID 列先定型为字符串，避免下面的数值转换把 18 位 Message ID 转成 float
+    df = _normalize_id_columns(df)
     # 日期列必须先解析，再让 _coerce_numeric_columns 转换其他列
     # —— 否则 Excel 日期序列号（如 45292）会被当成 float 误转
     if DATE_COL in df.columns:
         df[DATE_COL] = _parse_date_column(df[DATE_COL])
     df = _coerce_numeric_columns(df)
 
-    if df.shape[1] < 15:
-        raise ValueError(f"XLSX 只有 {df.shape[1]} 列，第 15 列（O列）不存在")
+    # 按列名定位 JSON 消息列（不再依赖固定位置，上游插列也不会错位）
+    msg_col = _locate_message_col(df)
+    if msg_col is None:
+        raise ValueError("找不到 JSON 消息列，请确认文件中包含「消息内容」列")
 
-    # 读取第 O 列（索引 14）
-    o_col_name = df.columns[14]
-    o_col = df[o_col_name]
+    o_col = df[msg_col]
 
     # 检查公式单元格未计算的情况（data_only=True 对未缓存公式返回 None）
     if o_col.isna().all():
-        raise ValueError("XLSX 第 15 列数据全为空，可能是未计算的公式。请在 Excel 中打开文件后再上传")
+        raise ValueError(f"「{msg_col}」列数据全为空，可能是未计算的公式。请在 Excel 中打开文件后再上传")
 
     # 执行解析
     parsed_df = o_col.apply(parse_message)
@@ -310,7 +349,7 @@ def clean_raw_xlsx(uploaded_file) -> pd.DataFrame:
     # 合并回原 DataFrame，删除原始 JSON 列
     df['标题'] = parsed_df['标题']
     df['内容'] = parsed_df['内容']
-    df = df.drop(df.columns[14], axis=1)
+    df = df.drop(columns=[msg_col])
 
     return df
 
@@ -333,6 +372,7 @@ def read_cleaned_xlsx(uploaded_file) -> pd.DataFrame:
     df = pd.DataFrame(data_rows, columns=headers)
     # 列名模糊匹配 + 日期智能解析（必须先于 _coerce_numeric_columns）
     df = _map_columns(df)
+    df = _normalize_id_columns(df)
     if DATE_COL in df.columns:
         df[DATE_COL] = _parse_date_column(df[DATE_COL])
     df = _coerce_numeric_columns(df)

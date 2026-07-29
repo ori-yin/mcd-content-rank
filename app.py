@@ -10,8 +10,47 @@ from datetime import timedelta
 from config import MCD_RED, MCD_GOLD, OWNER_COL, API_PROVIDERS, PAGE_SIZE, DEFAULT_W_REACH, DEFAULT_W_CTR, DEFAULT_W_GC, CTR_THRESHOLDS, CVR_THRESHOLDS, THEMES
 from styles import get_css
 from data_cleaning import clean_raw_csv, read_cleaned_csv, clean_raw_xlsx, read_cleaned_xlsx, _parse_date_column, DATE_COL
-from scoring import compute_derived_metrics, compute_full_scores, compute_filtered_scores, safe_pct_rate, piecewise_score_vec
+from scoring import compute_derived_metrics, compute_full_scores, compute_filtered_scores, safe_pct_rate, piecewise_score_vec, aggregate_by_content, PENALTY_BINS, PENALTY_LABELS, _plan_count_metric
 from llm_service import analyze_content
+
+
+def filter_by_plan_id(_df, query):
+    """按 Plan ID 筛选（侧边栏输入框）。
+
+    输入格式：多个 ID 用空格/逗号/中文逗号分隔，全部子串匹配。
+    粘贴完整 ID（如 P202606300004）可精确定位；只输片段（如 P2026063）
+    会模糊匹配 —— 但数据中 Plan ID 有两种前缀（P2: 95 个, NP: 149 个），
+    片段可能同时命中两种，见侧边栏 help 文案。
+
+    业务位置：必须在 aggregate_by_content 之前调用。否则聚合后只看得见
+    content 级的行，搜 ID 反而不直观。
+    """
+    if not query or "plan_id" not in _df.columns:
+        return _df
+    pids = [p for p in query.lower().replace(",", " ").replace("，", " ").split() if p]
+    if not pids:
+        return _df
+    s = _df["plan_id"].astype(str).str.lower()
+    mask = pd.Series(False, index=_df.index)
+    for p in pids:
+        mask |= s.str.contains(p, na=False, regex=False)
+    return _df[mask]
+
+
+def _build_fingerprint(date_range, mode, sort_order, selected_plan, selected_channel,
+                       selected_owner, keyword, plan_id_query, norm_reach, norm_ctr, norm_gc):
+    """AI 缓存指纹：文件/筛选/排序/权重 任一变化即清空，避免位置索引张冠李戴。
+
+    同一指纹被「AI 总结」与「卡片 AI 解读」两处共用 —— 集中在一处避免两份
+    tuple 漂移（之前 diff 已经加过 plan_id_query 这种字段，两边忘改任一就会
+    触发跨场景缓存错位）。
+    """
+    return (
+        st.session_state.get("last_file_id"), mode, sort_order,
+        selected_plan, selected_channel, selected_owner, keyword, plan_id_query,
+        tuple(date_range) if isinstance(date_range, list) else date_range,
+        round(norm_reach, 4), round(norm_ctr, 4), round(norm_gc, 4),
+    )
 
 st.set_page_config(
     page_title="内容排行榜",
@@ -112,13 +151,10 @@ if uploaded is not None:
         # 清洗成功后才更新指纹 + 缓存（失败时 last_mode 不变，便于重试）
         st.session_state.last_mode = mode
         st.session_state.processed_df = df
-        # 渠道均值缓存到 session（依赖文件，不随 rerun 重算）
-        st.session_state.channel_avg_score = (
-            df.groupby("渠道")["综合评分_full"].mean().to_dict() if "渠道" in df.columns else {}
-        )
 
 if df is not None:
-    channel_avg_score = st.session_state.get("channel_avg_score", {})
+    # 渠道均值在「筛选后聚合后」按当前窗口重算（见下方），不在此处缓存
+    channel_avg_score = {}
 
     # ─── 侧边筛选 ─────────────────────────────────────────────
     with st.sidebar:
@@ -136,7 +172,13 @@ if df is not None:
                 min_value=min_dt,
                 max_value=max_dt
             )
+            # 只点了开始日期时 Streamlit 会先 rerun 一次，此时 date_range 只有 1 个元素，
+            # 若不处理会退化成「不筛选」而突然显示全量数据。补成「起点 ~ 数据最新日」，
+            # 让起点继续生效，并在 UI 上提示当前统计窗口
+            if isinstance(date_range, (list, tuple)) and len(date_range) == 1:
+                st.caption(f"未选结束日期，暂按 {date_range[0]:%m-%d} 至 {max_dt:%m-%d} 统计")
         else:
+            min_dt = max_dt = None
             date_range = None
 
         plan_types = ["全部"] + df["计划类型"].dropna().unique().tolist()
@@ -197,6 +239,15 @@ if df is not None:
 
         if st.button("AI 总结", use_container_width=True, key="ai_summary_btn"):
             st.session_state.ai_summary_clicked = True
+
+        # ─── Plan ID 搜索 ──────────────────────────────────────────
+        st.markdown("---")
+        plan_id_query = st.text_input(
+            "Plan ID",
+            "",
+            placeholder="部分匹配，多个用空格分隔",
+            help="粘贴完整 Plan ID 可精确定位；也支持片段模糊匹配（注意数据含 P / NP 两种前缀，片段可能同时命中）"
+        )
 
         # ─── 配色主题 ──────────────────────────────────────────────
         st.markdown("---")
@@ -267,15 +318,20 @@ if df is not None:
     if date_range is not None:
         if isinstance(date_range, (list, tuple)) and len(date_range) == 2:
             start_dt, end_dt = date_range
+        elif isinstance(date_range, (list, tuple)) and len(date_range) == 1:
+            # 范围选择的中间态：按「已选起点 ~ 数据最新日」统计，不退回全量
+            start_dt = date_range[0]
+            end_dt = max_dt if max_dt is not None else start_dt
         elif not isinstance(date_range, (list, tuple)):
             # 单日期选择：按当天过滤
             start_dt = end_dt = date_range
         else:
             start_dt = end_dt = None
         if start_dt is not None and pd.notna(start_dt) and pd.notna(end_dt):
+            # 右开区间：+1天再取 < ，既能覆盖 end 当天的时分秒，又不会把次日 00:00 算进来
             dff = dff[
                 (dff[date_col] >= pd.to_datetime(start_dt)) &
-                (dff[date_col] <= pd.to_datetime(end_dt) + timedelta(days=1))
+                (dff[date_col] < pd.to_datetime(end_dt) + timedelta(days=1))
             ]
 
     if selected_plan != "全部":
@@ -297,8 +353,23 @@ if df is not None:
             mask |= dff["内容"].astype(str).str.lower().str.contains(kw, na=False, regex=False)
         dff = dff[mask]
 
+    dff = filter_by_plan_id(dff, plan_id_query)
+
+    # ─── 内容级聚合：一张卡 = 一个 Plan × 一条文案 ──────────────
+    # 必须在筛选之后：日期筛选决定统计窗口，窗口一变分数就跟着重算
+    # 业务语义见 scoring.py 顶部「内容级聚合」注释
+    dff = aggregate_by_content(dff)
+    # 聚合后重算 CTR / 下单转化 / 触达归一化（先求和再算率）
+    dff = compute_derived_metrics(dff)
+
     # ─── 计算筛选后的综合评分 ──────────────────────────────────
     dff = compute_filtered_scores(dff, norm_reach, norm_ctr, norm_gc)
+
+    # 渠道均值必须与卡片同粒度：用聚合后的当前窗口重算，否则和卡片分数不可比
+    channel_avg_score = (
+        dff.groupby("渠道")["综合评分"].mean().to_dict()
+        if "渠道" in dff.columns and len(dff) else {}
+    )
 
     # ─── 筛选后重排排名 ────────────────────────────────────────
     if len(dff) > 0:
@@ -319,11 +390,10 @@ if df is not None:
     col4.metric("平均 CTR", f"{avg_ctr:.2f}%")
 
     # ─── AI 总结分析 ────────────────────────────────────────────
-    _summary_dr = tuple(date_range) if isinstance(date_range, list) else date_range
-    _summary_fp = (
-        st.session_state.get("last_file_id"), mode, sort_order,
-        selected_plan, selected_channel, selected_owner, keyword, _summary_dr,
-        round(norm_reach, 4), round(norm_ctr, 4), round(norm_gc, 4),
+    _summary_fp = _build_fingerprint(
+        date_range, mode, sort_order,
+        selected_plan, selected_channel, selected_owner, keyword, plan_id_query,
+        norm_reach, norm_ctr, norm_gc,
     )
     if st.session_state.pop("ai_summary_clicked", False):
         if not ai_api_key:
@@ -367,8 +437,12 @@ if df is not None:
                             mask |= hist_df["内容"].astype(str).str.lower().str.contains(kw, na=False, regex=False)
                         hist_df = hist_df[mask]
 
+                    hist_df = filter_by_plan_id(hist_df, plan_id_query)
+
                     if not hist_df.empty:
-                        # 计算历史数据的综合评分
+                        # 历史周期同样走内容级聚合，否则与当前周期粒度不一致无法对比
+                        hist_df = aggregate_by_content(hist_df)
+                        hist_df = compute_derived_metrics(hist_df)
                         hist_df = compute_filtered_scores(hist_df, norm_reach, norm_ctr, norm_gc)
                         historical_channel = aggregate_channel_stats(hist_df)
                         historical_bu = aggregate_bu_stats(hist_df)
@@ -418,11 +492,10 @@ if df is not None:
             page_cards = cards[(page-1)*PAGE_SIZE : page*PAGE_SIZE]
 
             # AI 结果缓存指纹：文件/筛选/排序/权重 任一变化即清空，避免位置索引张冠李戴
-            _ai_dr = tuple(date_range) if isinstance(date_range, list) else date_range
-            _ai_fp = (
-                st.session_state.get("last_file_id"), mode, sort_order,
-                selected_plan, selected_channel, selected_owner, keyword, _ai_dr,
-                round(norm_reach, 4), round(norm_ctr, 4), round(norm_gc, 4),
+            _ai_fp = _build_fingerprint(
+                date_range, mode, sort_order,
+                selected_plan, selected_channel, selected_owner, keyword, plan_id_query,
+                norm_reach, norm_ctr, norm_gc,
             )
             if st.session_state.get("ai_results_fp") != _ai_fp:
                 st.session_state.ai_page_results = {}
@@ -480,6 +553,16 @@ if df is not None:
 
                 date_val = getattr(row, '发送日期', None)
                 date_str = str(date_val)[:10] if date_val is not None and not (isinstance(date_val, float) and date_val != date_val) else ""
+                # 卡片日期 = 内容实际投放日，不是侧边栏选的筛选范围
+                # 单日投放：显示 2026-07-06
+                # 跨天投放：显示 07-01~07-26 · 26天（聚合后起始日期~结束日期）
+                _days = int(getattr(row, '天数', 1) or 1)
+                if _days > 1:
+                    _end_val = getattr(row, '结束日期', None)
+                    _end_str = str(_end_val)[:10] if _end_val is not None else ""
+                    if _end_str and _end_str != date_str:
+                        date_str = f"{date_str[5:]}~{_end_str[5:]} · {_days}天"
+                _unit_cnt = int(getattr(row, 'Unit数', 0) or 0)
                 channel_short = str(getattr(row, '渠道', '') or '')
                 owner_short = str(getattr(row, OWNER_COL, '') or '') if hasattr(row, OWNER_COL) else ''
                 plan_type_short = str(getattr(row, '计划类型', '') or '')
@@ -549,6 +632,7 @@ if df is not None:
                     <span>GC {gc_val:,}</span>
                     <span>Sales {int(sales_val):,}</span>
                     <span>下单转化率 {cvr_rate:.2f}%</span>
+                    {f'<span style="color:{_t["text_muted"]};">{_unit_cnt} Unit</span>' if _unit_cnt > 1 else ''}
                     {f'<span style="color:{_t["text_muted"]};">{_html.escape(plan_id_short)}</span>' if plan_id_short else ''}
                     {_ai_tag_html}
                   </div>
@@ -623,7 +707,7 @@ div[data-testid="stHorizontalBlock"]:last-of-type .stNumberInput input {{
             else:
                 # ─── 按 BU 聚合 ─────────────────────────────────
                 _bu_agg = dff.groupby(_bu_col).agg(
-                    计划数量=("综合评分", "size"),
+                    计划数量=_plan_count_metric(dff),
                     触达=("触达成功", "sum"),
                     点击=("点击人次", "sum"),
                     点击后下单=("点击后下单人次", "sum"),
@@ -659,8 +743,8 @@ div[data-testid="stHorizontalBlock"]:last-of-type .stNumberInput input {{
                 # 置信度惩戒（与卡片排行榜一致）
                 _bu_penalty = pd.cut(
                     _bu_agg["触达"].fillna(0),
-                    bins=[-1, 99, 499, 999, 4999, float("inf")],
-                    labels=[0.1, 0.3, 0.5, 0.8, 1.0],
+                    bins=PENALTY_BINS,
+                    labels=PENALTY_LABELS,
                 ).astype(float)
                 _bu_agg["BU综合评分"] = (_bu_base * _bu_penalty).round(2)
 
@@ -864,7 +948,7 @@ digraph G {
         title_col = "标题" if "标题" in dff.columns else "消息标题"
         owner_c = owner_col if owner_col in dff.columns else None
         display_cols = ["排名", title_col, "内容", "计划类型", "渠道",
-                         date_col, owner_c,
+                         date_col, "天数", "Unit数", owner_c,
                          "触达成功", "点击人次", "CTR", "订单GC", "订单Sales", "下单转化", "综合评分"]
         display_cols = [c for c in display_cols if c is not None]
         available = [c for c in display_cols if c in dff.columns]

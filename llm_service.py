@@ -7,7 +7,7 @@ import re
 import openai
 import pandas as pd
 from config import API_PROVIDERS, OWNER_COL
-from scoring import safe_pct_rate
+from scoring import safe_pct_rate, _plan_count_metric
 
 
 # 注：本组定性特征基于历史"订单 GC 转化率"分析；2026-07 切换"下单转化率"后需复测。
@@ -135,7 +135,7 @@ def aggregate_channel_stats(df: pd.DataFrame) -> pd.DataFrame:
         点击=('点击人次', 'sum'),
         点击后下单=('点击后下单人次', 'sum'),
         订单GC=('订单GC', 'sum'),
-        计划数量=('综合评分', 'size')
+        计划数量=_plan_count_metric(df),
     ).reset_index()
 
     agg['CTR'] = safe_pct_rate(agg['点击'], agg['触达'])
@@ -150,7 +150,7 @@ def aggregate_bu_stats(df: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame()
 
     agg = df.groupby(OWNER_COL).agg(
-        计划数量=('综合评分', 'size'),
+        计划数量=_plan_count_metric(df),
         触达=('触达成功', 'sum'),
         点击=('点击人次', 'sum'),
         点击后下单=('点击后下单人次', 'sum'),
