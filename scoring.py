@@ -8,8 +8,11 @@ from config import (
     CTR_THRESHOLDS, CVR_THRESHOLDS,
     CTR_UNKNOWN_THRESHOLD, CVR_UNKNOWN_THRESHOLD, EXP,
     DEFAULT_W_REACH, DEFAULT_W_CTR, DEFAULT_W_GC,
+    OWNER_COL,
 )
 from data_cleaning import DATE_COL
+
+OWNER_COL_DEFAULT = OWNER_COL
 
 PENALTY_BINS = [-1, 99, 499, 999, 4999, float("inf")]
 PENALTY_LABELS = [0.1, 0.3, 0.5, 0.8, 1.0]
@@ -223,3 +226,189 @@ def compute_filtered_scores(dff: pd.DataFrame, w_reach: float, w_ctr: float, w_g
     ).astype(float)
     dff["综合评分"] = base_score * penalty
     return dff
+
+
+def compute_bu_scores(bu_agg: pd.DataFrame, norm_reach: float, norm_ctr: float, norm_gc: float) -> pd.DataFrame:
+    """BU 排行榜评分：保留原 Q3 / 触达幂次 / 置信度惩戒算法，
+    仅把基础分改为当前归一权重（与内容榜口径一致）。
+
+    入参 bu_agg 必须已经包含：
+        - CTR、下单转化（已 sum 后算率）
+        - 触达（按 BU 汇总的原始值，本函数会再算一次触达_norm）
+    """
+    # ── 分段评分：低于 Q3 → 100×(值/Q3)^1.5，达标 → 100 饱和 ──────
+    _bu_ctr_q3 = bu_agg["CTR"].quantile(0.75)
+    _bu_cvr_q3 = bu_agg["下单转化"].quantile(0.75)
+
+    bu_agg["CTR_norm"] = (
+        piecewise_score_vec(bu_agg["CTR"], _bu_ctr_q3) if _bu_ctr_q3 > 0 else 50.0
+    )
+    bu_agg["下单转化_norm"] = (
+        piecewise_score_vec(bu_agg["下单转化"], _bu_cvr_q3) if _bu_cvr_q3 > 0 else 50.0
+    )
+
+    # ── 触达归一化：与内容榜同口径（幂次 0.3，最大触达分母） ──────
+    _bu_reach_max = bu_agg["触达"].max()
+    if pd.isna(_bu_reach_max) or _bu_reach_max == 0:
+        bu_agg["触达_norm"] = 0.0
+    else:
+        bu_agg["触达_norm"] = ((bu_agg["触达"] / _bu_reach_max) ** 0.3 * 100).round(2)
+
+    # ── 基础分：当前归一权重（与内容榜保持一致） ──────────────────
+    _bu_base = (
+        bu_agg["CTR_norm"] * norm_ctr
+        + bu_agg["触达_norm"] * norm_reach
+        + bu_agg["下单转化_norm"] * norm_gc
+    ).round(2)
+
+    # ── 置信度惩戒（与卡片排行榜一致） ────────────────────────────
+    _bu_penalty = pd.cut(
+        bu_agg["触达"].fillna(0),
+        bins=PENALTY_BINS,
+        labels=PENALTY_LABELS,
+    ).astype(float)
+    bu_agg["BU综合评分"] = (_bu_base * _bu_penalty).round(2)
+
+    bu_agg = bu_agg.sort_values("BU综合评分", ascending=False).reset_index(drop=True)
+    bu_agg["排名"] = bu_agg.index + 1
+    return bu_agg
+
+
+# ═══════════════════════════════════════════════════════════════
+# AI 总结辅助函数（2026-08-03 新增）
+#
+# 三个函数都是纯函数，输入/输出都是 DataFrame；不修改入参、不写文件。
+# 给 build_summary_prompt 提供：
+#   - 渠道 5 分位基线（健康度判断）
+#   - 异常数据检测（埋点/转化率倒挂等）
+#   - 每渠道 Top N（让 AI 能引用具体 Plan/标题）
+# ═══════════════════════════════════════════════════════════════
+
+# 异常检测阈值（保守起步，后续按运营经验调）
+ANOMALY_REACH_MIN = 100_000       # T1 埋点型：触达下界
+ANOMALY_CTR_MIN_REACH = 5_000     # T2 超低 CTR：触达下界
+ANOMALY_CTR_FLOOR = 0.001         # T2 超低 CTR：CTR 下界
+ANOMALY_CLICK_MIN = 200           # T3 超低转化：点击下界
+ANOMALY_SAMPLE_LIMIT = 5          # 每类异常最多保留明细条数
+
+
+def compute_channel_quantiles(df: pd.DataFrame) -> pd.DataFrame:
+    """按渠道 + 日聚合 → 5 分位（P5/P25/P50/P75/P95）。
+
+    用于给 AI 注入"渠道基线"——回答"这个渠道 CTR 算高算低"。
+
+    入参 df 必须是原始逐行数据（含 发送日期 / 渠道 / 触达成功 / 点击人次 /
+    点击后下单人次 / 订单GC）。缺关键列时返回空 DataFrame。
+    """
+    required = {"发送日期", "触达成功", "点击人次"}
+    if not required.issubset(df.columns) or df.empty:
+        return pd.DataFrame()
+
+    has_channel = "渠道" in df.columns
+    daily = df.groupby(
+        ["发送日期"] + (["渠道"] if has_channel else []),
+        dropna=False,
+    ).agg(
+        触达成功=("触达成功", "sum"),
+        点击人次=("点击人次", "sum"),
+    ).reset_index()
+
+    if "点击后下单人次" in df.columns:
+        _sub = df.groupby(
+            ["发送日期"] + (["渠道"] if has_channel else []),
+            dropna=False,
+        )["点击后下单人次"].sum().reset_index()
+        daily = daily.merge(_sub, on=["发送日期"] + (["渠道"] if has_channel else []), how="left")
+        daily["下单转化"] = safe_pct_rate(daily["点击后下单人次"], daily["点击人次"])
+    if "订单GC" in df.columns:
+        _gc = df.groupby(
+            ["发送日期"] + (["渠道"] if has_channel else []),
+            dropna=False,
+        )["订单GC"].sum().reset_index()
+        daily = daily.merge(_gc, on=["发送日期"] + (["渠道"] if has_channel else []), how="left")
+        daily["GC转化"] = safe_pct_rate(daily["订单GC"], daily["点击人次"])
+
+    daily["CTR"] = safe_pct_rate(daily["点击人次"], daily["触达成功"])
+
+    metric_cols = [c for c in ("CTR", "触达成功", "点击人次", "下单转化", "GC转化") if c in daily.columns]
+
+    if not has_channel:
+        # 无渠道列时按"全部"占位，确保下游能 unstack
+        daily["渠道"] = "全部"
+        has_channel = True
+
+    qs = [0.05, 0.25, 0.50, 0.75, 0.95]
+    q_label_map = {0.05: "p5", 0.25: "p25", 0.50: "p50", 0.75: "p75", 0.95: "p95"}
+    out = daily.groupby("渠道")[metric_cols].quantile(qs)
+    out = out.unstack(level=-1)
+    out.columns = pd.MultiIndex.from_tuples(
+        [(m, q_label_map[q]) for m, q in out.columns],
+        names=["metric", "quantile"],
+    )
+    return out
+
+
+def detect_anomalies(df: pd.DataFrame) -> pd.DataFrame:
+    """检测 4 类疑似异常数据，标注不过滤。
+
+    T1 埋点型：触达 ≥ 10万 且 点击 = 0
+    T2 超低 CTR：触达 ≥ 5千 且 CTR < 0.1%
+    T3 超低转化：点击 ≥ 200 且 下单 = 0
+    T4 转化率倒挂：下单 > 点击（必为数据 bug）
+
+    返回 DataFrame 列：[异常类型, 渠道, 日期, 触达, 点击, 下单, CTR, GC转化, 提示]
+    每类最多 ANOMALY_SAMPLE_LIMIT 行。
+    """
+    rows = []
+    if df.empty:
+        return pd.DataFrame(columns=["异常类型", "渠道", "日期", "触达", "点击", "下单", "CTR", "GC转化", "提示"])
+
+    for _, r in df.iterrows():
+        reach = float(r.get("触达成功", 0) or 0)
+        click = float(r.get("点击人次", 0) or 0)
+        order = float(r.get("点击后下单人次", 0) or 0)
+        ctr = (click / reach) if reach > 0 else 0.0
+        cvr = (order / click) if click > 0 else 0.0
+        channel = str(r.get("渠道", "—") or "—")
+        date = str(r.get("发送日期", "—"))[:10]
+
+        if reach >= ANOMALY_REACH_MIN and click == 0:
+            rows.append(["埋点型", channel, date, int(reach), 0, 0, 0.0, 0.0, "触达大但点击=0，疑似埋点异常，复核埋点"])
+        elif reach >= ANOMALY_CTR_MIN_REACH and ctr < ANOMALY_CTR_FLOOR:
+            rows.append(["超低CTR", channel, date, int(reach), int(click), 0, round(ctr * 100, 2), 0.0, "CTR<0.1% 偏低，检查投放时段/人群"])
+        elif click >= ANOMALY_CLICK_MIN and order == 0:
+            rows.append(["无转化", channel, date, int(reach), int(click), 0, round(ctr * 100, 2), 0.0, "点击≥200但下单=0，可能优惠/链接失效"])
+        elif click > 0 and order > click:
+            rows.append(["转化率倒挂", channel, date, int(reach), int(click), int(order), round(ctr * 100, 2), round(cvr * 100, 2), "下单>点击，必为数据计算错误"])
+
+    if not rows:
+        return pd.DataFrame(columns=["异常类型", "渠道", "日期", "触达", "点击", "下单", "CTR", "GC转化", "提示"])
+
+    out = pd.DataFrame(rows, columns=["异常类型", "渠道", "日期", "触达", "点击", "下单", "CTR", "GC转化", "提示"])
+    # 每类最多保留 ANOMALY_SAMPLE_LIMIT 条
+    out = out.groupby("异常类型", group_keys=False).head(ANOMALY_SAMPLE_LIMIT).reset_index(drop=True)
+    # 严重度排序：埋点型 > 转化率倒挂 > 超低 CTR > 无转化
+    severity_order = {"埋点型": 0, "转化率倒挂": 1, "超低CTR": 2, "无转化": 3}
+    if not out.empty and "异常类型" in out.columns:
+        out["_sev"] = out["异常类型"].map(severity_order).fillna(99)
+        out = out.sort_values(["_sev", "触达"], ascending=[True, False]).drop(columns="_sev").reset_index(drop=True)
+    return out
+
+
+def top_per_channel(dff: pd.DataFrame, n: int = 1) -> pd.DataFrame:
+    """每渠道取 Top N（按综合评分）。
+
+    入参 dff 是 aggregate_by_content 之后的 DataFrame。
+    渠道 < n 条时返回该渠道全部。
+    """
+    if dff.empty or "渠道" not in dff.columns or "综合评分" not in dff.columns or n < 1:
+        return dff.iloc[0:0].copy()
+
+    keep_cols = [c for c in [
+        "渠道", "plan_id", "标题", "消息标题", "综合评分",
+        "触达成功", "点击人次", "CTR", "下单转化", "订单GC", OWNER_COL_DEFAULT,
+    ] if c in dff.columns]
+
+    sorted_df = dff.sort_values("综合评分", ascending=False, kind="mergesort")
+    out = sorted_df.groupby("渠道", group_keys=False).head(n)[keep_cols].reset_index(drop=True)
+    return out

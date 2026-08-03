@@ -93,6 +93,13 @@ OWNER_COL = "owner"
 
 # ─── API 配置 ──────────────────────────────────────────────────
 API_PROVIDERS = {
+    "MiniMax": {
+        # 走 Anthropic 协议（其他 provider 走 OpenAI 协议）
+        "base_url": "https://api.minimaxi.com/anthropic",
+        "models": ["MiniMax-M3"],
+        # 占位/虚拟 token — 真实值请走 .streamlit/secrets.toml 或环境变量
+        "api_key": "sk--4XUFwAM5Sfal4M27lWTK-8nrVPI2cFy3XrkPu0LjP409K4QrSQPg12NdLcs2hrvv0CzvVOIKhRZhHTMXh1UcgLGa4LbXKKEJjPE0UBV2bN6DuMh6YobBTro",
+    },
     "火山方舟": {
         "base_url": "https://ark.cn-beijing.volces.com/api/coding/v3",
         "models": ["minimax-m3", "deepseek-v4-flash", "GLM-5.2"],

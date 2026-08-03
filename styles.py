@@ -370,6 +370,31 @@ def get_css() -> str:
     padding: 16px 20px;
     margin-bottom: 14px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+
+  /* ─── AI 总结分析 expander（按 data-testid 锁定，不用 :has） ─── */
+  details[data-testid="stExpanderDetails"]:has(summary:contains("AI 总结分析")) {{
+    border: 1px solid #EEE;
+    border-left: 3px solid {MCD_RED};
+    border-radius: 8px;
+    margin: 12px 0;
+    background: #FFFFFF;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }}
+  details[data-testid="stExpanderDetails"]:has(summary:contains("AI 总结分析")) summary {{
+    font-size: 14px;
+    font-weight: 600;
+    color: {MCD_RED};
+  }}
+  /* Streamlit expander 内的 markdown 字号 */
+  details[data-testid="stExpanderDetails"] h1 {{ font-size: 13px; margin: 0.5em 0 0.3em; font-weight: 600; color: #1a1a1a; border-bottom: 1px solid #EEE; padding-bottom: 4px; }}
+  details[data-testid="stExpanderDetails"] h2 {{ font-size: 12px; margin: 0.6em 0 0.25em; font-weight: 600; color: {MCD_RED}; letter-spacing: 0.02em; }}
+  details[data-testid="stExpanderDetails"] h3 {{ font-size: 11px; margin: 0.5em 0 0.2em; font-weight: 600; color: #555; }}
+  details[data-testid="stExpanderDetails"] p,
+  details[data-testid="stExpanderDetails"] li {{ font-size: 12px; line-height: 1.6; color: #333; margin: 0.3em 0; }}
+  details[data-testid="stExpanderDetails"] table {{ font-size: 11px; border-collapse: collapse; margin: 6px 0; }}
+  details[data-testid="stExpanderDetails"] th,
+  details[data-testid="stExpanderDetails"] td {{ padding: 4px 8px; border-bottom: 1px solid #EEE; text-align: left; }}
+  details[data-testid="stExpanderDetails"] th {{ background: #F8F8F8; color: #666; font-weight: 600; }}
   }}
   .ai-card-header {{
     display: flex;

@@ -10,7 +10,7 @@ from datetime import timedelta
 from config import MCD_RED, MCD_GOLD, OWNER_COL, API_PROVIDERS, PAGE_SIZE, DEFAULT_W_REACH, DEFAULT_W_CTR, DEFAULT_W_GC, CTR_THRESHOLDS, CVR_THRESHOLDS, THEMES
 from styles import get_css
 from data_cleaning import clean_raw_csv, read_cleaned_csv, clean_raw_xlsx, read_cleaned_xlsx, _parse_date_column, DATE_COL
-from scoring import compute_derived_metrics, compute_full_scores, compute_filtered_scores, safe_pct_rate, piecewise_score_vec, aggregate_by_content, PENALTY_BINS, PENALTY_LABELS, _plan_count_metric
+from scoring import compute_derived_metrics, compute_full_scores, compute_filtered_scores, safe_pct_rate, piecewise_score_vec, aggregate_by_content, compute_bu_scores, compute_channel_quantiles, detect_anomalies, top_per_channel, PENALTY_BINS, PENALTY_LABELS, _plan_count_metric
 from llm_service import analyze_content
 
 
@@ -399,11 +399,13 @@ if df is not None:
         if not ai_api_key:
             st.warning("请先在侧边栏「AI配置」中填写 API Key")
         else:
-            from llm_service import aggregate_channel_stats, aggregate_bu_stats, analyze_summary
+            from llm_service import aggregate_channel_stats, aggregate_bu_stats, analyze_summary, build_summary_prompt
 
             # 获取历史数据（上个周期）
             historical_channel = None
             historical_bu = None
+            current_period = None
+            historical_period = None
 
             if date_range is not None and isinstance(date_range, (list, tuple)) and len(date_range) == 2:
                 start_dt, end_dt = date_range
@@ -413,6 +415,8 @@ if df is not None:
                     # 计算上个周期的日期范围
                     hist_end = start_dt - timedelta(days=1)
                     hist_start = hist_end - timedelta(days=delta)
+                    current_period = (start_dt, end_dt)
+                    historical_period = (hist_start, hist_end)
 
                     # 获取历史数据（上界 < start，避免与当前窗口在 start 00:00 重叠）
                     hist_df = df[
@@ -451,23 +455,59 @@ if df is not None:
             channel_stats = aggregate_channel_stats(dff)
             bu_stats = aggregate_bu_stats(dff)
 
-            # 用 expander 包裹，可折叠
-            with st.expander("AI 总结分析", expanded=True):
+            # 5 分位基线（基于全量历史）+ 异常检测（基于全量历史）+ Top 1（基于当前周期）
+            quantile_baseline = compute_channel_quantiles(df)
+            top_per_ch_df = top_per_channel(dff, n=1)
+            anomalies_df = detect_anomalies(df)
+
+            # 用 st.expander 自带折叠；CSS data-testid 锁定内部样式
+            with st.expander("AI 总结分析", expanded=False):
                 with st.spinner("AI 正在分析..."):
                     summary_result = analyze_summary(
                         ai_api_key, ai_provider, ai_model,
                         channel_stats, bu_stats,
-                        historical_channel, historical_bu
+                        historical_channel, historical_bu,
+                        current_period, historical_period,
+                        quantile_baseline, top_per_ch_df, anomalies_df,
                     )
                 st.session_state.ai_summary_result = summary_result
                 st.session_state.ai_summary_fp = _summary_fp
+                # 同时缓存 Top 内容 DataFrame（用于重渲染时恢复静态表格）
+                _top_cache = top_per_ch_df.copy()
+                if "标题" not in _top_cache.columns and "消息标题" in _top_cache.columns:
+                    _top_cache["标题"] = _top_cache["消息标题"]
+                _top_cache = _top_cache.rename(columns={
+                    "plan_id": "Plan ID", "综合评分": "评分",
+                    "触达成功": "触达", "点击人次": "点击",
+                    "下单转化": "转化率", "渠道": "渠道", "标题": "标题", "内容": "正文",
+                })
+                _top_show_cols = [c for c in ["渠道", "Plan ID", "标题", "正文", "评分", "触达", "点击", "CTR", "转化率"] if c in _top_cache.columns]
+                st.session_state.ai_summary_top_df = _top_cache[_top_show_cols]
+                st.caption(f"现期：{start_dt} ~ {end_dt} ｜ 基期：{hist_start} ~ {hist_end}" if current_period else "")
                 st.markdown(summary_result)
+                # Top 内容用静态表格展示（不靠 AI 总结）
+                if not top_per_ch_df.empty:
+                    st.markdown("## 四、Top 内容（每渠道 1 条，按综合评分）")
+                    _top_disp = top_per_ch_df.copy()
+                    if "标题" not in _top_disp.columns and "消息标题" in _top_disp.columns:
+                        _top_disp["标题"] = _top_disp["消息标题"]
+                    _top_disp = _top_disp.rename(columns={
+                        "plan_id": "Plan ID", "综合评分": "评分",
+                        "触达成功": "触达", "点击人次": "点击",
+                        "下单转化": "转化率", "渠道": "渠道", "标题": "标题", "内容": "正文",
+                    })
+                    _top_show = [c for c in ["渠道", "Plan ID", "标题", "正文", "评分", "触达", "点击", "CTR", "转化率"] if c in _top_disp.columns]
+                    st.dataframe(_top_disp[_top_show], use_container_width=True, hide_index=True)
     else:
         # 未点击但缓存命中：直接显示，避免交互后总结消失、避免重复调 API
         _cached = st.session_state.get("ai_summary_result")
+        _cached_top = st.session_state.get("ai_summary_top_df")
         if _cached is not None and st.session_state.get("ai_summary_fp") == _summary_fp:
-            with st.expander("AI 总结分析", expanded=True):
+            with st.expander("AI 总结分析", expanded=False):
                 st.markdown(_cached)
+                if _cached_top is not None and not _cached_top.empty:
+                    st.markdown("## 四、Top 内容（每渠道 1 条，按综合评分）")
+                    st.dataframe(_cached_top, use_container_width=True, hide_index=True)
 
     # ─── Tab 切换 ─────────────────────────────────────────────
     tab1, tab_bu, tab2, tab3 = st.tabs(["卡片排行榜", "BU排行榜", "算法说明", "数据表格"])
@@ -719,37 +759,10 @@ div[data-testid="stHorizontalBlock"]:last-of-type .stNumberInput input {{
                 _bu_agg["CTR"] = safe_pct_rate(_bu_agg["点击"], _bu_agg["触达"])
                 _bu_agg["下单转化"] = safe_pct_rate(_bu_agg["点击后下单"], _bu_agg["点击"])
 
-                # ─── BU 综合评分（min-max 归一化 × 权重 + 置信度惩戒）──
-                def _norm(s):
-                    _min, _max = s.min(), s.max()
-                    return ((s - _min) / (_max - _min) * 100).round(2) if _max > _min else pd.Series(50, index=s.index)
-
-                # 分段评分：低于 Q3 → 100×(值/Q3)^1.5，达标 → 100 饱和（复用 scoring.piecewise_score_vec，自动用 config.EXP）
-                def _piecewise(series, q3):
-                    return piecewise_score_vec(series, q3)
-
-                _bu_ctr_q3 = _bu_agg["CTR"].quantile(0.75)
-                _bu_cvr_q3 = _bu_agg["下单转化"].quantile(0.75)
-                _bu_agg["CTR_norm"] = _piecewise(_bu_agg["CTR"], _bu_ctr_q3) if _bu_ctr_q3 > 0 else 50.0
-                _bu_agg["触达_norm"] = ((_bu_agg["触达"] / _bu_agg["触达"].max()) ** 0.3 * 100).round(2)
-                _bu_agg["下单转化_norm"] = _piecewise(_bu_agg["下单转化"], _bu_cvr_q3) if _bu_cvr_q3 > 0 else 50.0
-
-                _bu_base = (
-                    _bu_agg["CTR_norm"] * 0.50
-                    + _bu_agg["触达_norm"] * 0.25
-                    + _bu_agg["下单转化_norm"] * 0.25
-                ).round(2)
-
-                # 置信度惩戒（与卡片排行榜一致）
-                _bu_penalty = pd.cut(
-                    _bu_agg["触达"].fillna(0),
-                    bins=PENALTY_BINS,
-                    labels=PENALTY_LABELS,
-                ).astype(float)
-                _bu_agg["BU综合评分"] = (_bu_base * _bu_penalty).round(2)
-
-                _bu_agg = _bu_agg.sort_values("BU综合评分", ascending=False).reset_index(drop=True)
-                _bu_agg["排名"] = _bu_agg.index + 1
+                # ─── BU 综合评分：与内容榜使用同一组归一权重 ───────
+                _bu_agg = compute_bu_scores(
+                    _bu_agg, norm_reach=norm_reach, norm_ctr=norm_ctr, norm_gc=norm_gc
+                )
 
                 # ─── 卡片渲染 ─────────────────────────────────────
                 bu_html_parts = []
@@ -778,7 +791,7 @@ div[data-testid="stHorizontalBlock"]:last-of-type .stNumberInput input {{
                     _ctr_norm = float(getattr(row, 'CTR_norm', 0) or 0)
                     _reach_norm = float(getattr(row, '触达_norm', 0) or 0)
                     _cvr_norm = float(getattr(row, '下单转化_norm', 0) or 0)
-                    _base = _ctr_norm * 0.50 + _reach_norm * 0.25 + _cvr_norm * 0.25
+                    _base = _ctr_norm * norm_ctr + _reach_norm * norm_reach + _cvr_norm * norm_gc
                     if reach <= 99:
                         _penalty_coef, _penalty_label = 0.1, "置信度低(x0.1)"
                     elif reach <= 499:
@@ -790,9 +803,9 @@ div[data-testid="stHorizontalBlock"]:last-of-type .stNumberInput input {{
                     else:
                         _penalty_coef, _penalty_label = 1.0, "置信度高(x1.0)"
                     _bu_tooltip = (
-                        f"CTR {ctr_val:.2f}% → {_ctr_norm:.1f} × 0.50 = {(_ctr_norm * 0.50):.1f}\n"
-                        f"触达 {reach:,} → {_reach_norm:.1f} × 0.25 = {(_reach_norm * 0.25):.1f}\n"
-                        f"下单转化率 {cvr_rate:.2f}% → {_cvr_norm:.1f} × 0.25 = {(_cvr_norm * 0.25):.1f}\n"
+                        f"CTR {ctr_val:.2f}% → {_ctr_norm:.1f} × {norm_ctr:.2f} = {(_ctr_norm * norm_ctr):.1f}\n"
+                        f"触达 {reach:,} → {_reach_norm:.1f} × {norm_reach:.2f} = {(_reach_norm * norm_reach):.1f}\n"
+                        f"下单转化率 {cvr_rate:.2f}% → {_cvr_norm:.1f} × {norm_gc:.2f} = {(_cvr_norm * norm_gc):.1f}\n"
                         f"基础分 {_base:.1f} × {_penalty_coef} = {score:.1f}  [{_penalty_label}]\n"
                         f"内容均值 = {wavg:.1f}"
                     )
