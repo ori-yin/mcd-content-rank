@@ -194,29 +194,23 @@ def aggregate_channel_stats(df: pd.DataFrame) -> pd.DataFrame:
     return agg
 
 
-def aggregate_bu_stats(df: pd.DataFrame) -> pd.DataFrame:
-    """按 BU 聚合数据"""
-    if df.empty or OWNER_COL not in df.columns:
-        return pd.DataFrame()
-
-    agg = df.groupby(OWNER_COL).agg(
-        计划数量=_plan_count_metric(df),
-        触达=('触达成功', 'sum'),
-        点击=('点击人次', 'sum'),
-        点击后下单=('点击后下单人次', 'sum'),
-        订单GC=('订单GC', 'sum'),
-        均值综合评分=('综合评分', 'mean')
-    ).reset_index()
-
-    agg['CTR'] = safe_pct_rate(agg['点击'], agg['触达'])
-    agg['下单转化'] = safe_pct_rate(agg['点击后下单'], agg['点击'])
-
-    return agg
+# 渠道显示顺序：硬编码（"全部" 永远在第 1 行；之后是用户指定的 4 个固定渠道；其他渠道随意）
+CHANNEL_DISPLAY_ORDER = ["APP Push", "企微1v1", "短信"]
 
 
-def format_channel_stats_for_prompt(stats: pd.DataFrame, historical_stats: pd.DataFrame = None,
-                                     current_period: tuple = None, historical_period: tuple = None) -> str:
-    """格式化渠道数据为 prompt 文本（2026-08-03 v3：双段式 + 日期）"""
+def format_channel_stats_for_prompt(stats: pd.DataFrame,
+                                     channel_baseline: pd.DataFrame = None,
+                                     current_period: tuple = None) -> str:
+    """格式化渠道数据为 prompt 文本（v5：3 模块 + 全部行 + 基期均值/P75）
+
+    行结构：全部（首行）→ APP Push → 企微1v1 → 短信 → 其他渠道（随意）
+    每行：渠道｜计划数｜触达成功｜点击人次｜CTR ｜ CTR基期均值 / CTR上四分位
+    "全部"行无渠道维度，基期两列显示 "—"
+    其他渠道指 stats 中存在但不在 CHANNEL_DISPLAY_ORDER 里的，按 stats 原顺序排在末尾
+
+    channel_baseline 是 scoring.compute_channel_baseline(df) 输出：
+    index=渠道，columns=[CTR均值, CTR P75]，全量上传数据按日聚合后的算术平均/P75
+    """
     if stats is None or stats.empty:
         return "（无渠道数据）"
 
@@ -230,109 +224,46 @@ def format_channel_stats_for_prompt(stats: pd.DataFrame, historical_stats: pd.Da
             return str(period)
 
     cur_label = _fmt_period(current_period)
-    hist_label = _fmt_period(historical_period)
 
-    lines = [f"【现期渠道数据 · {cur_label}】"]
+    def _baseline_for(ch: str):
+        if channel_baseline is None or channel_baseline.empty or ch not in channel_baseline.index:
+            return "—", "—"
+        return f"{float(channel_baseline.loc[ch, 'CTR均值']):.2f}%", f"{float(channel_baseline.loc[ch, 'CTR P75']):.2f}%"
+
+    # 全部行：全渠道总触达/总点击/总 CTR（不是各渠道 CTR 平均）
+    total_reach = int(stats["触达"].sum())
+    total_click = int(stats["点击"].sum())
+    total_plans = int(stats["计划数量"].sum())
+    total_ctr = (total_click / total_reach * 100) if total_reach > 0 else 0.0
+
+    lines = []
+    all_bm, all_bp = _baseline_for("全部")
+    lines.append(
+        f"- 全部：计划 {total_plans}个，触达成功 {total_reach:,}，点击人次 {total_click:,}，"
+        f"CTR {total_ctr:.2f}% ｜ CTR基期均值 {all_bm} / CTR上四分位 {all_bp}"
+    )
+
+    # 各渠道行：按 CHANNEL_DISPLAY_ORDER 优先输出，其余按 stats 原顺序排末尾
+
+    seen = set()
+    ordered_lines = []
+    others_lines = []
     for _, row in stats.iterrows():
-        gc_val = int(row.get("订单GC", 0) or 0)
-        sales_val = float(row.get("订单Sales", 0) or 0)
-        lines.append(
-            f"- {row['渠道']}：计划 {int(row['计划数量'])}个，"
-            f"触达 {int(row['触达']):,}，点击 {int(row['点击']):,}，"
-            f"CTR {float(row['CTR']):.2f}%，下单转化率 {float(row['下单转化']):.2f}%，"
-            f"GC {gc_val:,}，Sales {int(sales_val):,}"
+        ch = str(row["渠道"])
+        seen.add(ch)
+        bm, bp = _baseline_for(ch)
+        line = (
+            f"- {ch}：计划 {int(row['计划数量'])}个，触达成功 {int(row['触达']):,}，点击人次 {int(row['点击']):,}，"
+            f"CTR {float(row['CTR']):.2f}% ｜ "
+            f"CTR基期均值 {bm} / CTR上四分位 {bp}"
         )
+        if ch in CHANNEL_DISPLAY_ORDER:
+            ordered_lines.append(line)
+        else:
+            others_lines.append(line)
 
-    if historical_stats is not None and not historical_stats.empty:
-        lines.append("")
-        lines.append(f"【基期渠道数据 · {hist_label}】")
-        for _, row in historical_stats.iterrows():
-            gc_val = int(row.get("订单GC", 0) or 0)
-            sales_val = float(row.get("订单Sales", 0) or 0)
-            lines.append(
-                f"- {row['渠道']}：计划 {int(row['计划数量'])}个，"
-                f"触达 {int(row['触达']):,}，点击 {int(row['点击']):,}，"
-                f"CTR {float(row['CTR']):.2f}%，下单转化率 {float(row['下单转化']):.2f}%，"
-                f"GC {gc_val:,}，Sales {int(sales_val):,}"
-            )
-
-    return "\n".join(lines)
-
-
-def format_bu_stats_for_prompt(stats: pd.DataFrame, historical_stats: pd.DataFrame = None) -> str:
-    """格式化 BU 数据为 prompt 文本"""
-    lines = []
-
-    if historical_stats is not None and not historical_stats.empty:
-        lines.append("【当前周期 BU 数据】")
-    for _, row in stats.iterrows():
-        line = f"- {row[OWNER_COL]}：计划 {row['计划数量']}个，触达 {row['触达']}，点击 {row['点击']}，CTR {row['CTR']}%，下单转化率 {row['下单转化']}%，均值评分 {row['均值综合评分']:.2f}"
-        if historical_stats is not None and not historical_stats.empty:
-            hist = historical_stats[historical_stats[OWNER_COL] == row[OWNER_COL]]
-            if not hist.empty:
-                hist_row = hist.iloc[0]
-                ctr_diff = row['CTR'] - hist_row['CTR']
-                reach_diff = row['触达'] - hist_row['触达']
-                click_diff = row['点击'] - hist_row['点击']
-                line += f"（CTR较上期{'+' if ctr_diff >= 0 else ''}{ctr_diff:.2f}%，触达{'+' if reach_diff >= 0 else ''}{reach_diff}，点击{'+' if click_diff >= 0 else ''}{click_diff}）"
-        lines.append(line)
-
-    if historical_stats is not None and not historical_stats.empty:
-        lines.append("")
-        lines.append("【上周期 BU 数据】")
-        for _, row in historical_stats.iterrows():
-            lines.append(f"- {row[OWNER_COL]}：计划 {row['计划数量']}个，触达 {row['触达']}，点击 {row['点击']}，CTR {row['CTR']}%，下单转化率 {row['下单转化']}%，均值评分 {row['均值综合评分']:.2f}")
-
-    return "\n".join(lines)
-
-
-def format_quantile_baseline(quantiles_df: pd.DataFrame) -> str:
-    """把 compute_channel_quantiles 输出拼成渠道基线段。
-
-    每渠道输出 4 个指标（CTR / 触达成功 / GC转化 / 下单转化）的 P5/P25/P50/P75/P95。
-    """
-    if quantiles_df is None or quantiles_df.empty:
-        return "（无渠道基线数据）"
-
-    lines = []
-    for ch in quantiles_df.index:
-        sub = quantiles_df.loc[ch]
-        parts = []
-        for metric in ("CTR", "触达成功", "GC转化", "下单转化"):
-            if (metric, "p5") in sub.index:
-                # 注：MultiIndex 列是 (metric, quantile)，取 scalar 用 [metric, label]
-                p5 = sub[(metric, "p5")]
-                p50 = sub[(metric, "p50")]
-                p95 = sub[(metric, "p95")]
-                if metric == "触达成功":
-                    parts.append(f"{metric} P5={int(p5):,} P50={int(p50):,} P95={int(p95):,}")
-                else:
-                    parts.append(f"{metric} P5={p5:.2f}% P50={p50:.2f}% P95={p95:.2f}%")
-        if parts:
-            lines.append(f"- {ch}：" + " ｜ ".join(parts))
-    return "\n".join(lines)
-
-
-def format_top_per_channel(top_df: pd.DataFrame) -> str:
-    """把 top_per_channel 输出拼成"具体 Top 内容"段（v2：含标题+正文）。"""
-    if top_df is None or top_df.empty:
-        return "（无 Top 内容）"
-
-    lines = []
-    for _, r in top_df.iterrows():
-        ch = str(r.get("渠道", "—"))
-        pid = str(r.get("plan_id", "—"))
-        score = float(r.get("综合评分", 0) or 0)
-        ctr = float(r.get("CTR", 0) or 0)
-        reach = int(r.get("触达成功", 0) or 0)
-        click = int(r.get("点击人次", 0) or 0)
-        title = str(r.get("标题", "") or r.get("消息标题", "") or "").strip()[:80]
-        content = str(r.get("内容", "") or "").strip()[:150]
-        lines.append(f"- **{ch}** · plan_id=`{pid}` · 综合评分 {score:.2f} · CTR {ctr:.2f}% · 触达 {reach:,} · 点击 {click:,}")
-        if title:
-            lines.append(f"  标题：{title}")
-        if content:
-            lines.append(f"  正文：{content}")
+    lines.extend(ordered_lines)
+    lines.extend(others_lines)
     return "\n".join(lines)
 
 
@@ -369,74 +300,68 @@ def format_anomalies(anomalies_df: pd.DataFrame) -> str:
     return "\n".join(summary_lines + detail_lines)
 
 
-def build_summary_prompt(channel_stats: pd.DataFrame, bu_stats: pd.DataFrame,
-                         historical_channel: pd.DataFrame = None,
-                         historical_bu: pd.DataFrame = None,
+def build_summary_prompt(channel_stats: pd.DataFrame,
                          current_period: tuple = None,
-                         historical_period: tuple = None,
-                         quantile_baseline: pd.DataFrame = None,
-                         top_per_channel_df: pd.DataFrame = None,
+                         channel_baseline: pd.DataFrame = None,
                          anomalies_df: pd.DataFrame = None) -> str:
-    """构建总结分析 prompt（v4：异常放最前 + Sales 放最后 + 表格只写数字）"""
+    """构建总结分析 prompt（v5：3 模块 + 渠道基期均值/P75 + AI 只写 2 段）
 
-    from config import CTR_THRESHOLDS, CVR_THRESHOLDS  # 延迟导入避免循环
-
-    channel_data = format_channel_stats_for_prompt(channel_stats, historical_channel,
-                                                  current_period, historical_period)
-    quantile_text = format_quantile_baseline(quantile_baseline)
-    top_text = format_top_per_channel(top_per_channel_df)
+    AI 输出仅 2 段（整体效果 / 数据异常），Top 3 内容由系统静态渲染，
+    AI 不参与。基期 = 全量上传数据按日聚合后的 CTR 算术平均 + P75
+    （来自 channel_baseline，对抗小样本噪声）。
+    """
+    channel_data = format_channel_stats_for_prompt(channel_stats, channel_baseline, current_period)
     anomalies_text = format_anomalies(anomalies_df)
 
-    # 阈值对照表（双基线：config 阈值 + 5 分位）
-    thres_lines = ['【健康度双基线 · 用于好差判定】']
-    thres_lines.append("- config 阈值（来自 config.CTR_THRESHOLDS，按渠道设的 Q3 达标线）：")
-    for ch, t in CTR_THRESHOLDS.items():
-        thres_lines.append(f"  - {ch}：CTR ≥ {t}% 为达标；CTR < {t}% 为不达标")
-
-    def _fmt_period(period):
-        if period is None:
-            return "未指定"
-        s, e = period
+    cur = "未指定"
+    if current_period is not None:
         try:
-            return f"{s.strftime('%Y-%m-%d')} ~ {e.strftime('%Y-%m-%d')}"
+            s, e = current_period
+            cur = f"{s.strftime('%Y-%m-%d')} ~ {e.strftime('%Y-%m-%d')}"
         except Exception:
-            return str(period)
+            cur = str(current_period)
 
-    cur = _fmt_period(current_period)
-    hist = _fmt_period(historical_period)
+    return f"""你是给麦当劳内容运营写周报的助手。给你现期渠道数据，请只输出 2 段：
 
-    return f"""基于以下数据，用markdown格式输出分析结果。
+## 一、整体效果
+一句话（≤ 80 字）。结构：
+"现期 {cur} 共 N 个渠道 N 个计划，触达成功 X 万次、CTR X%。较基期（上传全量数据按日聚合）：N 个渠道超基期均值 / 达上四分位 / 低于基期均值。"
 
-【字段口径说明】
-- 触达 = 触达成功；点击 = 点击人次；CTR = 点击 ÷ 触达 × 100%
+判断口径（必须用基期两列，不要凭感觉）：
+- 现期 CTR ≥ 上四分位 → "达上四分位"
+- 上四分位 > 现期 CTR ≥ 基期均值 → "超基期均值"
+- 现期 CTR < 基期均值 → "低于基期均值"
+
+## 二、数据异常
+1 句结论 + 列出每类异常数量。
+- 未发现异常 → 直接写"未发现疑似异常数据"
+- 有异常 → "检测到 N 类 X 条疑似异常" + 每类一行"类型：N 条（建议：…）"
+
+---
+
+【字段口径】
+- 触达成功 = 触达；点击人次 = 点击；CTR = 点击 ÷ 触达 × 100%
 - 下单转化率 = 点击后下单人次 ÷ 点击人次 × 100%
-- GC = 订单GC；Sales = 订单Sales（元）
 
-【时间口径】
-- 现期：{cur}
-- 基期：{hist}（用于上下文）
+【基期口径】
+- 基期 = 上传的全部数据按日聚合（不算术平均外的口径）
+- 基期均值 = 各渠道每日 CTR 的算术平均（不被大触达加权）
+- 上四分位 = 各渠道每日 CTR 的 P75
 
-{chr(10).join(thres_lines)}
-
-【5 分位基线（来自上传全量数据按日聚合）】
-{quantile_text}
+【现期渠道数据 · {cur}】
+{channel_data}
+（每行末尾：CTR基期均值 = 算术平均，CTR上四分位 = P75）
 
 【异常监控（系统检测）】
 {anomalies_text}
 
-{channel_data}
-
-要求：
-1. 先写 1 段总览（不写标题）：把【现期渠道数据】里所有渠道的 CTR、阈值、达标判断、与基期对比（含具体日期）整合在一段话
-2. 接着写 ## 异常监控：1 句结论 + 表格（异常类型 / 渠道 / 日期 / 数量 / 处理建议）
-3. Top 内容由系统另起静态表格展示，AI 不要重复写
+---
 
 强约束：
-- 渠道基线判定：CTR < config 阈值 = 不达标
-- 写"基期对比"必须带具体日期
-- 任何"建议推广/调权"必须标注[需A/B验证]
-- 不要使用"因为…所以…"因果句式
-- 整体 ≤ 350 字"""
+- 严格只输出 "## 一、整体效果" 和 "## 二、数据异常" 两段；禁止任何额外标题或段落（包括"修正："、"最终结论："、"总结："等任何追加内容）
+- 任何"建议推广/调权"必须标注 [需A/B验证]
+- 不要使用"因为…所以…"因果句式，只描述字面规律
+- Top 3 内容由系统静态渲染，**你不需要写 Top 3**"""
 
 
 def call_llm_text(api_key: str, provider: str, model: str, prompt: str) -> str:
@@ -485,23 +410,18 @@ def call_llm_text(api_key: str, provider: str, model: str, prompt: str) -> str:
 
 
 def analyze_summary(api_key: str, provider: str, model: str,
-                    channel_stats: pd.DataFrame, bu_stats: pd.DataFrame,
-                    historical_channel: pd.DataFrame = None,
-                    historical_bu: pd.DataFrame = None,
+                    channel_stats: pd.DataFrame,
                     current_period: tuple = None,
-                    historical_period: tuple = None,
-                    quantile_baseline: pd.DataFrame = None,
-                    top_per_channel_df: pd.DataFrame = None,
+                    channel_baseline: pd.DataFrame = None,
                     anomalies_df: pd.DataFrame = None) -> str:
-    """调用 AI 进行总结分析（2026-08-03 升级版：透传新参数）"""
+    """调用 AI 进行总结分析（v5：3 模块 + 渠道基期 + AI 只写 2 段）"""
     if not api_key:
         return "请先填写 API Key"
 
     prompt = build_summary_prompt(
-        channel_stats, bu_stats,
-        historical_channel, historical_bu,
-        current_period, historical_period,
-        quantile_baseline, top_per_channel_df, anomalies_df,
+        channel_stats,
+        current_period,
+        channel_baseline, anomalies_df,
     )
 
     return call_llm_text(api_key, provider, model, prompt)

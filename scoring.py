@@ -356,35 +356,36 @@ def detect_anomalies(df: pd.DataFrame) -> pd.DataFrame:
     T3 超低转化：点击 ≥ 200 且 下单 = 0
     T4 转化率倒挂：下单 > 点击（必为数据 bug）
 
-    返回 DataFrame 列：[异常类型, 渠道, 日期, 触达, 点击, 下单, CTR, GC转化, 提示]
-    每类最多 ANOMALY_SAMPLE_LIMIT 行。
+    返回 DataFrame 列：[plan_id, 渠道, 日期, 触达, 点击, 下单, CTR, 异常类型, 提示]
+    每类最多 ANOMALY_SAMPLE_LIMIT 行；按严重度排序（埋点型 > 转化率倒挂 > 超低 CTR > 无转化）。
     """
+    _cols = ["plan_id", "渠道", "日期", "触达", "点击", "下单", "CTR", "异常类型", "提示"]
     rows = []
     if df.empty:
-        return pd.DataFrame(columns=["异常类型", "渠道", "日期", "触达", "点击", "下单", "CTR", "GC转化", "提示"])
+        return pd.DataFrame(columns=_cols)
 
     for _, r in df.iterrows():
         reach = float(r.get("触达成功", 0) or 0)
         click = float(r.get("点击人次", 0) or 0)
         order = float(r.get("点击后下单人次", 0) or 0)
         ctr = (click / reach) if reach > 0 else 0.0
-        cvr = (order / click) if click > 0 else 0.0
         channel = str(r.get("渠道", "—") or "—")
         date = str(r.get("发送日期", "—"))[:10]
+        pid = str(r.get("plan_id", "—") or "—")
 
         if reach >= ANOMALY_REACH_MIN and click == 0:
-            rows.append(["埋点型", channel, date, int(reach), 0, 0, 0.0, 0.0, "触达大但点击=0，疑似埋点异常，复核埋点"])
+            rows.append([pid, channel, date, int(reach), 0, 0, 0.0, "埋点型", "触达大但点击=0，疑似埋点异常，复核埋点"])
         elif reach >= ANOMALY_CTR_MIN_REACH and ctr < ANOMALY_CTR_FLOOR:
-            rows.append(["超低CTR", channel, date, int(reach), int(click), 0, round(ctr * 100, 2), 0.0, "CTR<0.1% 偏低，检查投放时段/人群"])
+            rows.append([pid, channel, date, int(reach), int(click), 0, round(ctr * 100, 2), "超低CTR", "CTR<0.1% 偏低，检查投放时段/人群"])
         elif click >= ANOMALY_CLICK_MIN and order == 0:
-            rows.append(["无转化", channel, date, int(reach), int(click), 0, round(ctr * 100, 2), 0.0, "点击≥200但下单=0，可能优惠/链接失效"])
+            rows.append([pid, channel, date, int(reach), int(click), 0, round(ctr * 100, 2), "无转化", "点击≥200但下单=0，可能优惠/链接失效"])
         elif click > 0 and order > click:
-            rows.append(["转化率倒挂", channel, date, int(reach), int(click), int(order), round(ctr * 100, 2), round(cvr * 100, 2), "下单>点击，必为数据计算错误"])
+            rows.append([pid, channel, date, int(reach), int(click), int(order), round(ctr * 100, 2), "转化率倒挂", "下单>点击，必为数据计算错误"])
 
     if not rows:
-        return pd.DataFrame(columns=["异常类型", "渠道", "日期", "触达", "点击", "下单", "CTR", "GC转化", "提示"])
+        return pd.DataFrame(columns=_cols)
 
-    out = pd.DataFrame(rows, columns=["异常类型", "渠道", "日期", "触达", "点击", "下单", "CTR", "GC转化", "提示"])
+    out = pd.DataFrame(rows, columns=_cols)
     # 每类最多保留 ANOMALY_SAMPLE_LIMIT 条
     out = out.groupby("异常类型", group_keys=False).head(ANOMALY_SAMPLE_LIMIT).reset_index(drop=True)
     # 严重度排序：埋点型 > 转化率倒挂 > 超低 CTR > 无转化
@@ -411,4 +412,93 @@ def top_per_channel(dff: pd.DataFrame, n: int = 1) -> pd.DataFrame:
 
     sorted_df = dff.sort_values("综合评分", ascending=False, kind="mergesort")
     out = sorted_df.groupby("渠道", group_keys=False).head(n)[keep_cols].reset_index(drop=True)
+    return out
+
+
+# ═══════════════════════════════════════════════════════════════
+# 周报模块辅助（2026-08-04 新增）
+#
+# 两个函数：
+#   - top_n_overall：综合评分 ≥ 阈值 的全局 Top N（替代原来的每渠道 Top 1）
+#   - compute_channel_baseline：渠道 CTR 基期（按日聚合算术平均 + P75）
+# ═══════════════════════════════════════════════════════════════
+
+# Top 3 阈值：综合评分 < 此值不进 Top 3，"内容都烂"时不渲染 Top 段
+TOP_N_DEFAULT_MIN_SCORE = 80.0
+TOP_N_DEFAULT_N = 3
+
+
+def top_n_overall(dff: pd.DataFrame,
+                  min_score: float = TOP_N_DEFAULT_MIN_SCORE,
+                  n: int = TOP_N_DEFAULT_N) -> pd.DataFrame:
+    """全局 Top N（按综合评分降序，先按阈值筛选）。
+
+    业务定义（v5 周报）：用户要"陈列 3 个综合评分高的内容"，且
+    "如果内容都特别烂就没啥好 top3"。所以默认 min_score=80，n=3。
+    阈值/数量可由调用方覆盖。
+
+    入参 dff 是 aggregate_by_content + compute_filtered_scores 之后的结果。
+    没达标时返回空 DataFrame（不报错），让 UI 决定是否渲染。
+    """
+    if dff.empty or "综合评分" not in dff.columns or n < 1:
+        return dff.iloc[0:0].copy()
+
+    qualified = dff[dff["综合评分"] >= min_score]
+    if qualified.empty:
+        return qualified.iloc[0:0].copy()
+
+    keep_cols = [c for c in [
+        "渠道", "plan_id", "标题", "内容",
+        "综合评分", "触达成功", "点击人次",
+        "CTR", "订单Sales",
+    ] if c in qualified.columns]
+
+    sorted_q = qualified.sort_values("综合评分", ascending=False, kind="mergesort")
+    out = sorted_q.head(n)[keep_cols].reset_index(drop=True)
+    return out
+
+
+def compute_channel_baseline(df: pd.DataFrame) -> pd.DataFrame:
+    """渠道 CTR 基期（按日聚合：算术平均 + P75）
+
+    业务定义（v5 周报）：用户判断"渠道最近好不好"的两个参考点。
+      - 基期 CTR 均值：按日算 CTR 后取算术平均（不被大触达加权，对抗小样本噪声）
+      - 上四分位 CTR：按日算 CTR 后取 P75
+
+    入参 df 是**未筛选的全量上传数据**（与 compute_channel_quantiles 同口径）。
+    返回 DataFrame：index=渠道，columns=[CTR均值, CTR P75]。
+    缺关键列/空表时返回空 DataFrame（columns 与正常输出一致，方便 UI 跳过）。
+    """
+    empty_cols = ["CTR均值", "CTR P75"]
+    required = {"发送日期", "渠道", "触达成功", "点击人次"}
+    if not required.issubset(df.columns) or df.empty:
+        return pd.DataFrame(columns=empty_cols)
+
+    daily = df.groupby(
+        ["发送日期", "渠道"], dropna=False,
+    ).agg(
+        触达成功=("触达成功", "sum"),
+        点击人次=("点击人次", "sum"),
+    ).reset_index()
+
+    daily["CTR"] = safe_pct_rate(daily["点击人次"], daily["触达成功"])
+
+    # 按日 CTR 算渠道均值/P75（每日 0 触达的渠道会被 safe_pct_rate 兜成 0 拉低均值）
+    grp = daily.groupby("渠道")["CTR"]
+    out = pd.DataFrame({
+        "CTR均值": grp.mean().round(2),
+        "CTR P75": grp.quantile(0.75).round(2),
+    })
+
+    # "全部" 行：每日全渠道总点击/总触达 → 每日全渠道 CTR → mean/P75
+    # 口径与各渠道行不同（各渠道：按日先 CTR 再 mean；全部：按日先总 CTR 再 mean）
+    daily_all = df.groupby("发送日期").agg(
+        触达=("触达成功", "sum"),
+        点击=("点击人次", "sum"),
+    ).reset_index()
+    daily_all["CTR"] = safe_pct_rate(daily_all["点击"], daily_all["触达"])
+    out.loc["全部"] = [
+        round(float(daily_all["CTR"].mean()), 2),
+        round(float(daily_all["CTR"].quantile(0.75)), 2),
+    ]
     return out

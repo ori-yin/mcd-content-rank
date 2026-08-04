@@ -14,10 +14,13 @@ from scoring import (
     compute_derived_metrics,
     compute_filtered_scores,
     aggregate_by_content,
-    compute_bu_scores,
     compute_channel_quantiles,
     detect_anomalies,
     top_per_channel,
+    top_n_overall,
+    compute_channel_baseline,
+    TOP_N_DEFAULT_MIN_SCORE,
+    TOP_N_DEFAULT_N,
     PENALTY_BINS,
     PENALTY_LABELS,
     EXP,
@@ -204,21 +207,6 @@ if __name__ == "__main__":
     test_filtered_penalty_five_tiers()
     test_aggregate_same_message_units_merge()
     test_aggregate_fallback_no_message_id()
-    # BU 评分也快速冒烟（用与卡片榜一致的口径）
-    print("\n[+] compute_bu_scores 与卡片榜口径一致冒烟")
-    bu_agg = pd.DataFrame({
-        "触达": [10000, 5000, 500],
-        "点击": [200, 150, 50],
-        "点击后下单": [20, 15, 5],
-        "CTR": [2.0, 3.0, 10.0],
-        "下单转化": [10.0, 10.0, 10.0],
-    })
-    out_bu = compute_bu_scores(bu_agg, norm_reach=0.25, norm_ctr=0.55, norm_gc=0.20)
-    assert_eq(int(out_bu["排名"].iloc[0]), 1, "BU 综合评分第一名为 1")
-    assert "BU综合评分" in out_bu.columns, "BU综合评分 列已生成"
-    assert "CTR_norm" in out_bu.columns, "CTR_norm 列已生成"
-    assert "触达_norm" in out_bu.columns, "触达_norm 列已生成"
-    print(f"  [INFO] BU 排名结果：\n{out_bu[['排名', '触达', 'BU综合评分']]}")
 
     # ─── T9: compute_channel_quantiles shape ───
     print("\n[T9] compute_channel_quantiles 多渠道 shape")
@@ -311,6 +299,82 @@ if __name__ == "__main__":
     one_row = pd.DataFrame({"渠道": ["APP Push"], "plan_id": ["P1"], "综合评分": [60.0]})
     out_o = top_per_channel(one_row, n=1)
     assert_eq(len(out_o), 1, "单渠道 1 条 n=1 仍返回 1 行")
+
+    # ─── T15: top_n_overall 默认阈值筛选 ───
+    print("\n[T15] top_n_overall 默认 min_score=80 阈值筛选")
+    dff_t15 = pd.DataFrame({
+        "渠道": ["APP Push", "APP Push", "企微1v1", "短信"],
+        "plan_id": ["P1", "P2", "P3", "P4"],
+        "标题": ["T1", "T2", "T3", "T4"],
+        "内容": ["C1", "C2", "C3", "C4"],
+        "综合评分": [90, 75, 85, 50],
+        "触达成功": [10000, 8000, 5000, 1000],
+        "点击人次": [300, 200, 100, 10],
+        "CTR": [3.0, 2.5, 2.0, 1.0],
+        "下单转化": [14.0, 12.0, 10.0, 5.0],
+        "订单Sales": [500.0, 400.0, 300.0, 100.0],
+    })
+    out_t15 = top_n_overall(dff_t15)
+    # 90 + 85 两条达标；75 和 50 被过滤；n=3 但只有 2 条达标 → 返回 2 条
+    assert_eq(len(out_t15), 2, "4 行但仅 2 行 ≥80 → 返回 2 行")
+    assert_eq(int(out_t15["综合评分"].iloc[0]), 90, "第 1 名 = 90")
+    assert_eq(int(out_t15["综合评分"].iloc[1]), 85, "第 2 名 = 85")
+    # 列保留：渠道/plan_id/标题/内容/综合评分/触达成功/点击人次/CTR/下单转化/订单Sales
+    expected_cols = {"渠道", "plan_id", "标题", "内容", "综合评分", "触达成功", "点击人次", "CTR", "订单Sales"}
+    assert_eq(set(out_t15.columns) == expected_cols, True, "top_n_overall 列保留完整")
+
+    # ─── T16: top_n_overall 没达标返回空 ───
+    print("\n[T16] top_n_overall 全不达标返回空")
+    dff_t16 = pd.DataFrame({
+        "渠道": ["APP Push", "企微1v1"],
+        "plan_id": ["P1", "P2"],
+        "综合评分": [70, 50],
+    })
+    out_t16 = top_n_overall(dff_t16)
+    assert_eq(len(out_t16), 0, "无 ≥80 行 → 返回空 DataFrame")
+
+    # ─── T17: top_n_overall 自定义参数 ───
+    print("\n[T17] top_n_overall min_score=60, n=2")
+    out_t17 = top_n_overall(dff_t15, min_score=60, n=2)
+    # 90/85/75 三条 ≥60，取前 2
+    assert_eq(len(out_t17), 2, "≥60 前 2 → 2 行")
+    assert_eq(int(out_t17["综合评分"].iloc[0]), 90, "n=2 第 1 名 = 90")
+    assert_eq(int(out_t17["综合评分"].iloc[1]), 85, "n=2 第 2 名 = 85")
+
+    # ─── T18: compute_channel_baseline 算术平均（小样本高 CTR 不被加权放大）───
+    print("\n[T18] compute_channel_baseline 算术平均不被大触达加权")
+    df_t18 = pd.DataFrame({
+        "发送日期": pd.to_datetime([
+            "2026-07-01", "2026-07-02", "2026-07-03", "2026-07-04",  # APP Push 4 天
+            "2026-07-01", "2026-07-02", "2026-07-03", "2026-07-04",  # 企微1v1 4 天
+        ]),
+        "渠道": ["APP Push"] * 4 + ["企微1v1"] * 4,
+        "触达成功": [100000, 1000, 1000, 1000,   # APP: 大触达低 CTR + 3 天中触达中 CTR
+                     10, 10, 10, 10],
+        "点击人次": [100, 10, 10, 20,           # APP: 0.10% + 1.00% + 1.00% + 2.00%
+                     1, 2, 3, 4],              # 企微: 10% / 20% / 30% / 40%
+    })
+    out_t18 = compute_channel_baseline(df_t18)
+    # APP Push: (0.10 + 1.00 + 1.00 + 2.00) / 4 = 1.025，round(2) → 1.02（不被 100K 加权成 0.10）
+    app_mean = float(out_t18.loc["APP Push", "CTR均值"])
+    assert_eq(round(app_mean, 2), 1.02, "APP Push 算术平均 = 1.02（不被 100K 加权）")
+    # 企微1v1: (10+20+30+40) / 4 = 25
+    wx_mean = float(out_t18.loc["企微1v1", "CTR均值"])
+    assert_eq(round(wx_mean, 2), 25.0, "企微1v1 算术平均 = 25")
+    # P75: APP Push of [0.10, 1.00, 1.00, 2.00]，pandas 默认线性插值：index=2.25 → 1.00 + 0.25*1.00 = 1.25
+    app_p75 = float(out_t18.loc["APP Push", "CTR P75"])
+    assert_eq(round(app_p75, 2), 1.25, "APP Push P75 线性插值 = 1.25")
+    # 企微1v1 of [10, 20, 30, 40]：index=2.25 → 30 + 0.25*10 = 32.5
+    wx_p75 = float(out_t18.loc["企微1v1", "CTR P75"])
+    assert_eq(round(wx_p75, 2), 32.5, "企微1v1 P75 线性插值 = 32.5")
+
+    # ─── T19: compute_channel_baseline 空表/缺列兜底 ───
+    print("\n[T19] compute_channel_baseline 空表/缺关键列兜底")
+    out_t19_empty = compute_channel_baseline(pd.DataFrame())
+    assert_eq(len(out_t19_empty), 0, "空 df 返回空")
+    assert_eq(list(out_t19_empty.columns), ["CTR均值", "CTR P75"], "空表 columns 仍正确")
+    out_t19_missing = compute_channel_baseline(pd.DataFrame({"发送日期": pd.to_datetime(["2026-07-01"])}))
+    assert_eq(len(out_t19_missing), 0, "缺关键列返回空")
 
     print("\n" + "=" * 60)
     print("[OK] 所有冒烟测试通过")

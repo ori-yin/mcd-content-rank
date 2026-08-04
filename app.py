@@ -10,7 +10,7 @@ from datetime import timedelta
 from config import MCD_RED, MCD_GOLD, OWNER_COL, API_PROVIDERS, PAGE_SIZE, DEFAULT_W_REACH, DEFAULT_W_CTR, DEFAULT_W_GC, CTR_THRESHOLDS, CVR_THRESHOLDS, THEMES
 from styles import get_css
 from data_cleaning import clean_raw_csv, read_cleaned_csv, clean_raw_xlsx, read_cleaned_xlsx, _parse_date_column, DATE_COL
-from scoring import compute_derived_metrics, compute_full_scores, compute_filtered_scores, safe_pct_rate, piecewise_score_vec, aggregate_by_content, compute_bu_scores, compute_channel_quantiles, detect_anomalies, top_per_channel, PENALTY_BINS, PENALTY_LABELS, _plan_count_metric
+from scoring import compute_derived_metrics, compute_full_scores, compute_filtered_scores, safe_pct_rate, piecewise_score_vec, aggregate_by_content, compute_bu_scores, detect_anomalies, top_n_overall, compute_channel_baseline, PENALTY_BINS, PENALTY_LABELS, _plan_count_metric
 from llm_service import analyze_content
 
 
@@ -51,6 +51,80 @@ def _build_fingerprint(date_range, mode, sort_order, selected_plan, selected_cha
         tuple(date_range) if isinstance(date_range, list) else date_range,
         round(norm_reach, 4), round(norm_ctr, 4), round(norm_gc, 4),
     )
+
+
+def _build_channel_summary_table(channel_baseline, dff):
+    """构造渠道汇总表（v5：3 模块静态表）
+
+    列：渠道｜计划数｜触达成功｜点击人次｜CTR｜CTR基期均值｜CTR上四分位
+    排序：全部 → APP Push → 企微1v1 → 短信 → 其他渠道
+    列值都是数字（None 表示无基期数据）；渲染时 st.dataframe 用 column_config 加 % + 右对齐
+
+    channel_baseline：scoring.compute_channel_baseline(df) 输出
+                     index=渠道，columns=[CTR均值, CTR P75]
+                     None / 空 时基期两列填 None
+    dff：当前周期已聚合的 DataFrame（aggregate_by_content 之后）
+    """
+    from llm_service import aggregate_channel_stats, CHANNEL_DISPLAY_ORDER
+
+    stats = aggregate_channel_stats(dff)
+    if stats.empty:
+        return pd.DataFrame()
+
+    # 全部行：全渠道汇总
+    total_reach = int(stats["触达"].sum())
+    total_click = int(stats["点击"].sum())
+    total_plans = int(stats["计划数量"].sum())
+    total_ctr = (total_click / total_reach * 100) if total_reach > 0 else 0.0
+
+    def _baseline_for(ch):
+        if channel_baseline is None or channel_baseline.empty or ch not in channel_baseline.index:
+            return None, None
+        return round(float(channel_baseline.loc[ch, "CTR均值"]), 2), round(float(channel_baseline.loc[ch, "CTR P75"]), 2)
+
+    rows = [{
+        "渠道": "全部",
+        "计划数": total_plans,
+        "触达成功": total_reach,
+        "点击人次": total_click,
+        "CTR": round(total_ctr, 2),
+        "CTR基期均值": _baseline_for("全部")[0],
+        "CTR上四分位": _baseline_for("全部")[1],
+    }]
+
+    ordered_rows = []
+    other_rows = []
+    for _, row in stats.iterrows():
+        ch = str(row["渠道"])
+        bm, bp = _baseline_for(ch)
+        r = {
+            "渠道": ch,
+            "计划数": int(row["计划数量"]),
+            "触达成功": int(row["触达"]),
+            "点击人次": int(row["点击"]),
+            "CTR": round(float(row["CTR"]), 2),
+            "CTR基期均值": bm,
+            "CTR上四分位": bp,
+        }
+        if ch in CHANNEL_DISPLAY_ORDER:
+            ordered_rows.append(r)
+        else:
+            other_rows.append(r)
+
+    rows.extend(ordered_rows)
+    rows.extend(other_rows)
+    return pd.DataFrame(rows)
+
+
+def _split_ai_sections(text):
+    """从 AI 输出提取 ## 一、整体效果 和 ## 二、数据异常 两段正文
+
+    容错：AI 可能在前面加废话或在后面追加其他段落；用正则精确切片。
+    """
+    import re
+    m1 = re.search(r"##\s*一、整体效果\s*\n(.+?)(?=^##\s|\Z)", text or "", re.MULTILINE | re.DOTALL)
+    m2 = re.search(r"##\s*二、数据异常\s*\n(.+?)(?=^##\s|\Z)", text or "", re.MULTILINE | re.DOTALL)
+    return (m1.group(1).strip() if m1 else ""), (m2.group(1).strip() if m2 else "")
 
 st.set_page_config(
     page_title="内容排行榜",
@@ -395,119 +469,91 @@ if df is not None:
         selected_plan, selected_channel, selected_owner, keyword, plan_id_query,
         norm_reach, norm_ctr, norm_gc,
     )
+
+    # 共享准备：当前 period / 渠道基期（全量上传数据按日聚合）/ Top 3 / 异常 / 渠道汇总表
+    current_period = None
+    if date_range is not None and isinstance(date_range, (list, tuple)) and len(date_range) == 2:
+        _s, _e = date_range
+        if pd.notna(_s) and pd.notna(_e):
+            current_period = (_s, _e)
+    channel_baseline = compute_channel_baseline(df)
+    top3_df = top_n_overall(dff)
+    anomalies_df = detect_anomalies(dff)
+    _channel_table = _build_channel_summary_table(channel_baseline, dff)
+
+    # 数字列配置：百分比列加 % 后缀、整数列加千分位；都右对齐
+    _pct_cols = st.column_config.NumberColumn(format="%.2f%%", alignment="right")
+    _int_cols = st.column_config.NumberColumn(format="%,.0f", alignment="right")
+
+    def _render_ai_summary(ai_summary_text):
+        """渲染 3 模块：整体效果 / 数据异常 / Top 3（v5）"""
+        overall, anomaly = _split_ai_sections(ai_summary_text)
+        st.markdown("## 一、整体效果")
+        st.markdown(overall if overall else "（暂无）")
+        st.dataframe(
+            _channel_table,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "计划数": _int_cols,
+                "触达成功": _int_cols,
+                "点击人次": _int_cols,
+                "CTR": _pct_cols,
+                "CTR基期均值": _pct_cols,
+                "CTR上四分位": _pct_cols,
+            },
+        )
+
+        st.markdown("## 二、数据异常")
+        st.markdown(anomaly if anomaly else "（暂无）")
+        if not anomalies_df.empty:
+            st.dataframe(anomalies_df, use_container_width=True, hide_index=True)
+
+        st.markdown("## 三、Top 3 内容（综合评分 ≥ 80）")
+        if top3_df.empty:
+            st.caption("（无评分 ≥ 80 的内容）")
+        else:
+            _top3_disp = top3_df.rename(columns={
+                "plan_id": "Plan ID",
+                "订单Sales": "Sales",
+                "内容": "正文",
+            })
+            _show_cols = [c for c in ["渠道", "Plan ID", "标题", "正文", "CTR", "Sales"] if c in _top3_disp.columns]
+            st.dataframe(
+                _top3_disp[_show_cols],
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "CTR": _pct_cols,
+                    "Sales": _int_cols,
+                },
+            )
+
     if st.session_state.pop("ai_summary_clicked", False):
         if not ai_api_key:
             st.warning("请先在侧边栏「AI配置」中填写 API Key")
         else:
-            from llm_service import aggregate_channel_stats, aggregate_bu_stats, analyze_summary, build_summary_prompt
-
-            # 获取历史数据（上个周期）
-            historical_channel = None
-            historical_bu = None
-            current_period = None
-            historical_period = None
-
-            if date_range is not None and isinstance(date_range, (list, tuple)) and len(date_range) == 2:
-                start_dt, end_dt = date_range
-                if pd.notna(start_dt) and pd.notna(end_dt):
-                    # 计算日期范围长度
-                    delta = (end_dt - start_dt).days
-                    # 计算上个周期的日期范围
-                    hist_end = start_dt - timedelta(days=1)
-                    hist_start = hist_end - timedelta(days=delta)
-                    current_period = (start_dt, end_dt)
-                    historical_period = (hist_start, hist_end)
-
-                    # 获取历史数据（上界 < start，避免与当前窗口在 start 00:00 重叠）
-                    hist_df = df[
-                        (df[date_col] >= pd.to_datetime(hist_start)) &
-                        (df[date_col] < pd.to_datetime(start_dt))
-                    ]
-
-                    # 应用其他筛选条件
-                    if selected_plan != "全部":
-                        hist_df = hist_df[hist_df["计划类型"] == selected_plan]
-                    if selected_channel != "全部":
-                        hist_df = hist_df[hist_df["渠道"] == selected_channel]
-                    if selected_owner != "全部":
-                        hist_df = hist_df[hist_df[owner_col] == selected_owner]
-                    if keyword:
-                        kw = keyword.lower()
-                        mask = pd.Series(False, index=hist_df.index)
-                        title_candidates = [c for c in ["标题", "消息标题"] if c in hist_df.columns]
-                        if title_candidates:
-                            mask |= hist_df[title_candidates[0]].astype(str).str.lower().str.contains(kw, na=False, regex=False)
-                        if "内容" in hist_df.columns:
-                            mask |= hist_df["内容"].astype(str).str.lower().str.contains(kw, na=False, regex=False)
-                        hist_df = hist_df[mask]
-
-                    hist_df = filter_by_plan_id(hist_df, plan_id_query)
-
-                    if not hist_df.empty:
-                        # 历史周期同样走内容级聚合，否则与当前周期粒度不一致无法对比
-                        hist_df = aggregate_by_content(hist_df)
-                        hist_df = compute_derived_metrics(hist_df)
-                        hist_df = compute_filtered_scores(hist_df, norm_reach, norm_ctr, norm_gc)
-                        historical_channel = aggregate_channel_stats(hist_df)
-                        historical_bu = aggregate_bu_stats(hist_df)
-
-            # 聚合当前数据
+            from llm_service import aggregate_channel_stats, analyze_summary
             channel_stats = aggregate_channel_stats(dff)
-            bu_stats = aggregate_bu_stats(dff)
 
-            # 5 分位基线（基于全量历史）+ 异常检测（基于全量历史）+ Top 1（基于当前周期）
-            quantile_baseline = compute_channel_quantiles(df)
-            top_per_ch_df = top_per_channel(dff, n=1)
-            anomalies_df = detect_anomalies(df)
-
-            # 用 st.expander 自带折叠；CSS data-testid 锁定内部样式
             with st.expander("AI 总结分析", expanded=False):
                 with st.spinner("AI 正在分析..."):
                     summary_result = analyze_summary(
                         ai_api_key, ai_provider, ai_model,
-                        channel_stats, bu_stats,
-                        historical_channel, historical_bu,
-                        current_period, historical_period,
-                        quantile_baseline, top_per_ch_df, anomalies_df,
+                        channel_stats,
+                        current_period,
+                        channel_baseline, anomalies_df,
                     )
                 st.session_state.ai_summary_result = summary_result
                 st.session_state.ai_summary_fp = _summary_fp
-                # 同时缓存 Top 内容 DataFrame（用于重渲染时恢复静态表格）
-                _top_cache = top_per_ch_df.copy()
-                if "标题" not in _top_cache.columns and "消息标题" in _top_cache.columns:
-                    _top_cache["标题"] = _top_cache["消息标题"]
-                _top_cache = _top_cache.rename(columns={
-                    "plan_id": "Plan ID", "综合评分": "评分",
-                    "触达成功": "触达", "点击人次": "点击",
-                    "下单转化": "转化率", "渠道": "渠道", "标题": "标题", "内容": "正文",
-                })
-                _top_show_cols = [c for c in ["渠道", "Plan ID", "标题", "正文", "评分", "触达", "点击", "CTR", "转化率"] if c in _top_cache.columns]
-                st.session_state.ai_summary_top_df = _top_cache[_top_show_cols]
-                st.caption(f"现期：{start_dt} ~ {end_dt} ｜ 基期：{hist_start} ~ {hist_end}" if current_period else "")
-                st.markdown(summary_result)
-                # Top 内容用静态表格展示（不靠 AI 总结）
-                if not top_per_ch_df.empty:
-                    st.markdown("## 四、Top 内容（每渠道 1 条，按综合评分）")
-                    _top_disp = top_per_ch_df.copy()
-                    if "标题" not in _top_disp.columns and "消息标题" in _top_disp.columns:
-                        _top_disp["标题"] = _top_disp["消息标题"]
-                    _top_disp = _top_disp.rename(columns={
-                        "plan_id": "Plan ID", "综合评分": "评分",
-                        "触达成功": "触达", "点击人次": "点击",
-                        "下单转化": "转化率", "渠道": "渠道", "标题": "标题", "内容": "正文",
-                    })
-                    _top_show = [c for c in ["渠道", "Plan ID", "标题", "正文", "评分", "触达", "点击", "CTR", "转化率"] if c in _top_disp.columns]
-                    st.dataframe(_top_disp[_top_show], use_container_width=True, hide_index=True)
+                # 缓存 Top 3 用于重渲染（空表也缓存，让 UI 决定渲染与否）
+                st.session_state.ai_summary_top_df = top3_df.copy() if not top3_df.empty else pd.DataFrame()
+                _render_ai_summary(summary_result)
     else:
-        # 未点击但缓存命中：直接显示，避免交互后总结消失、避免重复调 API
         _cached = st.session_state.get("ai_summary_result")
-        _cached_top = st.session_state.get("ai_summary_top_df")
         if _cached is not None and st.session_state.get("ai_summary_fp") == _summary_fp:
             with st.expander("AI 总结分析", expanded=False):
-                st.markdown(_cached)
-                if _cached_top is not None and not _cached_top.empty:
-                    st.markdown("## 四、Top 内容（每渠道 1 条，按综合评分）")
-                    st.dataframe(_cached_top, use_container_width=True, hide_index=True)
+                _render_ai_summary(_cached)
 
     # ─── Tab 切换 ─────────────────────────────────────────────
     tab1, tab_bu, tab2, tab3 = st.tabs(["卡片排行榜", "BU排行榜", "算法说明", "数据表格"])
