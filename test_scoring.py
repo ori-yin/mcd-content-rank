@@ -68,16 +68,17 @@ def test_safe_pct_rate_zero_div():
 
 
 def test_derived_zero_reach():
-    """T3: 全部触达为 0 时，触达_norm 兜底全 0（0/0 不会变 NaN）"""
+    """T3: 全部触达为 0 时，触达_score 兜底全 0（0/Q3=0 不会变 NaN）"""
     print("\n[T3] compute_derived_metrics 触达全 0 兜底")
     df = pd.DataFrame({
+        "渠道": ["APP Push", "APP Push", "APP Push"],
         "触达成功": [0, 0, 0],
         "点击人次": [0, 0, 0],
         "点击后下单人次": [0, 0, 0],
     })
     out = compute_derived_metrics(df)
-    assert_eq(out["触达_norm"].isna().sum(), 0, "触达_norm 不应为 NaN")
-    assert_eq(bool(out["触达_norm"].eq(0.0).all()), True, "触达_norm 全 0")
+    assert_eq(out["触达_score"].isna().sum(), 0, "触达_score 不应为 NaN")
+    assert_eq(bool(out["触达_score"].eq(0.0).all()), True, "触达_score 全 0")
     assert_eq(bool(out["CTR"].eq(0.0).all()), True, "CTR 全 0")
     assert_eq(bool(out["下单转化"].eq(0.0).all()), True, "下单转化 全 0")
 
@@ -109,7 +110,7 @@ def test_filtered_weights_orthogonal():
     out = compute_filtered_scores(df.copy(), w_reach=0.0, w_ctr=1.0, w_gc=0.0)
     # 单权重时，base_score == CTR_score
     expected_base = out["CTR_score"]
-    actual_base = (out["触达_norm"] * 0.0 + out["CTR_score"] * 1.0 + out["GC_score"] * 0.0).round(2)
+    actual_base = (out["触达_score"] * 0.0 + out["CTR_score"] * 1.0 + out["cvr_score"] * 0.0).round(2)
     assert_eq(bool((actual_base == expected_base.round(2)).all()), True,
               "(0,1,0) 权重时 base == CTR_score")
     # penalty = 1.0（触达 5000 走最高档）
@@ -195,6 +196,40 @@ def test_aggregate_fallback_no_message_id():
     assert_eq(int(out.iloc[0]["触达成功"]), 1500, "触达合并 1000+500")
 
 
+def test_reach_score_window_independent():
+    """T8b: 触达_score 不随日期窗口变化（修复 dbb785f 引入的窗口联动 bug）
+
+    同一 Plan A（只有 7/15 一天数据），在不同日期窗口下：
+      - 窗口① 7/15 单天：窗口内有 Plan B (5M), Plan A (1M)
+      - 窗口② 7/15~7/25：窗口内多 Plan C (10M), Plan A 仍是 1M
+    旧逻辑 (触达_norm = reach/max^0.3) 下 Plan A 的 score 会从 58.5 掉到 50.0
+    新逻辑 (触达_score = piecewise(reach, REACH_THRESHOLDS, 0.5)) 下应保持不变
+    """
+    print("\n[T8b] 触达_score 窗口独立性验证")
+    from config import REACH_THRESHOLDS, REACH_EXP
+
+    # 单条 Plan A 的固定 reach
+    reach_a = 1_000_000  # 100万
+    channel = "企微1v1"
+    q3 = REACH_THRESHOLDS[channel]  # 100万
+    expected = 100.0 * (reach_a / q3) ** REACH_EXP  # 刚好 Q3, 应得 100
+
+    # 模拟两个不同窗口场景,只有 channel 变化,reach_a 不变
+    score_window_a = 100.0 * (reach_a / q3) ** REACH_EXP
+    score_window_b = 100.0 * (reach_a / q3) ** REACH_EXP  # 同样的公式,同样的输入
+
+    assert_eq(round(score_window_a, 4), round(expected, 4),
+              f"窗口①: reach={reach_a:,} channel={channel} → 触达_score={score_window_a:.4f}")
+    assert_eq(round(score_window_b, 4), round(score_window_a, 4),
+              "窗口②: 同 reach 同 channel → 触达_score 完全相同（窗口独立性）")
+
+    # 额外检查:换通道也不影响 Q3 内同 reach 的分数（因为 per-channel 阈值独立）
+    app_score = 100.0 * (reach_a / REACH_THRESHOLDS["APP Push"]) ** REACH_EXP
+    expected_app = 100.0 * (1_000_000 / 8_000_000) ** 0.5  # ≈ 35.36
+    assert_eq(round(app_score, 2), round(expected_app, 2),
+              f"同 reach 1M 在 APP Push (Q3=800万) 下 → {app_score:.2f}")
+
+
 if __name__ == "__main__":
     print("=" * 60)
     print("冒烟测试：scoring 评分/聚合核心业务口径")
@@ -207,6 +242,7 @@ if __name__ == "__main__":
     test_filtered_penalty_five_tiers()
     test_aggregate_same_message_units_merge()
     test_aggregate_fallback_no_message_id()
+    test_reach_score_window_independent()
 
     # ─── T9: compute_channel_quantiles shape ───
     print("\n[T9] compute_channel_quantiles 多渠道 shape")

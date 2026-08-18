@@ -7,6 +7,7 @@ import pandas as pd
 from config import (
     CTR_THRESHOLDS, CVR_THRESHOLDS,
     CTR_UNKNOWN_THRESHOLD, CVR_UNKNOWN_THRESHOLD, EXP,
+    REACH_THRESHOLDS, REACH_UNKNOWN_THRESHOLD, REACH_EXP,
     DEFAULT_W_REACH, DEFAULT_W_CTR, DEFAULT_W_GC,
     OWNER_COL,
 )
@@ -157,10 +158,15 @@ def aggregate_by_content(df: pd.DataFrame, date_col: str = DATE_COL) -> pd.DataF
 
 
 
-def piecewise_score_vec(G_col, threshold_col):
-    """向量化版本：整列一次计算，比 apply 快 100 倍"""
+def piecewise_score_vec(G_col, threshold_col, exp=None):
+    """向量化版本：整列一次计算，比 apply 快 100 倍
+
+    exp: 幂次。默认 None 走全局 EXP=1.5（CTR/CVR 用，先慢后快）。
+         触达场景传 0.5（先快后慢，边际效用递减）。
+    """
+    _exp = exp if exp is not None else EXP
     ratio = G_col / threshold_col
-    return np.where(ratio >= 1, 100.0, 100.0 * ratio ** EXP)
+    return np.where(ratio >= 1, 100.0, 100.0 * ratio ** _exp)
 
 
 def safe_pct_rate(num, denom):
@@ -169,7 +175,12 @@ def safe_pct_rate(num, denom):
 
 
 def compute_derived_metrics(df: pd.DataFrame) -> pd.DataFrame:
-    """计算 CTR、下单转化、触达归一化"""
+    """计算 CTR、下单转化、触达分数（per-channel Q3, EXP=0.5）
+
+    触达分数 = piecewise(reach, REACH_THRESHOLDS[渠道], exp=0.5)
+    2026-08-18 之前用"窗口内 max"做 max-min 归一化，导致日期筛选改变窗口 max
+    时分数跟着变。改为 per-channel 固定 Q3 阈值后，分数完全独立于日期筛选。
+    """
     df["CTR"] = (df["点击人次"] / df["触达成功"] * 100).round(2)
     df["CTR"] = df["CTR"].replace([float("inf"), -float("inf")], 0).fillna(0)
 
@@ -177,25 +188,31 @@ def compute_derived_metrics(df: pd.DataFrame) -> pd.DataFrame:
     df["下单转化"] = (df.get("点击后下单人次", 0) / df["点击人次"] * 100).round(2)
     df["下单转化"] = df["下单转化"].replace([float("inf"), -float("inf")], 0).fillna(0)
 
-    # 触达_max=0（全部触达为0）时 0/0=NaN，整列评分会变 NaN，这里兜底为 0
-    _reach_max = df["触达成功"].max()
-    if pd.isna(_reach_max) or _reach_max == 0:
-        df["触达_norm"] = 0.0
+    # 触达_score: per-channel 固定 Q3, EXP=0.5 (√x, 先快后慢)
+    # 分母是 config 里的固定阈值（不再用窗口 max），所以日期筛选不影响分数
+    # 缺 "渠道" 列时按 UNKNOWN 阈值兜底（旧 CSV 容错）
+    if "渠道" in df.columns:
+        _reach_thresh = df["渠道"].astype(str).map(REACH_THRESHOLDS).fillna(REACH_UNKNOWN_THRESHOLD)
     else:
-        df["触达_norm"] = ((df["触达成功"] / _reach_max) ** 0.3) * 100
+        _reach_thresh = pd.Series(REACH_UNKNOWN_THRESHOLD, index=df.index)
+    df["触达_score"] = piecewise_score_vec(df["触达成功"], _reach_thresh, exp=REACH_EXP)
     return df
 
 
 def compute_full_scores(df: pd.DataFrame) -> pd.DataFrame:
-    """计算全量数据的综合评分（用于渠道均值，不受筛选影响）"""
+    """计算全量数据的综合评分（用于渠道均值，不受筛选影响）
+
+    注：2026-08-18 之前用 触达_norm（窗口内 max 归一化），存在窗口联动问题。
+    现改用 触达_score（per-channel 固定 Q3），与 compute_filtered_scores 口径一致。
+    """
     _ctr_thresh = df["渠道"].astype(str).map(CTR_THRESHOLDS).fillna(CTR_UNKNOWN_THRESHOLD)
     df["CTR_score_full"] = piecewise_score_vec(df["CTR"], _ctr_thresh)
 
     _cvr_thresh = df["渠道"].astype(str).map(CVR_THRESHOLDS).fillna(CVR_UNKNOWN_THRESHOLD)
-    df["GC_score_full"] = piecewise_score_vec(df["下单转化"], _cvr_thresh)
+    df["cvr_score_full"] = piecewise_score_vec(df["下单转化"], _cvr_thresh)
 
     df["综合评分_full"] = (
-        df["触达_norm"] * DEFAULT_W_REACH + df["CTR_score_full"] * DEFAULT_W_CTR + df["GC_score_full"] * DEFAULT_W_GC
+        df["触达_score"] * DEFAULT_W_REACH + df["CTR_score_full"] * DEFAULT_W_CTR + df["cvr_score_full"] * DEFAULT_W_GC
     ) * pd.cut(
         df["触达成功"].fillna(0),
         bins=PENALTY_BINS,
@@ -205,17 +222,21 @@ def compute_full_scores(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def compute_filtered_scores(dff: pd.DataFrame, w_reach: float, w_ctr: float, w_gc: float) -> pd.DataFrame:
-    """计算筛选后的分段评分和综合评分"""
+    """计算筛选后的分段评分和综合评分
+
+    触达子分用 触达_score（per-channel Q3, EXP=0.5），不再受日期筛选影响。
+    CTR/GC 子分仍按当前窗口数据计算（同 Plan 内日聚合，分母是 Plan 自己）。
+    """
     _dff_ctr_thresh = dff["渠道"].astype(str).map(CTR_THRESHOLDS).fillna(CTR_UNKNOWN_THRESHOLD)
     dff["CTR_score"] = piecewise_score_vec(dff["CTR"], _dff_ctr_thresh)
 
     _dff_cvr_thresh = dff["渠道"].astype(str).map(CVR_THRESHOLDS).fillna(CVR_UNKNOWN_THRESHOLD)
-    dff["GC_score"] = piecewise_score_vec(dff["下单转化"], _dff_cvr_thresh)
+    dff["cvr_score"] = piecewise_score_vec(dff["下单转化"], _dff_cvr_thresh)
 
     base_score = (
-        dff["触达_norm"] * w_reach
+        dff["触达_score"] * w_reach
         + dff["CTR_score"] * w_ctr
-        + dff["GC_score"] * w_gc
+        + dff["cvr_score"] * w_gc
     ).round(2)
 
     reach_raw = dff["触达成功"].fillna(0)

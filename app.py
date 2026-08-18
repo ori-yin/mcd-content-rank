@@ -430,10 +430,11 @@ if df is not None:
     dff = filter_by_plan_id(dff, plan_id_query)
 
     # ─── 内容级聚合：一张卡 = 一个 Plan × 一条文案 ──────────────
-    # 必须在筛选之后：日期筛选决定统计窗口，窗口一变分数就跟着重算
+    # 必须在筛选之后：日期筛选决定统计窗口（窗口决定展示哪些卡片）
+    # 但 2026-08-18 起指标已固定化（per-channel Q3 阈值），窗口变化不再影响分数
     # 业务语义见 scoring.py 顶部「内容级聚合」注释
     dff = aggregate_by_content(dff)
-    # 聚合后重算 CTR / 下单转化 / 触达归一化（先求和再算率）
+    # 聚合后重算 CTR / 下单转化 / 触达分数（先求和再算率）
     dff = compute_derived_metrics(dff)
 
     # ─── 计算筛选后的综合评分 ──────────────────────────────────
@@ -613,15 +614,15 @@ if df is not None:
                 else:
                     penalty_coef_t, penalty_label = 1.0, "置信度高(x1.0)"
 
-                reach_norm = getattr(row, '触达_norm', 0)
+                reach_score = getattr(row, '触达_score', 0)
                 ctr_score_t = getattr(row, 'CTR_score', 0)
-                gc_score_t = getattr(row, 'GC_score', 0)
-                base_score_t = round(reach_norm * norm_reach + ctr_score_t * norm_ctr + gc_score_t * norm_gc, 2)
+                gc_score_t = getattr(row, 'cvr_score', 0)
+                base_score_t = round(reach_score * norm_reach + ctr_score_t * norm_ctr + gc_score_t * norm_gc, 2)
                 impact_parts = []
-                if reach_norm < 33:
-                    impact_parts.append("触达偏低({:.1f})".format(reach_norm))
-                elif reach_norm > 67:
-                    impact_parts.append("触达偏高({:.1f})".format(reach_norm))
+                if reach_score < 33:
+                    impact_parts.append("触达偏低({:.1f})".format(reach_score))
+                elif reach_score > 67:
+                    impact_parts.append("触达偏高({:.1f})".format(reach_score))
                 if ctr_score_t < 33:
                     impact_parts.append("CTR偏低({:.1f})".format(ctr_score_t))
                 elif ctr_score_t > 67:
@@ -632,7 +633,7 @@ if df is not None:
                     impact_parts.append("下单转化率偏高({:.1f})".format(gc_score_t))
                 impact = " / ".join(impact_parts) if impact_parts else "各项均衡"
                 formula = "({:.1f}x{:.2f} + {:.1f}x{:.2f} + {:.1f}x{:.2f}) x {:.1f} = {:.2f}  [{}]".format(
-                    reach_norm, norm_reach, ctr_score_t, norm_ctr, gc_score_t, norm_gc,
+                    reach_score, norm_reach, ctr_score_t, norm_ctr, gc_score_t, norm_gc,
                     penalty_coef_t, score, penalty_label
                 )
                 tooltip_text = _html.escape(impact + chr(10) + formula)
